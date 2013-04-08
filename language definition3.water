@@ -1,0 +1,49 @@
+# language definition3.water
+#
+# A syntax specification for reading language definition files.
+# Kind of inception, I know.
+
+>
+  phrase -> blank | comment | statement | lang_def_start
+  blank ->
+    "\e"
+  comment ->
+    "#[^\n]*\e"
+  lang_def_start -> global_start | mode_start
+  global_start ->
+    ">\e  "
+    :
+      parse.push_mode('lang_def')
+      parse.endline += '  '
+  mode_start ->
+    "> " word "\e  "
+    :
+      parse.push_mode('lang_def', {'name': word.str})
+      parse.endline += '  '
+  word ->
+    "[A-Za-z_]\w*"
+
+> lang_def
+  phrase -> rule_start |: parse.pop_mode()
+  rule_start ->
+    '  ' no_indent_rule_start
+  no_indent_rule_start -> or_rule | seq_rule_start
+  or_rule ->
+    word '->' or_list
+  or_list -> rule_name | multi_or_list
+  multi_or_list -> std_multi_or_list | else_multi_or_list
+  std_multi_or_list ->
+    rule_name '|' or_list
+  else_multi_or_list ->
+    rule_name '|:' command
+  rule_name -> word
+  command ->
+    "[^\n]*\e"
+  seq_rule_start ->
+    word " ->\e  " seq
+    : parse.push_mode('seq_rule')
+
+> seq_rule
+
+
+    
