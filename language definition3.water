@@ -22,6 +22,9 @@
 # = (string)
 #  is a shortcut for bin.run(string) in a : block
 #
+# parse.push_mode(mode.id, opts) pushes mode.id onto the parser mode stack
+#   and opts is a dict that is added to the mode object.
+#
 
 >
   phrase -> blank | comment | statement | lang_def_start
@@ -29,6 +32,8 @@
     "\n"
   comment ->
     "#[^\n]*\n"
+  statement ->
+    "(?=a)b"
   lang_def_start -> global_start | mode_start
   global_start ->
     ">\n(?=(\s+))"
@@ -48,6 +53,7 @@
   rule_start -> or_rule | seq_rule_start | mode_rule_start
   or_rule ->
     word '->' or_list
+    : #TODO HERE
   or_list -> rule_name | multi_or_list
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
@@ -64,10 +70,14 @@
       parse.push_mode('rule_block', opts)
   seq -> item | item_list
   item -> str | rule_name
-  str -mode-> "['\"]" 
-    : parse.push_mode('str', {'endchar': tokens[0][0]})
+  str ->
+    "['\"]" -|
+    :
+      parse.push_mode('str', {'endchar': tokens[0][0]})
+      mode.chars = []
   item_list ->
     item ' ' seq
+  # TODO update for the new mode rule syntax
   mode_rule_start ->
     word " -mode-> " str
     : 
@@ -78,11 +88,24 @@
   phrase -> indented_rule_piece |: parse.pop_mode()
   indented_rule_piece ->
     "%(indent)s" rule_piece
-  rule_piece -> bin_piece | parse_piece | method_piece
-  # TODO
+  rule_item -> bin_item | parse_item | method_item
+  bin_item ->
+    '=' code_block
+  parse_item ->
+    ':' code_block
+  method_item ->
+    word ':' code_block
+  code_block -> one_line_code_block | indented_code_block
+  one_line_code_block ->
+    "\s+(\S.*)\n"
+  indented_code_block ->
+    "\s*\n%(indent)s(?=(\s+))" -|
+    :
+      opts = {'indent': mode.opts.indent + tokens[0][1]}
+      parse.push_mode('nested_code_block', opts)
+      mode.src = []
   
 > str
-  : mode.chars = []  # TODO add a grammar for this sort of thing
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
@@ -93,5 +116,13 @@
       c = tokens[0][0]
       mode.chars.append(c)
       if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+
+> nested_code_block
+  phrase -> indented_code_line |: parse.pop_mode()
+  indented_code_line ->
+    "%(indent)s" code_line
+  code_line ->
+    "[^\n]*\n"
+    : mode.src.append(tokens[0][0])
 
     
