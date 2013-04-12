@@ -4,17 +4,17 @@
 # Kind of inception, I know.
 #
 # Objects:
-#  api talks to the dynamic process
+#  bin talks to the dynamic process
 #  parse talks to the parser
 #    parse.push_mode(mode.name, mode.opts) adds new opts to the current
 #    parse.modes is a list with the mode stack, oldest-first
-#  mode is a synonym for parse.mode, which has mode.name and mode.opts
+#  mode is a synonym for parse.mode, which has:
+#    mode.id and mode.opts, as well as mode[s] as a shortcut for mode.opts.s
 #  tokens is a list of the parsed objects, with special treatment for regex's
 #  compiler is a global any-type object reserved for sharing data
 #    I might consider some scoping rules for the compiler object.
 #
-# api is a bad name; maybe rename to bin for binary?
-# If I use bin for an object, I could also use src for source.
+# I can consider using 'src' in place of 'code'.
 #
 # : (commands)
 #  is a set of python commands to be run as soon as the rule is parsed
@@ -25,64 +25,81 @@
 # parse.push_mode(mode.id, opts) pushes mode.id onto the parser mode stack
 #   and opts is a dict that is added to the mode object.
 #
+# A seq rule ending in -| is a mode rule. It's expected to push a mode, and
+#   is considered to be parsed when that mode is popped. The return value is
+#   stored in mode_result.
+#   Note that the : code block is always run when the full rule is parsed, so
+#   mode rules need a start: code block that's run just before -| is parsed,
+#   and this is where we expect the mode to be pushed.
+#
+# The only rule name known by the core is 'phrase', and it just keeps on
+# parsing in phrases. The standard setup will try to make it so that
+# we only need to redefine 'statement', and possibly 'comment'.
+#
 
 >
-  phrase -> blank | comment | statement | lang_def_start
+  phrase -> blank | comment | statement | grammar
   blank ->
     "\n"
   comment ->
     "#[^\n]*\n"
-  statement ->
-    "(?=a)b"
-  lang_def_start -> global_start | mode_start
-  global_start ->
-    ">\n(?=(\s+))"
-    : parse.push_mode('lang_def', {'indent': tokens[0][1]})
-  mode_start ->
-    "> " word "\n(?=(\s+))"
-    :
+  statement -> False
+  grammar -> global_grammar | mode_grammar
+  global_grammar ->
+    ">\n(?=(\s+))" -|
+    start: parse.push_mode('lang_def', {'indent': tokens[0][1]})
+  mode_grammar ->
+    "> " word "\n(?=(\s+))" -|
+    start:
       opts = {'name': word.str, 'indent': tokens[2][1]}
       parse.push_mode('lang_def', opts)
   word ->
     "[A-Za-z_]\w*"
 
 > lang_def
-  phrase -> indented_rule_start |: parse.pop_mode()
-  indented_rule_start ->
-    '%(indent)s' rule_start
-  rule_start -> or_rule | seq_rule_start | mode_rule_start
+  phrase -> indented_rule |: parse.pop_mode()
+  indented_rule ->
+    '%(indent)s' rule
+  rule -> false_rule | or_rule | seq_rule
+  false_rule ->
+    word "->\s+False"
+    : parse.false_rule(word.str)
   or_rule ->
-    word '->' or_list
-    : #TODO HERE
+    word ' -> ' or_list
+    : parse.or_rule(word.str, or_list.list)
   or_list -> rule_name | multi_or_list
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
-    rule_name '|' or_list
+    rule_name ' | ' or_list
+    list: return rule_name.list + or_list.list
   else_multi_or_list ->
-    rule_name '|:' command
-  rule_name -> word
+    rule_name ' |: ' command
+    list: return rule_name.list + [{'else': command.str}]
+  rule_name ->
+    word
+    list: return [word.str]
   command ->
     "[^\n]*\n"
-  seq_rule_start ->
-    word " ->\n%(indent)s(?=(\s+))" seq
-    : 
+  seq_rule ->
+    word " ->\n%(indent)s(?=(\s+))" seq -|
+    start: 
       opts = {'indent': mode.opts.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
-  seq -> item | item_list
+    : parse.seq_rule(word.str, seq.list)
+  seq -> item | item_list | mode_result
   item -> str | rule_name
   str ->
     "['\"]" -|
-    :
+    start:
       parse.push_mode('str', {'endchar': tokens[0][0]})
       mode.chars = []
+    list: return [mode_result]
   item_list ->
     item ' ' seq
-  # TODO update for the new mode rule syntax
-  mode_rule_start ->
-    word " -mode-> " str
-    : 
-      opts = {'indent': mode.opts.indent + tokens[1][1]}
-      parse.push_mode('rule_block', opts)
+    list: return item.list + seq.list
+  mode_result ->
+    '-|'
+    list: return ['-|']
 
 > rule_block
   phrase -> indented_rule_piece |: parse.pop_mode()
