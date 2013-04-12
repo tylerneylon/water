@@ -32,6 +32,9 @@
 #   mode rules need a start: code block that's run just before -| is parsed,
 #   and this is where we expect the mode to be pushed.
 #
+# Calling an unrecognized method on an OrRule delegates it to whatever rule was
+#   resolved to. This should also work with the str method.
+#
 # The only rule name known by the core is 'phrase', and it just keeps on
 # parsing in phrases. The standard setup will try to make it so that
 # we only need to redefine 'statement', and possibly 'comment'.
@@ -63,10 +66,10 @@
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
     word "->\s+False"
-    : parse.false_rule(word.str)
+    : parse.false_rule(word.str, mode=mode.name)
   or_rule ->
     word ' -> ' or_list
-    : parse.or_rule(word.str, or_list.list)
+    : parse.or_rule(word.str, or_list.list, mode=mode.name)
   or_list -> rule_name | multi_or_list
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
@@ -85,7 +88,7 @@
     start: 
       opts = {'indent': mode.opts.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
-    : parse.seq_rule(word.str, seq.list)
+      mode.rule = parse.seq_rule(word.str, seq.list, mode=mode.name)
   seq -> item | item_list | mode_result
   item -> str | rule_name
   str ->
@@ -102,22 +105,26 @@
     list: return ['-|']
 
 > rule_block
-  phrase -> indented_rule_piece |: parse.pop_mode()
-  indented_rule_piece ->
-    "%(indent)s" rule_piece
+  phrase -> indented_rule_item |: parse.pop_mode()
+  indented_rule_item ->
+    "%(indent)s" rule_item
   rule_item -> bin_item | parse_item | method_item
   bin_item ->
     '=' code_block
+    : mode.rule.add_fn('str', 'return ' + code_block.str)
   parse_item ->
     ':' code_block
+    : mode.rule.add_fn('parsed', code_block.str)
   method_item ->
     word ':' code_block
+    : mode.rule.add_fn(word, code_block.str)
   code_block -> one_line_code_block | indented_code_block
   one_line_code_block ->
     "\s+(\S.*)\n"
   indented_code_block ->
     "\s*\n%(indent)s(?=(\s+))" -|
-    :
+    = mode_result
+    start:
       opts = {'indent': mode.opts.indent + tokens[0][1]}
       parse.push_mode('nested_code_block', opts)
       mode.src = []
@@ -131,11 +138,13 @@
     "."
     :
       c = tokens[0][0]
-      mode.chars.append(c)
-      if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+      if c == mode.endchar:
+        parse.pop_mode(''.join(mode.chars))
+      else:
+        mode.chars.append(c)
 
 > nested_code_block
-  phrase -> indented_code_line |: parse.pop_mode()
+  phrase -> indented_code_line |: parse.pop_mode(''.join(mode.src))
   indented_code_line ->
     "%(indent)s" code_line
   code_line ->
