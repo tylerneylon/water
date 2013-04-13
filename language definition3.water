@@ -41,7 +41,7 @@
 #
 
 >
-  phrase -> blank | comment | statement | grammar
+  phrase -> statement | comment | blank | grammar
   blank ->
     "\n"
   comment ->
