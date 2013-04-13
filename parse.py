@@ -13,7 +13,9 @@ import re
 # Globals.
 
 rules = None
-
+modes = [{'id': '', 'opts': {}}]
+mode = modes[-1]
+parser = None
 
 ###############################################################################
 #
@@ -32,20 +34,37 @@ class Object(object):
   def __setitem__(self, name, value): self.__dict__[name] = value
 
 class Rule(Object):
-  def add_fn(fn_name, fn_code):
-    #TODO HERE
-    pass
+  def run_fn(self, fn_name, fn_code):
+    local = {}
+    exec fn_code in {}, local
+    local[fn_name](self)
+  def add_fn(self, fn_name, fn_code):
+    fn_code = ('def %s(self):' % fn_name) + fn_code
+    def run(self): self.run_fn(fn_name, fn_code)
+    self[fn_name] = run
 
 class SeqRule(Rule):
   def __init__(self, name, seq):
     self.name = name
     self.seq = seq
+  def parse_mode(self):
+    print('%s parse_mode' % self.name)
+    init_num_modes = len(modes)
+    if 'start' not in self.__dict__:
+      fmt = 'Grammar error: expected rule %s to have a "start" method.'
+      print(fmt % self.name)
+      exit(1)
+    self.start
+    # TODO Handle a StopIteration exception here (it's a user error, but we
+    #      should handle it gracefully).
+    while len(modes) > init_num_modes: parser.next()
   def parse(self, code, pos):
     print('%s parse' % self.name)
     pieces = {}
     startpos = pos
     for rule_name in self.seq:
       print('rule_name=%s' % rule_name)
+      if rule_name == '-|': return self.parse_mode()
       c = rule_name[0]
       if c == "'": val, pos = parse_exact_str(rule_name[1:], code, pos)
       elif c == '"': val, pos = parse_exact_re(rule_name[1:-1], code, pos)
@@ -74,6 +93,19 @@ class FalseRule(Rule):
   def parse(self, code, pos):
     return None, pos
 
+class ParseIterator(Object):
+  def __init__(self, filename):
+    f = open(filename)
+    self.code = f.read()
+    self.pos = 0
+    f.close()
+  def __iter__(self): return self
+  def next(self):
+    tree, self.pos = rules.phrase.parse(self.code, self.pos)
+    if tree: return tree
+    raise StopIteration
+    
+
 ###############################################################################
 #
 # Public functions.
@@ -93,14 +125,9 @@ def false_rule(name):
   return rules[name]
 
 def file(filename):
-  f = open(filename)
-  code = f.read()
-  f.close()
-  pos = 0
-  tree, pos = rules.phrase.parse(code, pos)
-  while tree:
-    yield tree
-    tree, pos = rules.phrase.parse(code, pos)
+  global parser
+  parser = ParseIterator(filename)
+  return parser
 
 ###############################################################################
 #
@@ -138,6 +165,7 @@ def get_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
+  #r.add_fn('start', " parse.push_mode('lang_def', {'indent': tokens[0][1]})")
 
   return rules
 

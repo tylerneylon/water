@@ -127,7 +127,7 @@
     start:
       opts = {'indent': mode.opts.indent + tokens[0][1]}
       parse.push_mode('nested_code_block', opts)
-      mode.src = []
+      mode.src = ['\n']
   
 > str
   phrase -> escape_seq | char
@@ -149,6 +149,6 @@
     "%(indent)s" code_line
   code_line ->
     "[^\n]*\n"
-    : mode.src.append(tokens[0][0])
+    : mode.src.append('  ' + tokens[0][0])
 
     
