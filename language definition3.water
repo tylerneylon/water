@@ -39,6 +39,13 @@
 # parsing in phrases. The standard setup will try to make it so that
 # we only need to redefine 'statement', and possibly 'comment'.
 #
+# Note on strings:
+#   "-delimited strings are regex's, '-ones are literals.
+#   For "-strings, the parser converts \" to an internal " and otherwise
+#   leaves escaped characters the same, which are converted within python
+#   to whatever they represent. For '-strings, \' is still converted, also by
+#   the parser, but otherwise everything else stays exactly the same.
+#
 
 >
   phrase -> statement | comment | blank | grammar
@@ -50,34 +57,38 @@
   grammar -> global_grammar | mode_grammar
   global_grammar ->
     ">\n(?=(\s+))" -|
-    start: parse.push_mode('lang_def', {'indent': tokens[0][1]})
+    start:
+      parse.push_mode('lang_def', {'indent': tokens[0][1]})
+      mode.rules = []
   mode_grammar ->
     "> " word "\n(?=(\s+))" -|
     start:
-      opts = {'name': word.str, 'indent': tokens[2][1]}
+      opts = {'name': word.str(), 'indent': tokens[2][1]}
       parse.push_mode('lang_def', opts)
+      mode.rules = []
   word ->
     "[A-Za-z_]\w*"
 
 > lang_def
-  phrase -> indented_rule |: parse.pop_mode()
+  phrase -> indented_rule |: parse.pop_mode(mode.rules)
   indented_rule ->
     '%(indent)s' rule
+    : mode.rules.append(rule)
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
     word "->\s+False"
-    : parse.false_rule(word.str, mode=mode.name)
+    : parse.false_rule(word.str(), mode=mode.name)
   or_rule ->
     word ' -> ' or_list
-    : parse.or_rule(word.str, or_list.list, mode=mode.name)
+    : parse.or_rule(word.str(), or_list.list(), mode=mode.name)
   or_list -> rule_name | multi_or_list
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
     rule_name ' | ' or_list
-    list: return rule_name.list + or_list.list
+    list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
     rule_name ' |: ' command
-    list: return rule_name.list + [{'else': command.str}]
+    list: return rule_name.list() + [{'else': command.str()}]
   rule_name ->
     word
     list: return [word.str]
@@ -88,7 +99,8 @@
     start: 
       opts = {'indent': mode.opts.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
-      mode.rule = parse.seq_rule(word.str, seq.list, mode=mode.name)
+      mode.rule = parse.seq_rule(word.str(), seq.list(), mode=mode.name)
+      mode.items = []
   seq -> item | item_list | mode_result
   item -> str | rule_name
   str ->
@@ -99,25 +111,26 @@
     list: return [mode_result]
   item_list ->
     item ' ' seq
-    list: return item.list + seq.list
+    list: return item.list() + seq.list()
   mode_result ->
     '-|'
     list: return ['-|']
 
 > rule_block
-  phrase -> indented_rule_item |: parse.pop_mode()
+  phrase -> indented_rule_item |: parse.pop_mode(mode.items)
   indented_rule_item ->
     "%(indent)s" rule_item
+    : mode.items.append(rule_item)
   rule_item -> bin_item | parse_item | method_item
   bin_item ->
     '=' code_block
-    : mode.rule.add_fn('str', 'return ' + code_block.str)
+    : mode.rule.add_fn('str', 'return ' + code_block.str())
   parse_item ->
     ':' code_block
-    : mode.rule.add_fn('parsed', code_block.str)
+    : mode.rule.add_fn('parsed', code_block.str())
   method_item ->
     word ':' code_block
-    : mode.rule.add_fn(word, code_block.str)
+    : mode.rule.add_fn(word.str(), code_block.str())
   code_block -> one_line_code_block | indented_code_block
   one_line_code_block ->
     "\s+(\S.*)\n"
@@ -133,7 +146,10 @@
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
-    : mode.chars.append(tokens[0][1])
+    :
+      if tokens[0][1] != mode.endchar:
+        mode.chars.append("\\")
+      mode.chars.append(tokens[0][1])
   char ->
     "."
     :
