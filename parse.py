@@ -8,6 +8,7 @@
 #
 
 import re
+import traceback # TEMP TODO
 
 
 # Globals.
@@ -28,7 +29,7 @@ class Object(object):
   def __getattribute__(self, name):
     val = object.__getattribute__(self, name)
     try: return val()
-    except: return val
+    except (NameError, TypeError): return val
   # Enable bracket-syntax on attributes, as in: retVal = myObj[methodName]
   def __getitem__(self, name): return self.__getattribute__(name)
   def __setitem__(self, name, value): self.__dict__[name] = value
@@ -40,7 +41,9 @@ class Rule(Object):
     local[fn_name](self)
   def add_fn(self, fn_name, fn_code):
     fn_code = ('def %s(self):' % fn_name) + fn_code
-    def run(self): self.run_fn(fn_name, fn_code)
+    def run():
+      print('run %s <%s>' % (fn_name, self.name))
+      self.run_fn(fn_name, fn_code)
     self[fn_name] = run
 
 class SeqRule(Rule):
@@ -49,6 +52,7 @@ class SeqRule(Rule):
     self.seq = seq
   def parse_mode(self):
     print('%s parse_mode' % self.name)
+    #traceback.print_stack()
     init_num_modes = len(modes)
     if 'start' not in self.__dict__:
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
@@ -58,13 +62,14 @@ class SeqRule(Rule):
     # TODO Handle a StopIteration exception here (it's a user error, but we
     #      should handle it gracefully).
     while len(modes) > init_num_modes: parser.next()
+    # TODO HERE Return the parse result.
   def parse(self, code, pos):
     print('%s parse' % self.name)
     pieces = {}
     startpos = pos
     for rule_name in self.seq:
       print('rule_name=%s' % rule_name)
-      if rule_name == '-|': return self.parse_mode()
+      if rule_name == '-|': return self.parse_mode
       c = rule_name[0]
       if c == "'": val, pos = parse_exact_str(rule_name[1:], code, pos)
       elif c == '"': val, pos = parse_exact_re(rule_name[1:-1], code, pos)
@@ -93,7 +98,7 @@ class FalseRule(Rule):
   def parse(self, code, pos):
     return None, pos
 
-class ParseIterator(Object):
+class ParseIterator(object):
   def __init__(self, filename):
     f = open(filename)
     self.code = f.read()
@@ -165,7 +170,7 @@ def get_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  #r.add_fn('start', " parse.push_mode('lang_def', {'indent': tokens[0][1]})")
+  r.add_fn('start', "\n  print('gg_start')\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})")
 
   return rules
 
