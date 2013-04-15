@@ -15,9 +15,12 @@ import traceback # TEMP TODO
 
 # Globals.
 
+all_rules = {}
 rules = None
-modes = [{'id': '', 'opts': {}}]
-mode = modes[-1]
+modes = []
+mode = None
+mode_result = None
+parse = None
 
 ###############################################################################
 #
@@ -45,11 +48,15 @@ class Object(object):
     return self.__getattribute__(name)
   def __setitem__(self, name, value): self.__dict__[name] = value
 
+
+# TODO Should add_fn and _run_fn only be available on SeqRule?
 class Rule(Object):
+
   def _run_fn(self, fn_name, fn_code):
-    local = {}
-    exec fn_code in {}, local
-    local[fn_name](self)
+    context = {'parse': parse, 'tokens': self.tokens}
+    exec fn_code in context
+    context[fn_name](self)
+
   def add_fn(self, fn_name, fn_code):
     fn_code = ('def %s(self):' % fn_name) + fn_code
     def run():
@@ -57,10 +64,13 @@ class Rule(Object):
       self._run_fn(fn_name, fn_code)
     self[fn_name] = run
 
+
 class SeqRule(Rule):
+
   def __init__(self, name, seq):
     self.name = name
     self.seq = seq
+
   def parse_mode(self, code, pos):
     print('%s parse_mode' % self.name)
     #traceback.print_stack()
@@ -70,10 +80,13 @@ class SeqRule(Rule):
       print(fmt % self.name)
       exit(1)
     self.start()
-    # TODO Handle a StopIteration exception here (it's a user error, but we
-    #      should handle it gracefully).
-    while len(modes) > init_num_modes: parser.next()
-    # TODO HERE Return the parse result.
+    while len(modes) > init_num_modes:
+      tree, pos = rules.phrase.parse(code, pos)
+      if tree is None: return None, self.startpos
+    results = {'tokens': self.tokens, 'mode_result': mode_result}
+    results.update(self.pieces)
+    return self.new_match(results), pos
+
   def parse(self, code, pos):
     print('%s parse' % self.name)
     self.tokens = []
@@ -88,28 +101,33 @@ class SeqRule(Rule):
       else:
         val, pos = rules[rule_name].parse(code, pos)
         if val: pieces[rule_name] = pieces.get(rule_name, []) + [val[rule_name]]
-      if val is None: return None, startpos
+      if val is None: return None, self.startpos
       self.tokens.append(val)
     for key in self.pieces:
       if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
     results = {'tokens': self.tokens}
     results.update(self.pieces)
     return self.new_match(results), pos
+
   def debug_print(self, indent='', or_cont=False):
     #print('self.__dict__ = %s' % `self.__dict__`)
     if or_cont: print()  # Print a newline.
     tokens = self.results['tokens']
     for i in range(len(self.seq)):
       print('%s%s -> %s' % (indent, self.seq[i], `tokens[i]`))
+
   def new_match(self, results):
     match = SeqRule(self.name, self.seq)
     match.results = results
     return match
 
+
 class OrRule(Rule):
+
   def __init__(self, name, or_list):
     self.name = name
     self.or_list = or_list
+
   def parse(self, code, pos):
     for r in self.or_list:
       val, pos = rules[r].parse(code, pos)
@@ -117,10 +135,12 @@ class OrRule(Rule):
         results = {'name': r, 'value': val}
         return self.new_match(results), pos
     return None, pos
+
   def new_match(self, results):
     match = OrRule(self.name, self.or_list)
     match.results = results
     return match
+
   def debug_print(self, indent='', or_cont=False):
     print('self.results=%s' % `self.results`)
     if not or_cont:
@@ -128,9 +148,12 @@ class OrRule(Rule):
     print(' -> %s' % self.results['name'], end='')
     self.results['value'].debug_print(indent + '  ', or_cont=True)
 
+
 class FalseRule(Rule):
+
   def __init__(self, name):
     self.name = name
+
   def parse(self, code, pos):
     return None, pos
 
@@ -141,17 +164,14 @@ class FalseRule(Rule):
 #
 ###############################################################################
 
-def or_rule(name, or_list):
-  rules[name] = OrRule(name, or_list)
-  return rules[name]
+def or_rule(name, or_list, mode=''):
+  return _add_rule(OrRule(name, or_list), mode)
 
-def seq_rule(name, seq):
-  rules[name] = SeqRule(name, seq)
-  return rules[name]
+def seq_rule(name, seq, mode=''):
+  return _add_rule(SeqRule(name, seq), mode)
 
-def false_rule(name):
-  rules[name] = FalseRule(name)
-  return rules[name]
+def false_rule(name, mode=''):
+  return _add_rule(FalseRule(name), mode)
 
 def file(filename):
   f = open(filename)
@@ -163,11 +183,37 @@ def file(filename):
     yield tree
     tree, pos = rules.phrase.parse(code, pos)
 
+def push_mode(name, opts):
+  print('push_mode(%s, %s)' % (name, `opts`))
+  global rules, mode, modes
+  rules = all_rules[name]
+  mode = Object()
+  mode.__dict__.update(opts)
+  mode.id = name
+  mode.opts = opts
+  modes.append(mode)
+
+def pop_mode(result):
+  print('pop_mode(_)')
+  global rules, mode, modes, mode_result
+  if len(modes) == 1:
+    print("Grammar error: pop_mode() when only global mode on the stack")
+    exit(1)
+  modes.pop()
+  mode = modes[-1]
+  rules = all_rules[mode.id]
+  mode_result = result
+
 ###############################################################################
 #
 # Define functions.
 #
 ###############################################################################
+
+def _add_rule(rule, mode):
+  if mode not in all_rules: all_rules[mode] = Object()
+  all_rules[mode][rule.name] = rule
+  return rule
 
 def parse_exact_str(s, code, pos):
   to_escape = list("+()")
@@ -180,19 +226,23 @@ err_pos = -1
 err_expected = None
 
 def parse_exact_re(s, code, pos):
+  print('s before decode is %s' % `s`)
   s = s.decode('string_escape')
-  m = re.match(r"(%s)\s*" % s, code[pos:])
-  if m: return m.group(1), pos + len(m.group(0))
+
+  a = code[pos:pos + 20]
+  m = re.match(s, code[pos:], re.MULTILINE)
+  if m: print('re.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`))
+
+  m = re.match(s, code[pos:], re.MULTILINE)
+  if m:
+    num_grp = len(m.groups()) + 1
+    val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
+    return val, pos + len(m.group(0))
   global err_pos, err_expected
   if pos > err_pos: err_expected, err_pos = s, pos
   return None, pos
 
-# TODO TEMP Goal: have rules[mode][rule_name] be the rule object, mode == ''
-#                 means the global mode.
-def get_base_rules():
-  global rules
-  rules = Object()
-
+def setup_base_rules():
   # Global rules.
   or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'])
   seq_rule('blank', [r'"\n"'])
@@ -200,9 +250,28 @@ def get_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', "\n  print('gg_start')\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})")
+  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})")
+  seq_rule('word', ['"[A-Za-z_]\w*"'])
 
-  return rules
+  # lang_def rules.
+  or_rule('phrase', ['indented_rule', ': parse.pop_mode(mode.rules)'], mode='lang_def')
+  r = seq_rule('indented_rule', ["'%(indent)s'", 'rule'], mode='lang_def')
+  r.add_fn('parsed', " mode.rules.append(rule)")
+  or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
+  r = seq_rule('false_rule', ['word', "' -> '", 'or_list'], mode='lang_def')
+  r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
 
-rules = get_base_rules()
+###############################################################################
+#
+# Set up initial state.
+#
+###############################################################################
+
+setup_base_rules()
+push_mode('', {})  # Set up the global mode.
+
+parse = Object()
+public_fns = [or_rule, seq_rule, false_rule, file, push_mode, pop_mode]
+for fn in public_fns: parse[fn.__name__] = fn
+
 
