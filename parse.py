@@ -92,7 +92,7 @@ class SeqRule(Rule):
       exit(1)
     self.start()
     while len(modes) > init_num_modes:
-      tree, pos = rules.phrase.parse(code, pos)
+      tree, pos = rules['phrase'].parse(code, pos)
       if tree is None: return None, self.startpos
     self.tokens.append(mode_result)
     results = {'tokens': self.tokens, 'mode_result': mode_result}
@@ -207,19 +207,21 @@ def file(filename):
   code = f.read()
   pos = 0
   f.close()
-  tree, pos = rules.phrase.parse(code, pos)
+  tree, pos = rules['phrase'].parse(code, pos)
   while tree:
     yield tree
-    tree, pos = rules.phrase.parse(code, pos)
+    tree, pos = rules['phrase'].parse(code, pos)
 
 def push_mode(name, opts):
   print('push_mode(%s, %s)' % (name, `opts`))
   global rules, mode, modes
-  rules = all_rules[name]
   mode = Object()
   mode.__dict__.update(opts)
   mode.id = name
   mode.opts = opts
+  mode.rules = modes[-1].rules.copy() if len(modes) else {}
+  mode.rules.update(all_rules[name])
+  rules = mode.rules
   modes.append(mode)
 
 def pop_mode(result):
@@ -230,7 +232,7 @@ def pop_mode(result):
     exit(1)
   modes.pop()
   mode = modes[-1]
-  rules = all_rules[mode.id]
+  rules = mode.rules
   mode_result = result
   return result
 
@@ -241,7 +243,7 @@ def pop_mode(result):
 ###############################################################################
 
 def _add_rule(rule, mode):
-  if mode not in all_rules: all_rules[mode] = Object()
+  if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
   return rule
 
