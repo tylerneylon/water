@@ -70,7 +70,7 @@
     "[A-Za-z_]\w*"
 
 > lang_def
-  phrase -> indented_rule |: parse.pop_mode(mode.rules)
+  phrase -> indented_rule |: return parse.pop_mode(mode.rules)
   indented_rule ->
     '%(indent)s' rule
     : mode.rules.append(rule)
@@ -117,7 +117,7 @@
     list: return ['-|']
 
 > rule_block
-  phrase -> indented_rule_item |: parse.pop_mode(mode.items)
+  phrase -> indented_rule_item |: return parse.pop_mode(mode.items)
   indented_rule_item ->
     "%(indent)s" rule_item
     : mode.items.append(rule_item)
@@ -160,7 +160,7 @@
         mode.chars.append(c)
 
 > nested_code_block
-  phrase -> indented_code_line |: parse.pop_mode(''.join(mode.src))
+  phrase -> indented_code_line |: return parse.pop_mode(''.join(mode.src))
   indented_code_line ->
     "%(indent)s" code_line
   code_line ->

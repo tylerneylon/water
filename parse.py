@@ -46,16 +46,27 @@ class Object(object):
     #print('__getitem__(%s, %s)' % (selfname, name))
     #traceback.print_stack()
     return self.__getattribute__(name)
-  def __setitem__(self, name, value): self.__dict__[name] = value
+  def __setitem__(self, name, value):
+    print('__setitem__(self, %s, %s)' % (`name`, `value`))
+    self.__dict__[name] = value
 
 
 # TODO Should add_fn and _run_fn only be available on SeqRule?
 class Rule(Object):
 
   def _run_fn(self, fn_name, fn_code):
-    context = {'parse': parse, 'tokens': self.tokens}
-    exec fn_code in context
-    context[fn_name](self)
+
+    # We temporarily define variables for user code as globals since Python has
+    # weird behavior for scoping in exec calls. See:
+    # http://stackoverflow.com/a/2906198/3561
+    global tokens
+    tokens = self.tokens
+
+    lo = {}
+    exec fn_code in globals(), lo
+    lo[fn_name](self)
+
+    del tokens
 
   def add_fn(self, fn_name, fn_code):
     fn_code = ('def %s(self):' % fn_name) + fn_code
@@ -83,6 +94,7 @@ class SeqRule(Rule):
     while len(modes) > init_num_modes:
       tree, pos = rules.phrase.parse(code, pos)
       if tree is None: return None, self.startpos
+    self.tokens.append(mode_result)
     results = {'tokens': self.tokens, 'mode_result': mode_result}
     results.update(self.pieces)
     return self.new_match(results), pos
@@ -128,8 +140,19 @@ class OrRule(Rule):
     self.name = name
     self.or_list = or_list
 
+  def run_code(self, code):
+    print('run_code(%s)' % `code`)
+    print('mode.__dict__=%s' % `mode.__dict__`)
+    context = {'parse': parse, 'mode': mode}
+    code = 'def or_else():' + code
+    exec code in context
+    return context['or_else']()
+
   def parse(self, code, pos):
     for r in self.or_list:
+      if r[0] == ':':
+        tree = self.run_code(r[1:])
+        return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
         results = {'name': r, 'value': val}
@@ -142,7 +165,7 @@ class OrRule(Rule):
     return match
 
   def debug_print(self, indent='', or_cont=False):
-    print('self.results=%s' % `self.results`)
+    #print('self.results=%s' % `self.results`)
     if not or_cont:
       print('%s%s' % (indent, self.name), end='')
     print(' -> %s' % self.results['name'], end='')
@@ -203,6 +226,7 @@ def pop_mode(result):
   mode = modes[-1]
   rules = all_rules[mode.id]
   mode_result = result
+  return result
 
 ###############################################################################
 #
@@ -250,11 +274,11 @@ def setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})")
+  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})\n  mode.rules = []\n")
   seq_rule('word', ['"[A-Za-z_]\w*"'])
 
   # lang_def rules.
-  or_rule('phrase', ['indented_rule', ': parse.pop_mode(mode.rules)'], mode='lang_def')
+  or_rule('phrase', ['indented_rule', ': return parse.pop_mode(mode.rules)'], mode='lang_def')
   r = seq_rule('indented_rule', ["'%(indent)s'", 'rule'], mode='lang_def')
   r.add_fn('parsed', " mode.rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
