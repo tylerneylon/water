@@ -108,8 +108,13 @@ class SeqRule(Rule):
       print('rule_name=%s' % rule_name)
       if rule_name == '-|': return self.parse_mode(code, pos)
       c = rule_name[0]
-      if c == "'": val, pos = parse_exact_str(rule_name[1:], code, pos)
-      elif c == '"': val, pos = parse_exact_re(rule_name[1:-1], code, pos)
+      if c == "'":
+        val, pos = parse_exact_str(rule_name[1:], code, pos)
+      elif c == '"':
+        re = rule_name[1:-1] % mode
+        print('mode.__dict__=%s' % `mode.__dict__`)
+        print('re=%s' % `re`)
+        val, pos = parse_exact_re(re, code, pos)
       else:
         val, pos = rules[rule_name].parse(code, pos)
         if val: pieces[rule_name] = pieces.get(rule_name, []) + [val[rule_name]]
@@ -149,6 +154,7 @@ class OrRule(Rule):
     return context['or_else']()
 
   def parse(self, code, pos):
+    print('%s parse' % self.name)
     for r in self.or_list:
       if r[0] == ':':
         tree = self.run_code(r[1:])
@@ -279,7 +285,7 @@ def setup_base_rules():
 
   # lang_def rules.
   or_rule('phrase', ['indented_rule', ': return parse.pop_mode(mode.rules)'], mode='lang_def')
-  r = seq_rule('indented_rule', ["'%(indent)s'", 'rule'], mode='lang_def')
+  r = seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
   r.add_fn('parsed', " mode.rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
   r = seq_rule('false_rule', ['word', "' -> '", 'or_list'], mode='lang_def')
