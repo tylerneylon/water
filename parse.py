@@ -19,6 +19,7 @@ from __future__ import print_function
 
 import re
 import traceback # TEMP TODO
+import types
 
 try:
   from termcolor import cprint
@@ -82,10 +83,20 @@ class Rule(Object):
 
   def add_fn(self, fn_name, fn_code):
     fn_code = ('def %s(self):' % fn_name) + fn_code
-    def run():
+    def run(self):
       cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
       self._run_fn(fn_name, fn_code)
-    self[fn_name] = run
+    setattr(self.__class__, fn_name, run)
+
+  def parse(self, code, pos):
+    # TODO Remove this error check once I'm more certain it doesn't happen.
+    # We expect this only to be called on global instances.
+    if not self.is_global:
+      fmt = 'Internal error: parse called on non-global instance (%s)'
+      cprint(fmt % self.name, 'red')
+      exit(1)
+    c = self.child()
+    return c.inst_parse(code, pos)
 
 
 class SeqRule(Rule):
@@ -93,12 +104,13 @@ class SeqRule(Rule):
   def __init__(self, name, seq):
     self.name = name
     self.seq = seq
+    self.is_global = True
 
   def parse_mode(self, code, pos):
     cprint('%s parse_mode' % self.name, 'magenta')
     #traceback.print_stack()
     init_num_modes = len(modes)
-    if 'start' not in self.__dict__:
+    if 'start' not in self.__class__.__dict__:  # TODO Maybe wrap this and setattr-to-add-fn in Object.
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
       cprint(fmt % self.name, 'red')
       exit(1)
@@ -107,18 +119,28 @@ class SeqRule(Rule):
       tree, pos = rules['phrase'].parse(code, pos)
       if tree is None: return None, self.startpos
     self.tokens.append(mode_result)
-    results = {'tokens': self.tokens, 'mode_result': mode_result}
-    results.update(self.pieces)
-    return self.new_match(results), pos
+    self.results = {'tokens': self.tokens, 'mode_result': mode_result}
+    self.results.update(self.pieces)
+    return self, pos
 
-  def parse(self, code, pos):
-    cprint('%s parse' % self.name, 'magenta')
+  def inst_parse(self, code, pos):
+    # TODO Remove this error check once I'm more certain it doesn't happen.
+    # We expect this only to be called on non-global instances.
+    if self.is_global:
+      fmt = 'Internal error: inst_parse called on global instance (%s)'
+      cprint(fmt % self.name, 'red')
+      exit(1)
+    _dbg_parse_start(self.name, code, pos)
     self.tokens = []
     self.pieces = {}
     self.startpos = pos
     for rule_name in self.seq:
       cprint('rule_name=%s' % rule_name, 'blue')
-      if rule_name == '-|': return self.parse_mode(code, pos)
+      if rule_name == '-|':
+        cprint('%s parse reached -|' % self.name, 'magenta')
+        res = self.parse_mode(code, pos)
+        if 'parsed' in self.__dict__: self.parsed()
+        return res
       c = rule_name[0]
       if c == "'":
         val, pos = parse_exact_str(rule_name[1:-1], code, pos)
@@ -130,13 +152,17 @@ class SeqRule(Rule):
       else:
         val, pos = rules[rule_name].parse(code, pos)
         if val: self.pieces.setdefault(rule_name, []).append(val)
-      if val is None: return None, self.startpos
+      if val is None:
+        cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
+        return None, self.startpos
       self.tokens.append(val)
     for key in self.pieces:
       if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
-    results = {'tokens': self.tokens}
-    results.update(self.pieces)
-    return self.new_match(results), pos
+    self.results = {'tokens': self.tokens}
+    self.results.update(self.pieces)
+    cprint('%s parse succeeded' % self.name, 'magenta')
+    if 'parsed' in self.__dict__: self.parsed()
+    return self, pos
 
   def debug_print(self, indent='', or_cont=False):
     #print('self.__dict__ = %s' % `self.__dict__`)
@@ -145,10 +171,11 @@ class SeqRule(Rule):
     for i in range(len(self.seq)):
       cprint('%s%s -> %s' % (indent, self.seq[i], `tokens[i]`), 'yellow')
 
-  def new_match(self, results):
-    match = SeqRule(self.name, self.seq)
-    match.results = results
-    return match
+  def child(self):
+    c = SeqRule(self.name, self.seq)
+    c.__dict__ = self.__dict__.copy()
+    c.is_global = False
+    return c
 
 
 class OrRule(Rule):
@@ -156,6 +183,7 @@ class OrRule(Rule):
   def __init__(self, name, or_list):
     self.name = name
     self.or_list = or_list
+    self.is_global = True
 
   def run_code(self, code):
     cprint('run_code(%s)' % `code`, 'blue')
@@ -165,22 +193,26 @@ class OrRule(Rule):
     exec code in context
     return context['or_else']()
 
-  def parse(self, code, pos):
-    cprint('%s parse' % self.name, 'magenta')
+  def inst_parse(self, code, pos):
+    # TODO Remove this error check once I'm more certain it doesn't happen.
+    # We expect this only to be called on non-global instances.
+    if self.is_global:
+      fmt = 'Internal error: inst_parse called on global instance (%s)'
+      cprint(fmt % self.name, 'red')
+      exit(1)
+    _dbg_parse_start(self.name, code, pos)
     for r in self.or_list:
       if r[0] == ':':
+        cprint('%s parse finishing as or_else clause' % self.name, 'magenta')
         tree = self.run_code(r[1:])
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
-        results = {'name': r, 'value': val}
-        return self.new_match(results), pos
+        self.results = {'name': r, 'value': val}
+        cprint('%s parse succeeded as %s' % (self.name, r), 'magenta')
+        return self, pos
+    cprint('%s parse failed' % self.name, 'magenta')
     return None, pos
-
-  def new_match(self, results):
-    match = OrRule(self.name, self.or_list)
-    match.results = results
-    return match
 
   def debug_print(self, indent='', or_cont=False):
     #print('self.results=%s' % `self.results`)
@@ -188,6 +220,12 @@ class OrRule(Rule):
       cprint('%s%s' % (indent, self.name), 'yellow', end='')
     cprint(' -> %s' % self.results['name'], 'yellow', end='')
     self.results['value'].debug_print(indent + '  ', or_cont=True)
+
+  def child(self):
+    c = OrRule(self.name, self.or_list)
+    c.__dict__ = self.__dict__.copy()
+    c.is_global = False
+    return c
 
 
 class FalseRule(Rule):
@@ -255,6 +293,9 @@ def pop_mode(result):
 #
 ###############################################################################
 
+def _dbg_parse_start(name, code, pos):
+  cprint('%s parse at """%s"""' % (name, `code[pos: pos + 30]`), 'magenta')
+
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
@@ -300,11 +341,11 @@ def setup_base_rules():
   seq_rule('word', ['"[A-Za-z_]\w*"'])
 
   # lang_def rules.
-  or_rule('phrase', ['indented_rule', ': return parse.pop_mode(mode.rules)'], mode='lang_def')
+  or_rule('phrase', ['indented_rule', ':\n  print("popping from lang_def")\n  return parse.pop_mode(mode.rules)\n'], mode='lang_def')
   r = seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
   r.add_fn('parsed', " mode.rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
-  r = seq_rule('false_rule', ['word', "' -> '", 'or_list'], mode='lang_def')
+  r = seq_rule('false_rule', ['word', r'"->\s+False"'], mode='lang_def')
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
   r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
   r.add_fn('parsed', " parse.or_rule(word.str(), or_list.list(), mode=mode.name)\n")
