@@ -109,7 +109,7 @@ class SeqRule(Rule):
       if rule_name == '-|': return self.parse_mode(code, pos)
       c = rule_name[0]
       if c == "'":
-        val, pos = parse_exact_str(rule_name[1:], code, pos)
+        val, pos = parse_exact_str(rule_name[1:-1], code, pos)
       elif c == '"':
         re = rule_name[1:-1] % mode
         print('mode.__dict__=%s' % `mode.__dict__`)
@@ -117,7 +117,7 @@ class SeqRule(Rule):
         val, pos = parse_exact_re(re, code, pos)
       else:
         val, pos = rules[rule_name].parse(code, pos)
-        if val: pieces[rule_name] = pieces.get(rule_name, []) + [val[rule_name]]
+        if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None: return None, self.startpos
       self.tokens.append(val)
     for key in self.pieces:
@@ -292,6 +292,15 @@ def setup_base_rules():
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
   r = seq_rule('false_rule', ['word', "' -> '", 'or_list'], mode='lang_def')
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
+  r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
+  r.add_fn('parsed', " parse.or_rule(word.str(), or_list.list(), mode=mode.name)\n")
+  or_rule('or_list', ['rule_name', 'multi_or_list'])
+  or_rule('multi_or_list', ['std_multi_or_list', 'else_multi_or_list'])
+  r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
+  r.add_fn('list', " return rule_name.list() + or_list.list()")
+  r = seq_rule('rule_name', ['word'])
+  r.add_fn('list', " return [word.str()]")
+
 
 ###############################################################################
 #

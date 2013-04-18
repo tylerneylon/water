@@ -91,7 +91,7 @@
     list: return rule_name.list() + [{'else': command.str()}]
   rule_name ->
     word
-    list: return [word.str]
+    list: return [word.str()]
   command ->
     "[^\n]*\n"
   seq_rule ->
