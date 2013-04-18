@@ -7,11 +7,23 @@
 # TODO Document public functions.
 #
 
+# TEMP Print colors:
+#
+# Yellow:    Nicely formatted parse tree.
+# Magenta:  Useful function calls
+# Blue:     Very temporary stuff
+# Red:      Error
+#
+
 from __future__ import print_function
 
 import re
 import traceback # TEMP TODO
 
+try:
+  from termcolor import cprint
+except:
+  def cprint(s, color=None): print(s)
 
 # Globals.
 
@@ -47,7 +59,7 @@ class Object(object):
     #traceback.print_stack()
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
-    print('__setitem__(self, %s, %s)' % (`name`, `value`))
+    cprint('__setitem__(self, %s, %s)' % (`name`, `value`), 'blue')
     self.__dict__[name] = value
 
 
@@ -71,7 +83,7 @@ class Rule(Object):
   def add_fn(self, fn_name, fn_code):
     fn_code = ('def %s(self):' % fn_name) + fn_code
     def run():
-      print('run %s <%s>' % (fn_name, self.name))
+      cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
       self._run_fn(fn_name, fn_code)
     self[fn_name] = run
 
@@ -83,12 +95,12 @@ class SeqRule(Rule):
     self.seq = seq
 
   def parse_mode(self, code, pos):
-    print('%s parse_mode' % self.name)
+    cprint('%s parse_mode' % self.name, 'magenta')
     #traceback.print_stack()
     init_num_modes = len(modes)
     if 'start' not in self.__dict__:
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
-      print(fmt % self.name)
+      cprint(fmt % self.name, 'red')
       exit(1)
     self.start()
     while len(modes) > init_num_modes:
@@ -100,20 +112,20 @@ class SeqRule(Rule):
     return self.new_match(results), pos
 
   def parse(self, code, pos):
-    print('%s parse' % self.name)
+    cprint('%s parse' % self.name, 'magenta')
     self.tokens = []
     self.pieces = {}
     self.startpos = pos
     for rule_name in self.seq:
-      print('rule_name=%s' % rule_name)
+      cprint('rule_name=%s' % rule_name, 'blue')
       if rule_name == '-|': return self.parse_mode(code, pos)
       c = rule_name[0]
       if c == "'":
         val, pos = parse_exact_str(rule_name[1:-1], code, pos)
       elif c == '"':
         re = rule_name[1:-1] % mode
-        print('mode.__dict__=%s' % `mode.__dict__`)
-        print('re=%s' % `re`)
+        cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
+        cprint('re=%s' % `re`, 'blue')
         val, pos = parse_exact_re(re, code, pos)
       else:
         val, pos = rules[rule_name].parse(code, pos)
@@ -131,7 +143,7 @@ class SeqRule(Rule):
     if or_cont: print()  # Print a newline.
     tokens = self.results['tokens']
     for i in range(len(self.seq)):
-      print('%s%s -> %s' % (indent, self.seq[i], `tokens[i]`))
+      cprint('%s%s -> %s' % (indent, self.seq[i], `tokens[i]`), 'yellow')
 
   def new_match(self, results):
     match = SeqRule(self.name, self.seq)
@@ -146,15 +158,15 @@ class OrRule(Rule):
     self.or_list = or_list
 
   def run_code(self, code):
-    print('run_code(%s)' % `code`)
-    print('mode.__dict__=%s' % `mode.__dict__`)
+    cprint('run_code(%s)' % `code`, 'blue')
+    cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
     context = {'parse': parse, 'mode': mode}
     code = 'def or_else():' + code
     exec code in context
     return context['or_else']()
 
   def parse(self, code, pos):
-    print('%s parse' % self.name)
+    cprint('%s parse' % self.name, 'magenta')
     for r in self.or_list:
       if r[0] == ':':
         tree = self.run_code(r[1:])
@@ -173,8 +185,8 @@ class OrRule(Rule):
   def debug_print(self, indent='', or_cont=False):
     #print('self.results=%s' % `self.results`)
     if not or_cont:
-      print('%s%s' % (indent, self.name), end='')
-    print(' -> %s' % self.results['name'], end='')
+      cprint('%s%s' % (indent, self.name), 'yellow', end='')
+    cprint(' -> %s' % self.results['name'], 'yellow', end='')
     self.results['value'].debug_print(indent + '  ', or_cont=True)
 
 
@@ -213,7 +225,7 @@ def file(filename):
     tree, pos = rules['phrase'].parse(code, pos)
 
 def push_mode(name, opts):
-  print('push_mode(%s, %s)' % (name, `opts`))
+  cprint('push_mode(%s, %s)' % (name, `opts`), 'magenta')
   global rules, mode, modes
   mode = Object()
   mode.__dict__.update(opts)
@@ -225,10 +237,11 @@ def push_mode(name, opts):
   modes.append(mode)
 
 def pop_mode(result):
-  print('pop_mode(_)')
+  cprint('pop_mode(_)', 'magenta')
   global rules, mode, modes, mode_result
   if len(modes) == 1:
-    print("Grammar error: pop_mode() when only global mode on the stack")
+    cprint("Grammar error: pop_mode() when only global mode on the stack",
+           'red')
     exit(1)
   modes.pop()
   mode = modes[-1]
@@ -258,12 +271,13 @@ err_pos = -1
 err_expected = None
 
 def parse_exact_re(s, code, pos):
-  print('s before decode is %s' % `s`)
+  cprint('s before decode is %s' % `s`, 'blue')
   s = s.decode('string_escape')
 
   a = code[pos:pos + 20]
   m = re.match(s, code[pos:], re.MULTILINE)
-  if m: print('re.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`))
+  if m:
+    cprint('re.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`), 'blue')
 
   m = re.match(s, code[pos:], re.MULTILINE)
   if m:
