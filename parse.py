@@ -10,9 +10,10 @@
 # TEMP Print colors:
 #
 # Yellow:    Nicely formatted parse tree.
-# Magenta:  Useful function calls
-# Blue:     Very temporary stuff
-# Red:      Error
+# Magenta:   Useful function calls
+# Cyan:      parse public method calls
+# Blue:      Very temporary stuff
+# Red:       Error
 #
 
 from __future__ import print_function
@@ -67,27 +68,51 @@ class Object(object):
 # TODO Should add_fn and _run_fn only be available on SeqRule?
 class Rule(Object):
 
-  def _run_fn(self, fn_name, fn_code):
+  def __init__(self):
+    self._unbound_methods_ = {}
 
-    # We temporarily define variables for user code as globals since Python has
-    # weird behavior for scoping in exec calls. See:
-    # http://stackoverflow.com/a/2906198/3561
-    global tokens
-    tokens = self.tokens
+  def _run_fn(self, fn_name, fn_code):
+    # This function is wonky because exec has wonky treatment of locals. See:
+    # http://stackoverflow.com/a/1463370
+    # http://stackoverflow.com/a/2906198
+
+    cprint('************** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
+    r = `self.results` if 'results' in self.__dict__ else '<None>'
+    cprint('self.results=%s' % r, 'blue')
 
     lo = {}
-    exec fn_code in globals(), lo
-    lo[fn_name](self)
+    if 'results' in self.__dict__: lo.update(self.results)
+    lo['self'] = self
 
-    del tokens
+    cprint('lo=%s' % `lo`, 'blue')
+
+    arglist = ', '.join(k + '=None' for k in lo.keys())
+    prefix = 'def %s(%s): ' % (fn_name, arglist)
+    fn_code = prefix + fn_code
+
+    cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
+
+    fn_lo = {}
+    exec fn_code in globals(), fn_lo
+    fn_lo[fn_name](**lo)
+
+  def _bound_method(self, fn_name, unbound_fn):
+    self.__dict__[fn_name] = types.MethodType(unbound_fn, self, self.__class__)
+
+  def _bind_all_methods(self):
+    for fn_name in self._unbound_methods_:
+      self._bound_method(fn_name, self._unbound_methods_[fn_name])
 
   def add_fn(self, fn_name, fn_code):
-    fn_code = ('def %s(self):' % fn_name) + fn_code
     def run(self):
       cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
       self._run_fn(fn_name, fn_code)
-    setattr(self.__class__, fn_name, run)
+    self._unbound_methods_[fn_name] = run
+    self._bound_method(fn_name, run)
 
+
+  # TODO Drop the is_global bool since it's not needed; calls to parse are
+  #      made on globals; calls to inst_parse are made on non-globals.
   def parse(self, code, pos):
     # TODO Remove this error check once I'm more certain it doesn't happen.
     # We expect this only to be called on global instances.
@@ -105,22 +130,25 @@ class SeqRule(Rule):
     self.name = name
     self.seq = seq
     self.is_global = True
+    Rule.__init__(self)
 
   def parse_mode(self, code, pos):
     cprint('%s parse_mode' % self.name, 'magenta')
     #traceback.print_stack()
     init_num_modes = len(modes)
-    if 'start' not in self.__class__.__dict__:  # TODO Maybe wrap this and setattr-to-add-fn in Object.
+    if 'start' not in self.__dict__:  # TODO Maybe wrap this and setattr-to-add-fn in Object.
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
       cprint(fmt % self.name, 'red')
       exit(1)
+    # TODO Pull this self.results thing into my general _run_fn wrapper.
+    self.results = {'tokens': self.tokens}
+    self.results.update(self.pieces)
     self.start()
     while len(modes) > init_num_modes:
       tree, pos = rules['phrase'].parse(code, pos)
       if tree is None: return None, self.startpos
     self.tokens.append(mode_result)
-    self.results = {'tokens': self.tokens, 'mode_result': mode_result}
-    self.results.update(self.pieces)
+    self.pieces['mode_result'] = mode_result
     return self, pos
 
   def inst_parse(self, code, pos):
@@ -138,9 +166,8 @@ class SeqRule(Rule):
       cprint('rule_name=%s' % rule_name, 'blue')
       if rule_name == '-|':
         cprint('%s parse reached -|' % self.name, 'magenta')
-        res = self.parse_mode(code, pos)
-        if 'parsed' in self.__dict__: self.parsed()
-        return res
+        tree, pos = self.parse_mode(code, pos)
+        return self._end_parse(tree, pos)
       c = rule_name[0]
       if c == "'":
         val, pos = parse_exact_str(rule_name[1:-1], code, pos)
@@ -154,15 +181,19 @@ class SeqRule(Rule):
         if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None:
         cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
-        return None, self.startpos
+        return self._end_parse(None, self.startpos)
       self.tokens.append(val)
     for key in self.pieces:
       if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
+    return self._end_parse(self, pos)
+
+  def _end_parse(self, tree, pos):
+    if tree is None: return tree, pos
     self.results = {'tokens': self.tokens}
     self.results.update(self.pieces)
     cprint('%s parse succeeded' % self.name, 'magenta')
     if 'parsed' in self.__dict__: self.parsed()
-    return self, pos
+    return tree, pos
 
   def debug_print(self, indent='', or_cont=False):
     #print('self.__dict__ = %s' % `self.__dict__`)
@@ -174,6 +205,7 @@ class SeqRule(Rule):
   def child(self):
     c = SeqRule(self.name, self.seq)
     c.__dict__ = self.__dict__.copy()
+    c._bind_all_methods()
     c.is_global = False
     return c
 
@@ -184,6 +216,7 @@ class OrRule(Rule):
     self.name = name
     self.or_list = or_list
     self.is_global = True
+    Rule.__init__(self)
 
   def run_code(self, code):
     cprint('run_code(%s)' % `code`, 'blue')
@@ -224,6 +257,7 @@ class OrRule(Rule):
   def child(self):
     c = OrRule(self.name, self.or_list)
     c.__dict__ = self.__dict__.copy()
+    c._bind_all_methods()
     c.is_global = False
     return c
 
@@ -244,12 +278,15 @@ class FalseRule(Rule):
 ###############################################################################
 
 def or_rule(name, or_list, mode=''):
+  cprint('or_rule(%s, %s, %s)' % (name, `or_list`, `mode`), 'cyan')
   return _add_rule(OrRule(name, or_list), mode)
 
 def seq_rule(name, seq, mode=''):
+  cprint('seq_rule(%s, %s, %s)' % (name, `seq`, `mode`), 'cyan')
   return _add_rule(SeqRule(name, seq), mode)
 
 def false_rule(name, mode=''):
+  cprint('false_rule(%s, %s)' % (name, `mode`), 'cyan')
   return _add_rule(FalseRule(name), mode)
 
 def file(filename):
@@ -263,7 +300,7 @@ def file(filename):
     tree, pos = rules['phrase'].parse(code, pos)
 
 def push_mode(name, opts):
-  cprint('push_mode(%s, %s)' % (name, `opts`), 'magenta')
+  cprint('push_mode(%s, %s)' % (name, `opts`), 'cyan')
   global rules, mode, modes
   mode = Object()
   mode.__dict__.update(opts)
@@ -275,7 +312,7 @@ def push_mode(name, opts):
   modes.append(mode)
 
 def pop_mode(result):
-  cprint('pop_mode(_)', 'magenta')
+  cprint('pop_mode(_)', 'cyan')
   global rules, mode, modes, mode_result
   if len(modes) == 1:
     cprint("Grammar error: pop_mode() when only global mode on the stack",
