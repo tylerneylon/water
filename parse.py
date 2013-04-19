@@ -81,7 +81,9 @@ class Rule(Object):
     cprint('self.results=%s' % r, 'blue')
 
     lo = {}
-    if 'results' in self.__dict__: lo.update(self.results)
+    if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
+    if 'pieces' in self.__dict__: lo.update(self.pieces)
+    if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
     cprint('lo=%s' % `lo`, 'blue')
@@ -140,9 +142,6 @@ class SeqRule(Rule):
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
       cprint(fmt % self.name, 'red')
       exit(1)
-    # TODO Pull this self.results thing into my general _run_fn wrapper.
-    self.results = {'tokens': self.tokens}
-    self.results.update(self.pieces)
     self.start()
     while len(modes) > init_num_modes:
       tree, pos = rules['phrase'].parse(code, pos)
@@ -189,8 +188,6 @@ class SeqRule(Rule):
 
   def _end_parse(self, tree, pos):
     if tree is None: return tree, pos
-    self.results = {'tokens': self.tokens}
-    self.results.update(self.pieces)
     cprint('%s parse succeeded' % self.name, 'magenta')
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
@@ -198,9 +195,8 @@ class SeqRule(Rule):
   def debug_print(self, indent='', or_cont=False):
     #print('self.__dict__ = %s' % `self.__dict__`)
     if or_cont: print()  # Print a newline.
-    tokens = self.results['tokens']
     for i in range(len(self.seq)):
-      cprint('%s%s -> %s' % (indent, self.seq[i], `tokens[i]`), 'yellow')
+      cprint('%s%s -> %s' % (indent, self.seq[i], `self.tokens[i]`), 'yellow')
 
   def child(self):
     c = SeqRule(self.name, self.seq)
@@ -241,6 +237,7 @@ class OrRule(Rule):
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
+        # TODO Maybe rename results since SeqRule doesn't use it anymore.
         self.results = {'name': r, 'value': val}
         cprint('%s parse succeeded as %s' % (self.name, r), 'magenta')
         return self, pos
