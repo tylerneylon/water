@@ -356,7 +356,7 @@ def setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1]})\n  mode.rules = []\n")
+  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})\n  mode.rules = []\n")
   seq_rule('word', ['"[A-Za-z_]\w*"'])
 
   # lang_def rules.

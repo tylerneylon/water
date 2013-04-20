@@ -58,7 +58,7 @@
   global_grammar ->
     ">\n(?=(\s+))" -|
     start:
-      parse.push_mode('lang_def', {'indent': tokens[0][1]})
+      parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})
       mode.rules = []
   mode_grammar ->
     "> " word "\n(?=(\s+))" -|
