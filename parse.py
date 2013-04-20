@@ -116,18 +116,8 @@ class Rule(Object):
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
 
-
-  # TODO Drop the is_global bool since it's not needed; calls to parse are
-  #      made on globals; calls to inst_parse are made on non-globals.
   def parse(self, code, pos):
-    # TODO Remove this error check once I'm more certain it doesn't happen.
-    # We expect this only to be called on global instances.
-    if not self.is_global:
-      fmt = 'Internal error: parse called on non-global instance (%s)'
-      cprint(fmt % self.name, 'red')
-      exit(1)
-    c = self.child()
-    return c.inst_parse(code, pos)
+    return self.child().inst_parse(code, pos)
 
 
 class SeqRule(Rule):
@@ -135,7 +125,6 @@ class SeqRule(Rule):
   def __init__(self, name, seq):
     self.name = name
     self.seq = seq
-    self.is_global = True
     Rule.__init__(self)
 
     self.add_fn('str', ' return "".join([str(t) for t in tokens])')
@@ -157,12 +146,6 @@ class SeqRule(Rule):
     return self, pos
 
   def inst_parse(self, code, pos):
-    # TODO Remove this error check once I'm more certain it doesn't happen.
-    # We expect this only to be called on non-global instances.
-    if self.is_global:
-      fmt = 'Internal error: inst_parse called on global instance (%s)'
-      cprint(fmt % self.name, 'red')
-      exit(1)
     _dbg_parse_start(self.name, code, pos)
     self.tokens = []
     self.pieces = {}
@@ -207,7 +190,6 @@ class SeqRule(Rule):
     c = SeqRule(self.name, self.seq)
     c.__dict__ = self.__dict__.copy()
     c._bind_all_methods()
-    c.is_global = False
     return c
 
 
@@ -216,7 +198,6 @@ class OrRule(Rule):
   def __init__(self, name, or_list):
     self.name = name
     self.or_list = or_list
-    self.is_global = True
     Rule.__init__(self)
 
   def __getattribute__(self, name):
@@ -236,12 +217,6 @@ class OrRule(Rule):
     return context['or_else']()
 
   def inst_parse(self, code, pos):
-    # TODO Remove this error check once I'm more certain it doesn't happen.
-    # We expect this only to be called on non-global instances.
-    if self.is_global:
-      fmt = 'Internal error: inst_parse called on global instance (%s)'
-      cprint(fmt % self.name, 'red')
-      exit(1)
     _dbg_parse_start(self.name, code, pos)
     for r in self.or_list:
       if r[0] == ':':
@@ -266,7 +241,6 @@ class OrRule(Rule):
     c = OrRule(self.name, self.or_list)
     c.__dict__ = self.__dict__.copy()
     c._bind_all_methods()
-    c.is_global = False
     return c
 
 
