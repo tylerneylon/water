@@ -78,9 +78,7 @@ class Rule(Object):
     # http://stackoverflow.com/a/1463370
     # http://stackoverflow.com/a/2906198
 
-    cprint('************** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
-    r = `self.results` if 'results' in self.__dict__ else '<None>'
-    cprint('self.results=%s' % r, 'blue')
+    #cprint('************** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
 
     lo = {}
     if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
@@ -88,13 +86,13 @@ class Rule(Object):
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
-    cprint('lo=%s' % `lo`, 'blue')
+    #cprint('lo=%s' % `lo`, 'blue')
 
     arglist = ', '.join(k + '=None' for k in lo.keys())
     prefix = 'def %s(%s): ' % (fn_name, arglist)
     fn_code = prefix + fn_code
 
-    cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
+    #cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
 
     fn_lo = {}
     exec fn_code in globals(), fn_lo
@@ -133,11 +131,12 @@ class SeqRule(Rule):
     cprint('%s parse_mode' % self.name, 'magenta')
     #traceback.print_stack()
     init_num_modes = len(modes)
-    if 'start' not in self.__dict__:  # TODO Maybe wrap this and setattr-to-add-fn in Object.
+    if 'start' not in self.__dict__:
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
       cprint(fmt % self.name, 'red')
       exit(1)
     self.start()
+    self.mode_id = mode.id
     while len(modes) > init_num_modes:
       tree, pos = rules['phrase'].parse(code, pos)
       if tree is None: return None, self.startpos
@@ -161,7 +160,7 @@ class SeqRule(Rule):
         val, pos = parse_exact_str(rule_name[1:-1], code, pos)
       elif c == '"':
         re = rule_name[1:-1] % mode
-        cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
+        #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
         cprint('re=%s' % `re`, 'blue')
         val, pos = parse_exact_re(re, code, pos)
       else:
@@ -181,10 +180,12 @@ class SeqRule(Rule):
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
 
-  def debug_print(self, indent='', or_cont=False):
-    if or_cont: print()  # Print a newline.
+  def debug_print(self, indent='  '):
+    cprint('%s' % self.name, 'yellow')
     for i in range(len(self.seq)):
-      cprint('%s%s -> %s' % (indent, self.seq[i], `self.tokens[i]`), 'yellow')
+      print(indent, end='')
+      item = '-| %s' % self.mode_id if self.seq[i] == '-|' else self.seq[i]
+      _debug_print(self.tokens[i], indent + '  ', item)
 
   def child(self):
     c = SeqRule(self.name, self.seq)
@@ -231,11 +232,9 @@ class OrRule(Rule):
     cprint('%s parse failed' % self.name, 'magenta')
     return None, pos
 
-  def debug_print(self, indent='', or_cont=False):
-    if not or_cont:
-      cprint('%s%s' % (indent, self.name), 'yellow', end='')
-    cprint(' -> %s' % self.result.name, 'yellow', end='')
-    self.result.debug_print(indent + '  ', or_cont=True)
+  def debug_print(self, indent='  '):
+    cprint('%s -> ' % self.name, 'yellow', end='')
+    _debug_print(self.result, indent)
 
   def child(self):
     c = OrRule(self.name, self.or_list)
@@ -315,6 +314,22 @@ def pop_mode(result):
 def _dbg_parse_start(name, code, pos):
   cprint('%s parse at """%s"""' % (name, `code[pos: pos + 30]`), 'magenta')
 
+def _debug_print(obj, indent='  ', seq_item=None):
+  if isinstance(obj, Rule):
+    obj.debug_print(indent)
+  elif seq_item and seq_item.startswith('-|'):
+    cprint('%s ' % seq_item, 'yellow', end='')
+    _debug_print(obj, indent)
+  elif seq_item:
+    cprint('%s -> %s' % (seq_item, `obj`), 'yellow')
+  elif type(obj) == list:
+    print('')
+    for i in obj:
+      print(indent, end='')
+      _debug_print(i, indent + '  ')
+  else:
+    cprint('%s' % `obj`, 'yellow')
+    
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
