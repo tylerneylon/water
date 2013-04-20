@@ -193,7 +193,6 @@ class SeqRule(Rule):
     return tree, pos
 
   def debug_print(self, indent='', or_cont=False):
-    #print('self.__dict__ = %s' % `self.__dict__`)
     if or_cont: print()  # Print a newline.
     for i in range(len(self.seq)):
       cprint('%s%s -> %s' % (indent, self.seq[i], `self.tokens[i]`), 'yellow')
@@ -213,6 +212,14 @@ class OrRule(Rule):
     self.or_list = or_list
     self.is_global = True
     Rule.__init__(self)
+
+  def __getattribute__(self, name):
+    try:
+      return Rule.__getattribute__(self, name)
+    except AttributeError:
+      d = Rule.__getattribute__(self, '__dict__')
+      if 'result' in d: return d['result'].__getattribute__(name)
+      raise
 
   def run_code(self, code):
     cprint('run_code(%s)' % `code`, 'blue')
@@ -237,19 +244,17 @@ class OrRule(Rule):
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
-        # TODO Maybe rename results since SeqRule doesn't use it anymore.
-        self.results = {'name': r, 'value': val}
+        self.result = val
         cprint('%s parse succeeded as %s' % (self.name, r), 'magenta')
         return self, pos
     cprint('%s parse failed' % self.name, 'magenta')
     return None, pos
 
   def debug_print(self, indent='', or_cont=False):
-    #print('self.results=%s' % `self.results`)
     if not or_cont:
       cprint('%s%s' % (indent, self.name), 'yellow', end='')
-    cprint(' -> %s' % self.results['name'], 'yellow', end='')
-    self.results['value'].debug_print(indent + '  ', or_cont=True)
+    cprint(' -> %s' % self.result.name, 'yellow', end='')
+    self.result.debug_print(indent + '  ', or_cont=True)
 
   def child(self):
     c = OrRule(self.name, self.or_list)
