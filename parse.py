@@ -71,6 +71,8 @@ class Rule(Object):
   def __init__(self):
     self._unbound_methods_ = {}
 
+  def __str__(self): return self.str()
+
   def _run_fn(self, fn_name, fn_code):
     # This function is wonky because exec has wonky treatment of locals. See:
     # http://stackoverflow.com/a/1463370
@@ -96,7 +98,9 @@ class Rule(Object):
 
     fn_lo = {}
     exec fn_code in globals(), fn_lo
-    fn_lo[fn_name](**lo)
+    res = fn_lo[fn_name](**lo)
+    #cprint('got result=%s' % `res`, 'blue')
+    return res
 
   def _bound_method(self, fn_name, unbound_fn):
     self.__dict__[fn_name] = types.MethodType(unbound_fn, self, self.__class__)
@@ -108,7 +112,7 @@ class Rule(Object):
   def add_fn(self, fn_name, fn_code):
     def run(self):
       cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
-      self._run_fn(fn_name, fn_code)
+      return self._run_fn(fn_name, fn_code)
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
 
@@ -133,6 +137,8 @@ class SeqRule(Rule):
     self.seq = seq
     self.is_global = True
     Rule.__init__(self)
+
+    self.add_fn('str', ' return "".join([str(t) for t in tokens])')
 
   def parse_mode(self, code, pos):
     cprint('%s parse_mode' % self.name, 'magenta')
@@ -409,4 +415,13 @@ parse = Object()
 public_fns = [or_rule, seq_rule, false_rule, file, push_mode, pop_mode]
 for fn in public_fns: parse[fn.__name__] = fn
 
+###############################################################################
+#
+# Temp code for debugging / init development.
+#
+###############################################################################
+
+def test():
+  for tree in file('language definition3.water'):
+    tree.debug_print()
 
