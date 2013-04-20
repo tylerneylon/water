@@ -321,7 +321,7 @@ def _add_rule(rule, mode):
   return rule
 
 def parse_exact_str(s, code, pos):
-  to_escape = list("+()")
+  to_escape = list("+()|*")
   for e in to_escape: s = s.replace(e, "\\" + e)
   return parse_exact_re(s, code, pos)
 
@@ -368,12 +368,15 @@ def setup_base_rules():
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
   r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
   r.add_fn('parsed', " parse.or_rule(word.str(), or_list.list(), mode=mode.name)\n")
-  or_rule('or_list', ['rule_name', 'multi_or_list'])
+  or_rule('or_list', ['multi_or_list', 'rule_name'])
   or_rule('multi_or_list', ['std_multi_or_list', 'else_multi_or_list'])
   r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
   r.add_fn('list', " return rule_name.list() + or_list.list()")
+  r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'command'])
+  r.add_fn('list', " return rule_name.list() + [{'else': command.str()}]")
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.str()]")
+  seq_rule('command', [r'"[^\n]*\n"'])
 
 
 ###############################################################################
