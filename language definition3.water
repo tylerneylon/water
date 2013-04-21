@@ -81,13 +81,16 @@
   or_rule ->
     word ' -> ' or_list
     : parse.or_rule(word.str(), or_list.list(), mode=mode.name)
-  or_list -> multi_or_list | rule_name
+  or_list -> multi_or_list | or_list_end
+  or_list_end ->
+    rule_name "[ \t]*\n"
+    list: return rule_name.list()
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
     rule_name ' | ' or_list
     list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
-    rule_name ' |: ' command
+    rule_name ' |: ' command "[ \t]*\n"
     list: return rule_name.list() + [{'else': command.str()}]
   rule_name ->
     word
