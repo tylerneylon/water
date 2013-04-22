@@ -417,13 +417,28 @@ def setup_base_rules():
   or_rule('item', ['str', 'rule_name'])
   r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
   r.add_fn('start', ("\n  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
-                     "  mode.chars = []\n"))
+                     "  mode.chars = [mode.endchar]\n"))
   r.add_fn('list', " return [mode_result]")
   r = seq_rule('item_list', ['item', "' '", 'seq'])
   r.add_fn('list', " return item.list() + seq.list()")
   r = seq_rule('mode_result', ["'-|'"])
   r.add_fn('list', " return ['-|']")
 
+  # str rules.
+  or_rule('phrase', ['escape_seq', 'char'], mode='str')
+  r = seq_rule('escape_seq', [r'"\\\\(.)"'], mode='str')
+  r.add_fn('parsed', ("\n"
+                      "  if tokens[0][1] != mode.endchar:\n"
+                      "    mode.chars.append('\\\\')\n"
+                      "  mode.chars.append(tokens[0][1])\n"))
+  r = seq_rule('char', ['"."'], mode='str')
+  r.add_fn('parsed', ("\n"
+                      "  c = tokens[0][0]\n"
+                      "  mode.chars.append(c)\n"
+                      "  if c == mode.endchar:\n"
+                      "    s = ''.join(mode.chars)\n"
+                      "    parse.pop_mode(''.join(mode.chars))\n"
+                      "    print('str done; direct value is %s; encoded value is %s' % (s, `s`))\n"))
 
 
 ###############################################################################

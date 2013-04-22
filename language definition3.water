@@ -110,7 +110,7 @@
     "['\"]" -|
     start:
       parse.push_mode('str', {'endchar': tokens[0][0]})
-      mode.chars = []
+      mode.chars = [mode.endchar]
     list: return [mode_result]
   item_list ->
     item ' ' seq
@@ -157,10 +157,9 @@
     "."
     :
       c = tokens[0][0]
+      mode.chars.append(c)
       if c == mode.endchar:
         parse.pop_mode(''.join(mode.chars))
-      else:
-        mode.chars.append(c)
 
 > nested_code_block
   phrase -> indented_code_line |: return parse.pop_mode(''.join(mode.src))
