@@ -424,6 +424,29 @@ def setup_base_rules():
   r = seq_rule('mode_result', ["'-|'"])
   r.add_fn('list', " return ['-|']")
 
+  # rule_block rules.
+  m = 'rule_block'
+  or_rule('phrase', ['indented_rule_item',
+                     ": return parse.pop_mode(mode.items)\n"], mode=m)
+  r = seq_rule('indented_rule_item', ['"%(indent)s"', 'rule_item'], mode=m)
+  r.add_fn('parsed', ' mode.items.append(rule_item)')
+  or_rule('rule_item', ['bin_item', 'parse_item', 'method_item'], mode=m)
+  r = seq_rule('bin_item', ["'='", 'code_block'], mode=m)
+  r.add_fn('parsed', " mode.rule.add_fn('str', 'return ' + code_block.str())\n")
+  r = seq_rule('parse_item', ["':'", 'code_block'], mode=m)
+  r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.str())\n")
+  r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)
+  r.add_fn('parsed', " mode.rule.add_fn(word.str(), code_block.str())")
+  or_rule('code_block', ['one_line_code_block', 'indented_code_block'], mode=m)
+  seq_rule('one_line_code_block', [r'"\s+(\S.*)\n"'], mode=m)
+  r = seq_rule('indented_code_block', [r'"\s*\n%(indent)s(?=(\s+))"', '-|'],
+               mode=m)
+  r.add_fn('str', " return mode_result")
+  r.add_fn('start', ("\n"
+                     "  opts = {'indent': mode.indent + tokens[0][1]}\n"
+                     "  parse.push_mode('nested_code_block', opts)\n"
+                     "  mode.src = ['\\n']\n"))
+
   # str rules.
   or_rule('phrase', ['escape_seq', 'char'], mode='str')
   r = seq_rule('escape_seq', [r'"\\\\(.)"'], mode='str')
@@ -439,6 +462,14 @@ def setup_base_rules():
                       "    s = ''.join(mode.chars)\n"
                       "    parse.pop_mode(''.join(mode.chars))\n"
                       "    print('str done; direct value is %s; encoded value is %s' % (s, `s`))\n"))
+
+  # nested_code_block rules.
+  m = 'nested_code_block'
+  or_rule('phrase', ['indented_code_line',
+                     ": return parse.pop_mode(''.join(mode.src))"], mode=m)
+  seq_rule('indented_code_line', ['"%(indent)s"', 'code_line'], mode=m)
+  r = seq_rule('code_line', [r'"[^\n]*\n"'], mode=m)
+  r.add_fn('parsed', " mode.src.append('  ' + tokens[0][0])\n")
 
 
 ###############################################################################

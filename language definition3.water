@@ -141,7 +141,7 @@
     "\s*\n%(indent)s(?=(\s+))" -|
     = mode_result
     start:
-      opts = {'indent': mode.opts.indent + tokens[0][1]}
+      opts = {'indent': mode.indent + tokens[0][1]}
       parse.push_mode('nested_code_block', opts)
       mode.src = ['\n']
   
