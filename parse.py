@@ -287,7 +287,7 @@ def file(filename):
     tree, pos = rules['phrase'].parse(code, pos)
 
 def push_mode(name, opts):
-  cprint('push_mode(%s, %s)' % (name, `opts`), 'cyan')
+  cprint('push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
   global rules, mode, modes
   mode = Object()
   mode.__dict__.update(opts)
@@ -299,7 +299,6 @@ def push_mode(name, opts):
   modes.append(mode)
 
 def pop_mode(result):
-  cprint('pop_mode(_)', 'cyan')
   global rules, mode, modes, mode_result
   if len(modes) == 1:
     cprint("Grammar error: pop_mode() when only global mode on the stack",
@@ -309,6 +308,7 @@ def pop_mode(result):
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
+  cprint('pop_mode(_); new mode is %s' % `mode.id`, 'cyan')
   return result
 
 ###############################################################################
@@ -377,13 +377,21 @@ def setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', "\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n  parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})\n  mode.rules = []\n")
+  r.add_fn('start', ("\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n"
+                     "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
+                     " 'name': ''})\n  mode.new_rules = []\n"))
+  r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-|'])
+  r.add_fn('start', ("\n  opts = {'name': word.str(), 'indent': tokens[2][1]}\n"
+                     "  parse.push_mode('lang_def', opts)\n"
+                     "  mode.new_rules = []\n"))
   seq_rule('word', ['"[A-Za-z_]\w*"'])
 
   # lang_def rules.
-  or_rule('phrase', ['indented_rule', ':\n  print("popping from lang_def")\n  return parse.pop_mode(mode.rules)\n'], mode='lang_def')
+  or_rule('phrase', ['indented_rule', (":\n  print('popping from lang_def')\n"
+                                       "  return parse.pop_mode("
+                                       "mode.new_rules)\n")], mode='lang_def')
   r = seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
-  r.add_fn('parsed', " mode.rules.append(rule)")
+  r.add_fn('parsed', " mode.new_rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
   r = seq_rule('false_rule', ['word', r'"->\s+False"'], mode='lang_def')
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
@@ -400,6 +408,22 @@ def setup_base_rules():
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.str()]")
   seq_rule('command', [r'"[^\n]*\n"'])
+  r = seq_rule('seq_rule', ['word', r'" ->\n%(indent)s(\s+)"', 'seq', '-|'])
+  r.add_fn('start', ("\n  opts = {'indent': mode.indent + tokens[1][1]}\n"
+                     "  parse.push_mode('rule_block', opts)\n"
+                     "  mode.rule = parse.seq_rule(word.str(), seq.list(),"
+                     " mode=mode.name)\n  mode.items = []\n"))
+  or_rule('seq', ['item_list', 'item', 'mode_result'])
+  or_rule('item', ['str', 'rule_name'])
+  r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
+  r.add_fn('start', ("\n  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
+                     "  mode.chars = []\n"))
+  r.add_fn('list', " return [mode_result]")
+  r = seq_rule('item_list', ['item', "' '", 'seq'])
+  r.add_fn('list', " return item.list() + seq.list()")
+  r = seq_rule('mode_result', ["'-|'"])
+  r.add_fn('list', " return ['-|']")
+
 
 
 ###############################################################################

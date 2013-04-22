@@ -59,21 +59,21 @@
     ">\n(?=(\s+))" -|
     start:
       parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})
-      mode.rules = []
+      mode.new_rules = []
   mode_grammar ->
-    "> " word "\n(?=(\s+))" -|
+    '> ' word "\n(?=(\s+))" -|
     start:
       opts = {'name': word.str(), 'indent': tokens[2][1]}
       parse.push_mode('lang_def', opts)
-      mode.rules = []
+      mode.new_rules = []
   word ->
     "[A-Za-z_]\w*"
 
 > lang_def
-  phrase -> indented_rule |: return parse.pop_mode(mode.rules)
+  phrase -> indented_rule |: return parse.pop_mode(mode.new_rules)
   indented_rule ->
     "%(indent)s" rule
-    : mode.rules.append(rule)
+    : mode.new_rules.append(rule)
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
     word "->\s+False"
@@ -98,13 +98,13 @@
   command ->
     "[^\n]*\n"
   seq_rule ->
-    word " ->\n%(indent)s(?=(\s+))" seq -|
+    word " ->\n%(indent)s(\s+)" seq -|
     start: 
-      opts = {'indent': mode.opts.indent + tokens[1][1]}
+      opts = {'indent': mode.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
       mode.rule = parse.seq_rule(word.str(), seq.list(), mode=mode.name)
       mode.items = []
-  seq -> item | item_list | mode_result
+  seq -> item_list | item | mode_result
   item -> str | rule_name
   str ->
     "['\"]" -|
