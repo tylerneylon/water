@@ -14,6 +14,7 @@
 # Cyan:      parse public method calls
 # Blue:      Very temporary stuff
 # Red:       Error
+# White:     Every phrase parsed
 #
 
 from __future__ import print_function
@@ -82,17 +83,22 @@ class Rule(Object):
 
     lo = {}
     if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
-    if 'pieces' in self.__dict__: lo.update(self.pieces)
+    if 'pieces' in self.__dict__:
+      p = self.pieces
+      lo.update({k: p[k][0] if len(p[k]) == 1 else p[k] for k in p})
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
-    #cprint('lo=%s' % `lo`, 'blue')
+    cprint('lo=%s' % `lo`, 'blue')
+    #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
+    n = `mode.name` if 'name' in mode.__dict__ else '<None>'
+    cprint('mode.name=%s' % n, 'blue')
 
     arglist = ', '.join(k + '=None' for k in lo.keys())
     prefix = 'def %s(%s): ' % (fn_name, arglist)
     fn_code = prefix + fn_code
 
-    #cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
+    cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
 
     fn_lo = {}
     exec fn_code in globals(), fn_lo
@@ -115,7 +121,12 @@ class Rule(Object):
     self._bound_method(fn_name, run)
 
   def parse(self, code, pos):
-    return self.child().inst_parse(code, pos)
+    #return self.child().inst_parse(code, pos)
+    tree, pos = self.child().inst_parse(code, pos)
+    if self.name == 'phrase' and tree:
+      cprint('Successful phrase parse:', 'white')
+      _debug_print(tree)
+    return tree, pos
 
 
 class SeqRule(Rule):
@@ -176,8 +187,8 @@ class SeqRule(Rule):
         cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
         return self._end_parse(None, self.startpos)
       self.tokens.append(val)
-    for key in self.pieces:
-      if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
+    #for key in self.pieces:
+    #  if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
     return self._end_parse(self, pos)
 
   def _end_parse(self, tree, pos):
@@ -289,10 +300,12 @@ def file(filename):
 def push_mode(name, opts):
   cprint('push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
   global rules, mode, modes
+  o = modes[-1].opts.copy() if len(modes) else {}
+  o.update(opts)
   mode = Object()
-  mode.__dict__.update(opts)
+  mode.__dict__.update(o)
   mode.id = name
-  mode.opts = opts
+  mode.opts = o
   mode.rules = modes[-1].rules.copy() if len(modes) else {}
   mode.rules.update(all_rules[name])
   rules = mode.rules
@@ -413,16 +426,18 @@ def setup_base_rules():
                      "  parse.push_mode('rule_block', opts)\n"
                      "  mode.rule = parse.seq_rule(word.str(), seq.list(),"
                      " mode=mode.name)\n  mode.items = []\n"))
-  or_rule('seq', ['item_list', 'item', 'mode_result'])
+  or_rule('seq', ['item_end', 'mode_result_end', 'item_list'])
+  r = seq_rule('item_end', ['item', r'"[ \t]*\n"'])
+  r.add_fn('list', " return item.list()\n")
+  r = seq_rule('mode_result_end', ["'-|'", r'"[ \t]*\n"'])
+  r.add_fn('list', " return ['-|']\n")
+  r = seq_rule('item_list', ['item', "' '", 'seq'])
+  r.add_fn('list', " return item.list() + seq.list()\n")
   or_rule('item', ['str', 'rule_name'])
   r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
   r.add_fn('start', ("\n  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
                      "  mode.chars = [mode.endchar]\n"))
   r.add_fn('list', " return [mode_result]")
-  r = seq_rule('item_list', ['item', "' '", 'seq'])
-  r.add_fn('list', " return item.list() + seq.list()")
-  r = seq_rule('mode_result', ["'-|'"])
-  r.add_fn('list', " return ['-|']")
 
   # rule_block rules.
   m = 'rule_block'

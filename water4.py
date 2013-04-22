@@ -29,7 +29,8 @@ import parse
 
 def exec_file(filename):
   for tree in parse.file(filename):
-    tree.debug_print()
+    pass
+    #tree.debug_print()
 
 if __name__ == '__main__':
   exec_file('language definition3.water')

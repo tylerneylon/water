@@ -104,7 +104,16 @@
       parse.push_mode('rule_block', opts)
       mode.rule = parse.seq_rule(word.str(), seq.list(), mode=mode.name)
       mode.items = []
-  seq -> item_list | item | mode_result
+  seq -> item_end | mode_result_end | item_list
+  item_end ->
+    item "[ \t]*\n"
+    list: return item.list()
+  mode_result_end ->
+    '-|' "[ \t]*\n"
+    list: return ['-|']
+  item_list ->
+    item ' ' seq
+    list: return item.list() + seq.list()
   item -> str | rule_name
   str ->
     "['\"]" -|
@@ -112,12 +121,6 @@
       parse.push_mode('str', {'endchar': tokens[0][0]})
       mode.chars = [mode.endchar]
     list: return [mode_result]
-  item_list ->
-    item ' ' seq
-    list: return item.list() + seq.list()
-  mode_result ->
-    '-|'
-    list: return ['-|']
 
 > rule_block
   phrase -> indented_rule_item |: return parse.pop_mode(mode.items)
