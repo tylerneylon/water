@@ -92,7 +92,7 @@
     rule_name ' | ' or_list
     list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
-    rule_name ' |: ' command "[ \t]*\n"
+    rule_name ' |: ' command
     list: return rule_name.list() + [{'else': command.str()}]
   rule_name ->
     word

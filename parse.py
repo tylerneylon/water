@@ -436,7 +436,7 @@ def setup_base_rules():
   or_rule('multi_or_list', ['std_multi_or_list', 'else_multi_or_list'])
   r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
   r.add_fn('list', " return rule_name.list() + or_list.list()")
-  r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'command', r'"[ \t]*\n"'])
+  r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'command'])
   r.add_fn('list', " return rule_name.list() + [{'else': command.str()}]")
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.str()]")
@@ -530,6 +530,7 @@ for fn in public_fns: parse[fn.__name__] = fn
 
 #cprint_colors = ['blue', 'cyan', 'magenta']
 cprint_colors = ['cyan']
+cprint_colors = 'all'
 
 ###############################################################################
 #
