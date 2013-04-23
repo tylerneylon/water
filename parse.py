@@ -184,7 +184,9 @@ class SeqRule(Rule):
         val, pos = rules[rule_name].parse(code, pos)
         if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None:
-        cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
+        dbg_fmt = '%s parse failed at token %s ~= code %s'
+        cprint(dbg_fmt % (self.name, rule_name, code[pos:pos + 10]), 'magenta')
+        #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
         return self._end_parse(None, self.startpos)
       self.tokens.append(val)
     #for key in self.pieces:
@@ -452,13 +454,13 @@ def setup_base_rules():
   r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.str())\n")
   r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)
   r.add_fn('parsed', " mode.rule.add_fn(word.str(), code_block.str())")
-  or_rule('code_block', ['one_line_code_block', 'indented_code_block'], mode=m)
+  or_rule('code_block', ['indented_code_block', 'one_line_code_block'], mode=m)
   seq_rule('one_line_code_block', [r'"\s+(\S.*)\n"'], mode=m)
-  r = seq_rule('indented_code_block', [r'"\s*\n%(indent)s(?=(\s+))"', '-|'],
+  r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"', '-|'],
                mode=m)
   r.add_fn('str', " return mode_result")
   r.add_fn('start', ("\n"
-                     "  opts = {'indent': mode.indent + tokens[0][1]}\n"
+                     "  opts = {'indent': tokens[0][1]}\n"
                      "  parse.push_mode('nested_code_block', opts)\n"
                      "  mode.src = ['\\n']\n"))
 
