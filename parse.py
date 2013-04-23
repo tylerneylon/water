@@ -23,11 +23,6 @@ import re
 import traceback # TEMP TODO
 import types
 
-try:
-  from termcolor import cprint
-except:
-  def cprint(s, color=None): print(s)
-
 # Globals.
 
 all_rules = {}
@@ -36,6 +31,23 @@ modes = []
 mode = None
 mode_result = None
 parse = None
+
+# This is either 'all' or a list of whitelisted color names.
+cprint_colors = 'all'
+
+# Set up cprint
+
+try:
+  import termcolor
+  _cprint = termcolor.cprint
+  #def _cprint(text, color=None, on_color=None, attrs=None, **kwargs):
+  #  termcolor.cprint(text, color, on_color, attrs, kwargs)
+except:
+  def _cprint(s, color=None): print(s)
+
+def cprint(text, color=None, on_color=None, attrs=None, **kwargs):
+  if cprint_colors == 'all' or color is None or color in cprint_colors:
+    _cprint(text, color, on_color, attrs, **kwargs)
 
 ###############################################################################
 #
@@ -202,7 +214,7 @@ class SeqRule(Rule):
   def debug_print(self, indent='  '):
     cprint('%s' % self.name, 'yellow')
     for i in range(len(self.seq)):
-      print(indent, end='')
+      cprint(indent, 'yellow', end='')
       item = '-| %s' % self.mode_id if self.seq[i] == '-|' else self.seq[i]
       _debug_print(self.tokens[i], indent + '  ', item)
 
@@ -344,9 +356,9 @@ def _debug_print(obj, indent='  ', seq_item=None):
   elif seq_item:
     cprint('%s -> %s' % (seq_item, `obj`), 'yellow')
   elif type(obj) == list:
-    print('')
+    cprint('', 'yellow')
     for i in obj:
-      print(indent, end='')
+      cprint(indent, 'yellow', end='')
       _debug_print(i, indent + '  ')
   else:
     cprint('%s' % `obj`, 'yellow')
@@ -495,12 +507,16 @@ def setup_base_rules():
 #
 ###############################################################################
 
+cprint_colors = []
+
 setup_base_rules()
 push_mode('', {})  # Set up the global mode.
 
 parse = Object()
 public_fns = [or_rule, seq_rule, false_rule, file, push_mode, pop_mode]
 for fn in public_fns: parse[fn.__name__] = fn
+
+cprint_colors = ['cyan']
 
 ###############################################################################
 #
