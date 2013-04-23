@@ -110,7 +110,7 @@ class Rule(Object):
     prefix = 'def %s(%s): ' % (fn_name, arglist)
     fn_code = prefix + fn_code
 
-    cprint('\n\n(runtime) fn_code:\n\n%s\n\n' % fn_code, 'blue')
+    cprint('(runtime) fn_code:\n%s\n' % fn_code, 'blue')
 
     fn_lo = {}
     exec fn_code in globals(), fn_lo
@@ -126,6 +126,11 @@ class Rule(Object):
       self._bound_method(fn_name, self._unbound_methods_[fn_name])
 
   def add_fn(self, fn_name, fn_code):
+    cprint('add_fn(%s, <code below>)' % fn_name, 'cyan')
+    cprint(fn_code, 'cyan')
+    self._add_fn(fn_name, fn_code)
+
+  def _add_fn(self, fn_name, fn_code):
     def run(self):
       cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
       return self._run_fn(fn_name, fn_code)
@@ -147,7 +152,7 @@ class SeqRule(Rule):
     self.name = name
     self.seq = seq
     Rule.__init__(self)
-    self.add_fn('str', ' return "".join([str(t) for t in tokens])')
+    self._add_fn('str', ' return "".join([str(t) for t in tokens])')
 
   def __getattribute__(self, name):
     try:
@@ -312,7 +317,7 @@ def file(filename):
     tree, pos = rules['phrase'].parse(code, pos)
 
 def push_mode(name, opts):
-  cprint('push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
+  cprint('    push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
   global rules, mode, modes
   o = modes[-1].opts.copy() if len(modes) else {}
   o.update(opts)
@@ -331,11 +336,11 @@ def pop_mode(result):
     cprint("Grammar error: pop_mode() when only global mode on the stack",
            'red')
     exit(1)
-  modes.pop()
+  old_mode = modes.pop()
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
-  cprint('pop_mode(_); new mode is %s' % `mode.id`, 'cyan')
+  cprint('    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`), 'cyan')
   return result
 
 ###############################################################################
@@ -345,7 +350,8 @@ def pop_mode(result):
 ###############################################################################
 
 def _dbg_parse_start(name, code, pos):
-  cprint('%s parse at """%s"""' % (name, `code[pos: pos + 30]`), 'magenta')
+  m = ' <%s>' % mode.id if len(mode.id) else ''
+  cprint('%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`), 'magenta')
 
 def _debug_print(obj, indent='  ', seq_item=None):
   if isinstance(obj, Rule):
@@ -449,7 +455,11 @@ def setup_base_rules():
   r.add_fn('list', " return item.list() + seq.list()\n")
   or_rule('item', ['str', 'rule_name'])
   r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
-  r.add_fn('start', ("\n  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
+  r.add_fn('start', ("\n"
+                     "  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
+                     "  global cprint_colors\n"
+                     "  mode.cc = cprint_colors\n"
+                     "  cprint_colors = []\n"
                      "  mode.chars = [mode.endchar]\n"))
   r.add_fn('list', " return [mode_result]")
 
@@ -489,6 +499,8 @@ def setup_base_rules():
                       "  mode.chars.append(c)\n"
                       "  if c == mode.endchar:\n"
                       "    s = ''.join(mode.chars)\n"
+                      "    global cprint_colors\n"
+                      "    cprint_colors = mode.cc\n"
                       "    parse.pop_mode(''.join(mode.chars))\n"
                       "    print('str done; direct value is %s; encoded value is %s' % (s, `s`))\n"))
 
@@ -498,7 +510,7 @@ def setup_base_rules():
                      ": return parse.pop_mode(''.join(mode.src))"], mode=m)
   seq_rule('indented_code_line', ['"%(indent)s"', 'code_line'], mode=m)
   r = seq_rule('code_line', [r'"[^\n]*\n"'], mode=m)
-  r.add_fn('parsed', " mode.src.append('  ' + tokens[0][0])\n")
+  r.add_fn('parsed', " mode.src.append('  ' + tokens[0])\n")
 
 
 ###############################################################################
@@ -516,6 +528,7 @@ parse = Object()
 public_fns = [or_rule, seq_rule, false_rule, file, push_mode, pop_mode]
 for fn in public_fns: parse[fn.__name__] = fn
 
+#cprint_colors = ['blue', 'cyan', 'magenta']
 cprint_colors = ['cyan']
 
 ###############################################################################

@@ -172,6 +172,6 @@
     "%(indent)s" code_line
   code_line ->
     "[^\n]*\n"
-    : mode.src.append('  ' + tokens[0][0])
+    : mode.src.append('  ' + tokens[0])
 
     
