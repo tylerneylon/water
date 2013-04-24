@@ -54,7 +54,7 @@
 >
   phrase -> statement | comment | blank | grammar
   blank ->
-    "\n"
+    "[ \t]*\n"
   comment ->
     "#[^\n]*\n"
   statement -> False
@@ -154,7 +154,7 @@
       opts = {'indent': tokens[0][1]}
       parse.push_mode('nested_code_block', opts)
       mode.src = ['\n']
-  
+ 
 > str
   phrase -> escape_seq | char
   escape_seq ->

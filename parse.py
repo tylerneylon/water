@@ -405,7 +405,7 @@ def parse_exact_re(s, code, pos):
 def setup_base_rules():
   # Global rules.
   or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'])
-  seq_rule('blank', [r'"\n"'])
+  seq_rule('blank', [r'"[ \t]*\n"'])
   seq_rule('comment', [r'"#[^\n]*\n"'])
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
@@ -530,7 +530,7 @@ for fn in public_fns: parse[fn.__name__] = fn
 
 #cprint_colors = ['blue', 'cyan', 'magenta']
 cprint_colors = ['cyan']
-#cprint_colors = 'all'
+cprint_colors = 'all'
 
 ###############################################################################
 #
