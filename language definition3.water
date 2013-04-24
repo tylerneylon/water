@@ -46,7 +46,9 @@
 #   to whatever they represent. For '-strings, \' is still converted, also by
 #   the parser, but otherwise everything else stays exactly the same.
 #
-# TODO In many cases, I have \s where I mean \s but not \n.
+# TODO
+# * In many cases, I have \s where I mean \s but not \n.
+# * Drop cprint_colors references.
 #
 
 >
@@ -93,7 +95,7 @@
     list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
     rule_name ' |: ' command
-    list: return rule_name.list() + [{'else': command.str()}]
+    list: return rule_name.list() + [':' + command.str()]
   rule_name ->
     word
     list: return [word.str()]
@@ -121,6 +123,9 @@
     "['\"]" -|
     start:
       parse.push_mode('str', {'endchar': tokens[0][0]})
+      global cprint_colors
+      mode.cc = cprint_colors
+      cprint_colors = []
       mode.chars = [mode.endchar]
     list: return [mode_result]
 
@@ -141,7 +146,7 @@
     : mode.rule.add_fn(word.str(), code_block.str())
   code_block -> indented_code_block | one_line_code_block 
   one_line_code_block ->
-    "\s+(\S.*)\n"
+    "[^\n]*\n"
   indented_code_block ->
     "\s*\n(?=(%(indent)s\s+))" -|
     = mode_result
@@ -164,6 +169,8 @@
       c = tokens[0][0]
       mode.chars.append(c)
       if c == mode.endchar:
+        global cprint_colors
+        cprint_colors = mode.cc
         parse.pop_mode(''.join(mode.chars))
 
 > nested_code_block

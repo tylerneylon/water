@@ -437,7 +437,7 @@ def setup_base_rules():
   r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
   r.add_fn('list', " return rule_name.list() + or_list.list()")
   r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'command'])
-  r.add_fn('list', " return rule_name.list() + [{'else': command.str()}]")
+  r.add_fn('list', " return rule_name.list() + [':' + command.str()]")
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.str()]")
   seq_rule('command', [r'"[^\n]*\n"'])
@@ -477,7 +477,7 @@ def setup_base_rules():
   r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)
   r.add_fn('parsed', " mode.rule.add_fn(word.str(), code_block.str())")
   or_rule('code_block', ['indented_code_block', 'one_line_code_block'], mode=m)
-  seq_rule('one_line_code_block', [r'"\s+(\S.*)\n"'], mode=m)
+  seq_rule('one_line_code_block', [r'"[^\n]*\n"'], mode=m)
   r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"', '-|'],
                mode=m)
   r.add_fn('str', " return mode_result")
@@ -530,7 +530,7 @@ for fn in public_fns: parse[fn.__name__] = fn
 
 #cprint_colors = ['blue', 'cyan', 'magenta']
 cprint_colors = ['cyan']
-cprint_colors = 'all'
+#cprint_colors = 'all'
 
 ###############################################################################
 #
