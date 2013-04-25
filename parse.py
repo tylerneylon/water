@@ -530,7 +530,7 @@ for fn in public_fns: parse[fn.__name__] = fn
 
 #cprint_colors = ['blue', 'cyan', 'magenta']
 cprint_colors = ['cyan']
-cprint_colors = 'all'
+#cprint_colors = 'all'
 
 ###############################################################################
 #
@@ -541,4 +541,8 @@ cprint_colors = 'all'
 def test():
   for tree in file('language definition3.water'):
     tree.debug_print()
+
+def test2():
+  test()
+  test()
 
