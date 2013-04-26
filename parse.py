@@ -20,6 +20,8 @@
 from __future__ import print_function
 
 import re
+from StringIO import StringIO
+import sys
 import traceback # TEMP TODO
 import types
 
@@ -35,19 +37,25 @@ parse = None
 # This is either 'all' or a list of whitelisted color names.
 cprint_colors = 'all'
 
+# This is a list of writable file-like objects which receive debug output.
+# Only sys.stdout is in color.
+dbg_dst = [open('tmpout', 'w')]
+
+
 # Set up cprint
 
 try:
-  import termcolor
-  _cprint = termcolor.cprint
-  #def _cprint(text, color=None, on_color=None, attrs=None, **kwargs):
-  #  termcolor.cprint(text, color, on_color, attrs, kwargs)
+  from termcolor import colored
 except:
   def _cprint(s, color=None): print(s)
+  def colored(s, color=None): return s
 
-def cprint(text, color=None, on_color=None, attrs=None, **kwargs):
+def cprint(text, color=None, end='\n'):
   if cprint_colors == 'all' or color is None or color in cprint_colors:
-    _cprint(text, color, on_color, attrs, **kwargs)
+    s = text + end
+    for dst in dbg_dst:
+      if dst is sys.stdout: s = colored(s, color)
+      dst.write(s)
 
 ###############################################################################
 #
@@ -315,6 +323,8 @@ def file(filename):
   while tree:
     yield tree
     tree, pos = rules['phrase'].parse(code, pos)
+  if pos < len(code):
+    raise Exception('Parsing failed at byte %d' % pos)
 
 def push_mode(name, opts):
   cprint('    push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
@@ -410,7 +420,7 @@ def setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['global_grammar', 'mode_grammar'])
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', ("\n  print('gg_start')\n  print('tokens=%s' % `tokens`)\n"
+  r.add_fn('start', ("\n"
                      "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
                      " 'name': ''})\n  mode.new_rules = []\n"))
   r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-|'])
@@ -420,9 +430,9 @@ def setup_base_rules():
   seq_rule('word', ['"[A-Za-z_]\w*"'])
 
   # lang_def rules.
-  or_rule('phrase', ['indented_rule', (":\n  print('popping from lang_def')\n"
-                                       "  return parse.pop_mode("
-                                       "mode.new_rules)\n")], mode='lang_def')
+  or_rule('phrase', ['indented_rule',
+                     ": return parse.pop_mode(mode.new_rules)\n"],
+                    mode='lang_def')
   r = seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
   r.add_fn('parsed', " mode.new_rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
@@ -498,11 +508,9 @@ def setup_base_rules():
                       "  c = tokens[0][0]\n"
                       "  mode.chars.append(c)\n"
                       "  if c == mode.endchar:\n"
-                      "    s = ''.join(mode.chars)\n"
                       "    global cprint_colors\n"
                       "    cprint_colors = mode.cc\n"
-                      "    parse.pop_mode(''.join(mode.chars))\n"
-                      "    print('str done; direct value is %s; encoded value is %s' % (s, `s`))\n"))
+                      "    parse.pop_mode(''.join(mode.chars))\n"))
 
   # nested_code_block rules.
   m = 'nested_code_block'
@@ -524,25 +532,58 @@ cprint_colors = []
 setup_base_rules()
 push_mode('', {})  # Set up the global mode.
 
-parse = Object()
-public_fns = [or_rule, seq_rule, false_rule, file, push_mode, pop_mode]
-for fn in public_fns: parse[fn.__name__] = fn
+parse = sys.modules[__name__]
 
 #cprint_colors = ['blue', 'cyan', 'magenta']
-cprint_colors = ['cyan']
+cprint_colors = ['magenta']
 #cprint_colors = 'all'
 
 ###############################################################################
 #
-# Temp code for debugging / init development.
+# Test code for debugging / init development.
 #
 ###############################################################################
 
-def test():
-  for tree in file('language definition3.water'):
-    tree.debug_print()
+def expect(a, cond, b, ctx):
+  a_val = eval(a, ctx)
+  b_val = eval(b, ctx)
+  eval_str = `a_val` + cond + `b_val`
+  if not eval(eval_str, ctx):
+    fmt = 'Fail:\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
+    print(fmt % (a, cond, b, a, `a_val`, b, `b_val`))
+    #import pdb; pdb.set_trace()
+    return False
+  return True
+
+def test1(return_out_str=False):
+  # Check the following conditions:
+  # * We parse the whole file.
+  # * We get the right number of parse calls.
+  # * The first and last parse calls look correct.
+  global cprint_colors, dbg_dst
+  cprint_colors = ['cyan']
+  out = StringIO()
+  dbg_dst = [out]
+  try: 
+    for tree in file('language definition3.water'):
+      tree.debug_print()
+  except Exception as e:
+    print('Fail: %s' % e)
+    return False
+  out.seek(0)
+  out_str = out.read()
+  lines = out_str.split('\n')
+  if not expect('len(lines)', '==', '313', locals()): return False
+  first_line = "    push_mode('lang_def', {'indent': '  ', 'name': ''})"
+  if not expect('lines[0]', '==', 'first_line', locals()): return False
+  last_line = "    pop_mode(_); 'lang_def' -> ''"
+  if not expect('lines[-2]', '==', 'last_line', locals()): return False
+  return out_str if return_out_str else True
 
 def test2():
-  test()
-  test()
+  # Check the following conditions:
+  # * Both parses succeed. [TODO]
+  # * The parse calls are the same both times. [TODO]
+  test1()
+  test1()
 
