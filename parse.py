@@ -22,7 +22,7 @@ from __future__ import print_function
 import re
 from StringIO import StringIO
 import sys
-import traceback # TEMP TODO
+import traceback
 import types
 
 # Globals.
@@ -544,13 +544,16 @@ cprint_colors = ['magenta']
 #
 ###############################################################################
 
+# TODO More human-friendly formatting when a and b are long strings.
 def expect(a, cond, b, ctx):
+  stack = traceback.extract_stack()
+  caller = stack[-2][2]
   a_val = eval(a, ctx)
   b_val = eval(b, ctx)
   eval_str = `a_val` + cond + `b_val`
   if not eval(eval_str, ctx):
-    fmt = 'Fail:\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
-    print(fmt % (a, cond, b, a, `a_val`, b, `b_val`))
+    fmt = 'Fail (%s):\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
+    print(fmt % (caller, a, cond, b, a, `a_val`, b, `b_val`))
     #import pdb; pdb.set_trace()
     return False
   return True
@@ -568,7 +571,7 @@ def test1(return_out_str=False):
     for tree in file('language definition3.water'):
       tree.debug_print()
   except Exception as e:
-    print('Fail: %s' % e)
+    print('Fail (test1): %s' % e)
     return False
   out.seek(0)
   out_str = out.read()
@@ -582,8 +585,9 @@ def test1(return_out_str=False):
 
 def test2():
   # Check the following conditions:
-  # * Both parses succeed. [TODO]
-  # * The parse calls are the same both times. [TODO]
-  test1()
-  test1()
+  # * Both parses succeed.
+  # * The parse calls are the same both times.
+  out1 = test1(True)
+  out2 = test1(True)
+  return expect('out1', '==', 'out2', locals())
 
