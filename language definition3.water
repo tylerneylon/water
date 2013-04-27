@@ -80,7 +80,7 @@
     : mode.new_rules.append(rule)
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
-    word "->\s+False"
+    word " ->\s+False[ \t]*\n"
     : parse.false_rule(word.str(), mode=mode.name)
   or_rule ->
     word ' -> ' or_list

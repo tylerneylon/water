@@ -347,6 +347,10 @@ def pop_mode(result):
            'red')
     exit(1)
   old_mode = modes.pop()
+  if len(modes) == 1:
+    # Refresh rules if we're at the global context.
+    modes.pop()
+    push_mode('', {})
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
@@ -436,7 +440,7 @@ def setup_base_rules():
   r = seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
   r.add_fn('parsed', " mode.new_rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
-  r = seq_rule('false_rule', ['word', r'"->\s+False"'], mode='lang_def')
+  r = seq_rule('false_rule', ['word', r'" ->\s+False[ \t]*\n"'], mode='lang_def')
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
   r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
   r.add_fn('parsed', " parse.or_rule(word.str(), or_list.list(), mode=mode.name)\n")
@@ -571,12 +575,12 @@ def test1(return_out_str=False):
     for tree in file('language definition3.water'):
       tree.debug_print()
   except Exception as e:
-    print('Fail (test1): %s' % e)
+    print('Fail (test1): %s %s' % (type(e).__name__, e))
     return False
   out.seek(0)
   out_str = out.read()
   lines = out_str.split('\n')
-  if not expect('len(lines)', '==', '313', locals()): return False
+  if not expect('len(lines)', '==', '318', locals()): return False
   first_line = "    push_mode('lang_def', {'indent': '  ', 'name': ''})"
   if not expect('lines[0]', '==', 'first_line', locals()): return False
   last_line = "    pop_mode(_); 'lang_def' -> ''"
