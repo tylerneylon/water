@@ -33,6 +33,7 @@ modes = []
 mode = None
 mode_result = None
 parse = None
+env = None
 
 # This is either 'all' or a list of whitelisted color names.
 cprint_colors = 'all'
@@ -533,6 +534,7 @@ def setup_base_rules():
 
 cprint_colors = []
 
+env = Object()
 setup_base_rules()
 push_mode('', {})  # Set up the global mode.
 

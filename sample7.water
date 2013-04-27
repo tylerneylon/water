@@ -3,13 +3,13 @@
 # Before I get this to work, I'd like to automate test1 and test2, so I can be
 # more confident I'm not breaking parse.py as I work on it.
 >:
-  compile.symbols = {}
-  compile.next_sym_num = 0
+  env.symbols = {}
+  env.next_sym_num = 0
   def new_sym():
-    sym = 'sym_%d' % compile.next_sym_num
-    compile.next_sym_num += 1
+    sym = 'sym_%d' % env.next_sym_num
+    env.next_sym_num += 1
     return sym
-  compile.new_sym = new_sym
+  env.new_sym = new_sym
     
 >
   statement ->
@@ -36,11 +36,11 @@
   identifier ->
     "[A-Za-z_]\w*"
     = left_name:
-      return compile.symbols.setdefault(self.str(), compile.new_sym())
+      return env.symbols.setdefault(self.str(), env.new_sym())
     existing_name:
-      if self.str() not in compile.symbols:
+      if self.str() not in env.symbols:
         return parse.error('Undefined identifier: ' + self.str())
-      return compile.symbols[self.str()]
+      return env.symbols[self.str()]
   number ->
     "[0-9]+"
     = self.str()
