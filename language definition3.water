@@ -51,6 +51,10 @@
 # * Drop cprint_colors references.
 #
 
+# TODO I need mode.indent to be defined at startup now.
+#      This means preserving global opts between refreshes.
+>: mode.indent = ''
+
 >
   phrase -> statement | comment | blank | grammar
   blank ->
@@ -58,7 +62,10 @@
   comment ->
     "#[^\n]*\n"
   statement -> False
-  grammar -> global_grammar | mode_grammar
+  grammar -> global_command | global_grammar | mode_grammar
+  global_command ->
+    '>:' code_block
+    : exec(mode_result)
   global_grammar ->
     ">\n(?=(\s+))" -|
     start:
@@ -72,6 +79,16 @@
       mode.new_rules = []
   word ->
     "[A-Za-z_]\w*"
+  code_block -> indented_code_block | one_line_code_block 
+  one_line_code_block ->
+    "[^\n]*\n"
+  indented_code_block ->
+    "\s*\n(?=(%(indent)s\s+))" -|
+    = mode_result
+    start:
+      opts = {'indent': tokens[0][1]}
+      parse.push_mode('nested_code_block', opts)
+      mode.src = ['\n']
 
 > lang_def
   phrase -> indented_rule |: return parse.pop_mode(mode.new_rules)
@@ -144,16 +161,6 @@
   method_item ->
     word ':' code_block
     : mode.rule.add_fn(word.str(), code_block.str())
-  code_block -> indented_code_block | one_line_code_block 
-  one_line_code_block ->
-    "[^\n]*\n"
-  indented_code_block ->
-    "\s*\n(?=(%(indent)s\s+))" -|
-    = mode_result
-    start:
-      opts = {'indent': tokens[0][1]}
-      parse.push_mode('nested_code_block', opts)
-      mode.src = ['\n']
  
 > str
   phrase -> escape_seq | char
