@@ -564,6 +564,20 @@ def expect(a, cond, b, ctx):
     return False
   return True
 
+# Only check if we can parse the complete file, langauge definition3.water.
+def test0():
+  global cprint_colors, dbg_dst
+  cprint_colors = ['cyan']
+  dbg_dst = []
+  try: 
+    for tree in file('language definition3.water'):
+      pass
+      #tree.debug_print()
+  except Exception as e:
+    print('Fail (test0): %s: %s' % (type(e).__name__, e))
+    return False
+  return True
+
 def test1(return_out_str=False):
   # Check the following conditions:
   # * We parse the whole file.
@@ -577,7 +591,7 @@ def test1(return_out_str=False):
     for tree in file('language definition3.water'):
       tree.debug_print()
   except Exception as e:
-    print('Fail (test1): %s %s' % (type(e).__name__, e))
+    print('Fail (test1): %s: %s' % (type(e).__name__, e))
     return False
   out.seek(0)
   out_str = out.read()
