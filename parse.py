@@ -103,7 +103,7 @@ class Rule(Object):
     # http://stackoverflow.com/a/1463370
     # http://stackoverflow.com/a/2906198
 
-    #cprint('************** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
+    #cprint('********** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
 
     lo = {}
     if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
@@ -207,12 +207,12 @@ class SeqRule(Rule):
         return self._end_parse(tree, pos)
       c = rule_name[0]
       if c == "'":
-        val, pos = parse_exact_str(rule_name[1:-1], code, pos)
+        val, pos = _parse_exact_str(rule_name[1:-1], code, pos)
       elif c == '"':
         re = rule_name[1:-1] % mode
         #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
         cprint('re=%s' % `re`, 'blue')
-        val, pos = parse_exact_re(re, code, pos)
+        val, pos = _parse_exact_re(re, code, pos)
       else:
         val, pos = rules[rule_name].parse(code, pos)
         if val: self.pieces.setdefault(rule_name, []).append(val)
@@ -371,7 +371,7 @@ def pop_mode(result):
 
 ###############################################################################
 #
-# Define functions.
+# Internal functions.
 #
 ###############################################################################
 
@@ -402,17 +402,17 @@ def _add_rule(rule, mode):
   all_rules[mode][rule.name] = rule
   return rule
 
-def parse_exact_str(s, code, pos):
+def _parse_exact_str(s, code, pos):
   to_escape = list("+()|*")
   for e in to_escape: s = s.replace(e, "\\" + e)
-  return parse_exact_re(s, code, pos)
+  return _parse_exact_re(s, code, pos)
 
 # TODO Consider ways to do this witout using globals.
 
 err_pos = -1
 err_expected = None
 
-def parse_exact_re(s, code, pos):
+def _parse_exact_re(s, code, pos):
   cprint('s before decode is %s' % `s`, 'blue')
   s = s.decode('string_escape')
 
@@ -430,7 +430,7 @@ def parse_exact_re(s, code, pos):
   if pos > err_pos: err_expected, err_pos = s, pos
   return None, pos
 
-def setup_base_rules():
+def _setup_base_rules():
   # Initial mode state.
   mode.indent = ''
 
@@ -557,7 +557,7 @@ cprint_colors = []
 
 env = Object()
 push_mode('')  # Set up the global mode.
-setup_base_rules()
+_setup_base_rules()
 
 
 parse = sys.modules[__name__]
@@ -568,7 +568,7 @@ cprint_colors = ['magenta']
 
 ###############################################################################
 #
-# Test code for debugging / init development.
+# Tests.
 #
 ###############################################################################
 
