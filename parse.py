@@ -27,13 +27,16 @@ import types
 
 # Globals.
 
-all_rules = {}
+all_rules = {'': {}}
 rules = None
 modes = []
 mode = None
 mode_result = None
 parse = None
 env = None
+
+# Possibly TEMP. I'm using this for debugging.
+parse_stack = []
 
 # This is either 'all' or a list of whitelisted color names.
 cprint_colors = 'all'
@@ -141,14 +144,17 @@ class Rule(Object):
 
   def _add_fn(self, fn_name, fn_code):
     def run(self):
-      cprint('run %s <%s>' % (fn_name, self.name), 'magenta')
+      ind = '  ' * len(parse_stack)
+      cprint('%srun %s <%s>' % (ind, fn_name, self.name), 'magenta')
       return self._run_fn(fn_name, fn_code)
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
 
   def parse(self, code, pos):
     #return self.child().inst_parse(code, pos)
+    parse_stack.append(self.name)
     tree, pos = self.child().inst_parse(code, pos)
+    parse_stack.pop()
     if self.name == 'phrase' and tree:
       cprint('Successful phrase parse:', 'white')
       _debug_print(tree)
@@ -171,7 +177,7 @@ class SeqRule(Rule):
       raise AttributeError(desc)
 
   def parse_mode(self, code, pos):
-    cprint('%s parse_mode' % self.name, 'magenta')
+    cprint('%s%s parse_mode' % ('  ' * len(parse_stack), self.name), 'magenta')
     #traceback.print_stack()
     init_num_modes = len(modes)
     if 'start' not in self.__dict__:
@@ -195,7 +201,8 @@ class SeqRule(Rule):
     for rule_name in self.seq:
       cprint('rule_name=%s' % rule_name, 'blue')
       if rule_name == '-|':
-        cprint('%s parse reached -|' % self.name, 'magenta')
+        ind = '  ' * len(parse_stack)
+        cprint('%s%s parse reached -|' % (ind, self.name), 'magenta')
         tree, pos = self.parse_mode(code, pos)
         return self._end_parse(tree, pos)
       c = rule_name[0]
@@ -210,7 +217,8 @@ class SeqRule(Rule):
         val, pos = rules[rule_name].parse(code, pos)
         if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None:
-        dbg_fmt = '%s parse failed at token %s ~= code %s'
+        ind = '  ' * len(parse_stack)
+        dbg_fmt = '%s%%s parse failed at token %%s ~= code %%s' % ind
         cprint(dbg_fmt % (self.name, rule_name, code[pos:pos + 10]), 'magenta')
         #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
         return self._end_parse(None, self.startpos)
@@ -221,7 +229,8 @@ class SeqRule(Rule):
 
   def _end_parse(self, tree, pos):
     if tree is None: return tree, pos
-    cprint('%s parse succeeded' % self.name, 'magenta')
+    ind = '  ' * len(parse_stack)
+    cprint('%s%s parse succeeded' % (ind, self.name), 'magenta')
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
 
@@ -266,15 +275,19 @@ class OrRule(Rule):
     _dbg_parse_start(self.name, code, pos)
     for r in self.or_list:
       if r[0] == ':':
-        cprint('%s parse finishing as or_else clause' % self.name, 'magenta')
+        cprint('%s%s parse finishing as or_else clause' %
+               ('  ' * len(parse_stack), self.name), 'magenta')
         tree = self.run_code(r[1:])
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
         self.result = val
-        cprint('%s parse succeeded as %s' % (self.name, r), 'magenta')
+        cprint('%s%s parse succeeded as %s' %
+               ('  ' * len(parse_stack), self.name, r), 'magenta')
         return self, pos
-    cprint('%s parse failed' % self.name, 'magenta')
+    ind = '  ' * len(parse_stack)
+    cprint('%s%s parse failed' % (ind, self.name), 'magenta')
+    # TODO Factor out all these '  ' * len(parse_stack) instances.
     return None, pos
 
   def debug_print(self, indent='  '):
@@ -327,15 +340,13 @@ def file(filename):
   if pos < len(code):
     raise Exception('Parsing failed at byte %d' % pos)
 
-def push_mode(name, opts):
+def push_mode(name, opts={}):
   cprint('    push_mode(%s, %s)' % (`name`, `opts`), 'cyan')
   global rules, mode, modes
-  o = modes[-1].opts.copy() if len(modes) else {}
-  o.update(opts)
   mode = Object()
-  mode.__dict__.update(o)
+  if len(modes): mode.__dict__.update(modes[-1].__dict__)
+  mode.__dict__.update(opts)
   mode.id = name
-  mode.opts = o
   mode.rules = modes[-1].rules.copy() if len(modes) else {}
   mode.rules.update(all_rules[name])
   rules = mode.rules
@@ -350,13 +361,17 @@ def pop_mode(result):
   old_mode = modes.pop()
   if len(modes) == 1:
     # Refresh rules if we're at the global context.
+    opts = mode.__dict__
     modes.pop()
-    push_mode('', {})
+    push_mode('', opts)
+    # TODO See if I can get away with just this:
+    # push_mode('', modes.pop().opts)
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
   cprint('    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`), 'cyan')
   return result
+
 
 ###############################################################################
 #
@@ -365,8 +380,10 @@ def pop_mode(result):
 ###############################################################################
 
 def _dbg_parse_start(name, code, pos):
+  ind = '  ' * len(parse_stack)
   m = ' <%s>' % mode.id if len(mode.id) else ''
-  cprint('%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`), 'magenta')
+  cprint('%s%s%s parse at """%s"""' % (ind, name, m, `code[pos: pos + 30]`),
+         'magenta')
 
 def _debug_print(obj, indent='  ', seq_item=None):
   if isinstance(obj, Rule):
@@ -418,12 +435,17 @@ def parse_exact_re(s, code, pos):
   return None, pos
 
 def setup_base_rules():
+  # Initial mode state.
+  mode.indent = ''
+
   # Global rules.
   or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'])
   seq_rule('blank', [r'"[ \t]*\n"'])
   seq_rule('comment', [r'"#[^\n]*\n"'])
   false_rule('statement')
-  or_rule('grammar', ['global_grammar', 'mode_grammar'])
+  or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'])
+  r = seq_rule('command', ["'>:'", 'code_block'])
+  r.add_fn('parsed', " exec(mode_result)\n")
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
   r.add_fn('start', ("\n"
                      "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
@@ -433,6 +455,14 @@ def setup_base_rules():
                      "  parse.push_mode('lang_def', opts)\n"
                      "  mode.new_rules = []\n"))
   seq_rule('word', ['"[A-Za-z_]\w*"'])
+  or_rule('code_block', ['indented_code_block', 'rest_of_line'])
+  seq_rule('rest_of_line', [r'"[^\n]*\n"'])
+  r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"', '-|'])
+  r.add_fn('str', " return mode_result")
+  r.add_fn('start', ("\n"
+                     "  opts = {'indent': tokens[0][1]}\n"
+                     "  parse.push_mode('nested_code_block', opts)\n"
+                     "  mode.src = ['\\n']\n"))
 
   # lang_def rules.
   or_rule('phrase', ['indented_rule',
@@ -444,18 +474,18 @@ def setup_base_rules():
   r = seq_rule('false_rule', ['word', r'" ->\s+False[ \t]*\n"'], mode='lang_def')
   r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
   r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
-  r.add_fn('parsed', " parse.or_rule(word.str(), or_list.list(), mode=mode.name)\n")
+  r.add_fn('parsed', (" parse.or_rule(word.str(), or_list.list(), "
+                      "mode=mode.name)\n"))
   or_rule('or_list', ['multi_or_list', 'or_list_end'])
   r = seq_rule('or_list_end', ['rule_name', r'"[ \t]*\n"'])
   r.add_fn('list', " return rule_name.list()")
   or_rule('multi_or_list', ['std_multi_or_list', 'else_multi_or_list'])
   r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
   r.add_fn('list', " return rule_name.list() + or_list.list()")
-  r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'command'])
-  r.add_fn('list', " return rule_name.list() + [':' + command.str()]")
+  r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'rest_of_line'])
+  r.add_fn('list', " return rule_name.list() + [':' + rest_of_line.str()]")
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.str()]")
-  seq_rule('command', [r'"[^\n]*\n"'])
   r = seq_rule('seq_rule', ['word', r'" ->\n%(indent)s(\s+)"', 'seq', '-|'])
   r.add_fn('start', ("\n  opts = {'indent': mode.indent + tokens[1][1]}\n"
                      "  parse.push_mode('rule_block', opts)\n"
@@ -491,15 +521,6 @@ def setup_base_rules():
   r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.str())\n")
   r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)
   r.add_fn('parsed', " mode.rule.add_fn(word.str(), code_block.str())")
-  or_rule('code_block', ['indented_code_block', 'one_line_code_block'], mode=m)
-  seq_rule('one_line_code_block', [r'"[^\n]*\n"'], mode=m)
-  r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"', '-|'],
-               mode=m)
-  r.add_fn('str', " return mode_result")
-  r.add_fn('start', ("\n"
-                     "  opts = {'indent': tokens[0][1]}\n"
-                     "  parse.push_mode('nested_code_block', opts)\n"
-                     "  mode.src = ['\\n']\n"))
 
   # str rules.
   or_rule('phrase', ['escape_seq', 'char'], mode='str')
@@ -525,6 +546,10 @@ def setup_base_rules():
   r = seq_rule('code_line', [r'"[^\n]*\n"'], mode=m)
   r.add_fn('parsed', " mode.src.append('  ' + tokens[0])\n")
 
+  # Temporary hack to force global rules to refresh.
+  push_mode('lang_def')
+  pop_mode('')
+
 
 ###############################################################################
 #
@@ -535,8 +560,9 @@ def setup_base_rules():
 cprint_colors = []
 
 env = Object()
+push_mode('')  # Set up the global mode.
 setup_base_rules()
-push_mode('', {})  # Set up the global mode.
+
 
 parse = sys.modules[__name__]
 
@@ -560,14 +586,13 @@ def expect(a, cond, b, ctx):
   if not eval(eval_str, ctx):
     fmt = 'Fail (%s):\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
     print(fmt % (caller, a, cond, b, a, `a_val`, b, `b_val`))
-    #import pdb; pdb.set_trace()
     return False
   return True
 
 # Only check if we can parse the complete file, langauge definition3.water.
 def test0():
   global cprint_colors, dbg_dst
-  cprint_colors = ['cyan']
+  cprint_colors = []
   dbg_dst = []
   try: 
     for tree in file('language definition3.water'):

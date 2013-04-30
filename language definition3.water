@@ -6,10 +6,10 @@
 # Objects:
 #  bin talks to the dynamic process
 #  parse talks to the parser
-#    parse.push_mode(mode.name, mode.opts) adds new opts to the current
+#    parse.push_mode(mode.name, opts) adds new opts to the current
 #    parse.modes is a list with the mode stack, oldest-first
 #  mode is a synonym for parse.mode, which has:
-#    mode.id and mode.opts, as well as mode[s] as a shortcut for mode.opts.s
+#    mode.id and mode.<opt>, so mode[s] refers to what was sent in as opts[s]
 #  tokens is a list of the parsed objects, with special treatment for regex's
 #  compiler is a global any-type object reserved for sharing data
 #    I might consider some scoping rules for the compiler object.
@@ -62,8 +62,8 @@
   comment ->
     "#[^\n]*\n"
   statement -> False
-  grammar -> global_command | global_grammar | mode_grammar
-  global_command ->
+  grammar -> command | global_grammar | mode_grammar
+  command ->
     '>:' code_block
     : exec(mode_result)
   global_grammar ->
@@ -79,8 +79,8 @@
       mode.new_rules = []
   word ->
     "[A-Za-z_]\w*"
-  code_block -> indented_code_block | one_line_code_block 
-  one_line_code_block ->
+  code_block -> indented_code_block | rest_of_line 
+  rest_of_line ->
     "[^\n]*\n"
   indented_code_block ->
     "\s*\n(?=(%(indent)s\s+))" -|
@@ -111,13 +111,11 @@
     rule_name ' | ' or_list
     list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
-    rule_name ' |: ' command
-    list: return rule_name.list() + [':' + command.str()]
+    rule_name ' |: ' rest_of_line
+    list: return rule_name.list() + [':' + rest_of_line.str()]
   rule_name ->
     word
     list: return [word.str()]
-  command ->
-    "[^\n]*\n"
   seq_rule ->
     word " ->\n%(indent)s(\s+)" seq -|
     start: 
