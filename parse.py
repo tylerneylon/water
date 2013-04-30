@@ -6,6 +6,8 @@
 #
 # TODO Document public functions.
 #
+# TODO Add 'public' output for >: commands.
+#
 
 # TEMP Print colors:
 #
@@ -347,15 +349,7 @@ def file(filename):
 
 def push_mode(name, opts={}):
   dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
-  global rules, mode, modes
-  mode = Object()
-  if len(modes): mode.__dict__.update(modes[-1].__dict__)
-  mode.__dict__.update(opts)
-  mode.id = name
-  mode.rules = modes[-1].rules.copy() if len(modes) else {}
-  mode.rules.update(all_rules[name])
-  rules = mode.rules
-  modes.append(mode)
+  _push_mode(name, opts)
 
 def pop_mode(result):
   global rules, mode, modes, mode_result
@@ -366,7 +360,7 @@ def pop_mode(result):
   old_mode = modes.pop()
   if len(modes) == 1:
     # Refresh rules if we're at the global context.
-    push_mode('', modes.pop().__dict__)
+    _push_mode('', modes.pop().__dict__)
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
@@ -379,6 +373,17 @@ def pop_mode(result):
 # Internal functions.
 #
 ###############################################################################
+
+def _push_mode(name, opts):
+  global rules, mode, modes
+  mode = Object()
+  if len(modes): mode.__dict__.update(modes[-1].__dict__)
+  mode.__dict__.update(opts)
+  mode.id = name
+  mode.rules = modes[-1].rules.copy() if len(modes) else {}
+  mode.rules.update(all_rules[name])
+  rules = mode.rules
+  modes.append(mode)
 
 def _dbg_parse_start(name, code, pos):
   m = ' <%s>' % mode.id if len(mode.id) else ''
@@ -444,7 +449,7 @@ def _setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'])
   r = seq_rule('command', ["'>:'", 'code_block'])
-  r.add_fn('parsed', " exec(mode_result)\n")
+  r.add_fn('parsed', " exec('def _tmp():' + code_block.str()); _tmp()\n")
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
   r.add_fn('start', ("\n"
                      "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
@@ -583,17 +588,32 @@ def expect(a, cond, b, ctx):
   a_val = eval(a, ctx)
   b_val = eval(b, ctx)
   eval_str = `a_val` + cond + `b_val`
+  # Special handling for == on long strings.
+  if (cond == '==' and type(a_val) == type(b_val) == str and
+      len(a_val + b_val) > 100):
+    ls = enumerate(zip(a_val, b_val))
+    i = next((i for i in ls if i[1][0] != i[1][1]), None)
+    if i:
+      i = i[0]
+      a_val = '..' + a_val[max(0, i - 10):min(len(a_val), i + 10)] + '..'
+      b_val = '..' + b_val[max(0, i - 10):min(len(b_val), i + 10)] + '..'
+    elif len(a) != len(b):
+      a_val = a_val[:20] + ' + %d more chars' % (len(a_val) - 20)
+      b_val = b_val[:20] + ' + %d more chars' % (len(b_val) - 20)
+  else:
+    a_val = `a_val`
+    b_val = `b_val`
   if not eval(eval_str, ctx):
     fmt = 'Fail (%s):\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
-    print(fmt % (caller, a, cond, b, a, `a_val`, b, `b_val`))
+    print(fmt % (caller, a, cond, b, a, a_val, b, b_val))
     return False
   return True
 
 # Only check if we can parse the complete file, langauge definition3.water.
 def test0():
   global dbg_topics, dbg_dst
-  dbg_topics = []
-  dbg_dst = []
+  dbg_topics = ['public']
+  dbg_dst = [sys.stdout]
   try: 
     for tree in file('language definition3.water'):
       pass

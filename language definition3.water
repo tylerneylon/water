@@ -65,7 +65,7 @@
   grammar -> command | global_grammar | mode_grammar
   command ->
     '>:' code_block
-    : exec(mode_result)
+    : exec('def _tmp():' + code_block.str()); _tmp()
   global_grammar ->
     ">\n(?=(\s+))" -|
     start:
