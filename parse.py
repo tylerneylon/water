@@ -361,11 +361,7 @@ def pop_mode(result):
   old_mode = modes.pop()
   if len(modes) == 1:
     # Refresh rules if we're at the global context.
-    opts = mode.__dict__
-    modes.pop()
-    push_mode('', opts)
-    # TODO See if I can get away with just this:
-    # push_mode('', modes.pop().opts)
+    push_mode('', modes.pop().__dict__)
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
