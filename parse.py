@@ -61,8 +61,13 @@ except:
 def cprint(text, color=None, end='\n'):
   s = text + end
   for dst in dbg_dst:
-    if dst is sys.stdout: s = colored(s, color)
-    dst.write(s)
+    if dst is sys.stdout:
+      # red output is redirected to stderr from stdout.
+      if color != 'red': dst.write(colored(s, color))
+    else:
+      dst.write(s)
+  if color == 'red':
+    sys.stderr.write(colored(s, color))
 
 def dprint(dbg_topic, text, end='\n'):
   color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',
@@ -71,7 +76,8 @@ def dprint(dbg_topic, text, end='\n'):
     cprint('Error: dprint called with unknown dbg_topic (%s)' % dbg_topic,
            'red')
     exit(1)
-  if dbg_topics != 'all' and dbg_topic not in dbg_topics: return
+  t = dbg_topic
+  if t != 'error' and dbg_topics != 'all' and t not in dbg_topics: return
   if dbg_topic == 'parse': text = '  ' * len(parse_stack) + text
   cprint(text, color=color_map[dbg_topic], end=end)
 
@@ -611,8 +617,11 @@ if __name__ == '__main__':
   if len(sys.argv) != 2:
     print("Usage: %s <water_filename>" % sys.argv[0])
     exit(2)
-  #dbg_dst = [sys.stdout]
-  #dbg_topics = ['tree']
+  if False:
+    dbg_dst = [sys.stdout]
+    dbg_topics = ['tree', 'parse', 'public']
+  else:
+    dbg_dst = []
   # TODO Maybe change code to clarify what happens here?
   for tree in file(sys.argv[1]):
     pass
