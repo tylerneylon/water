@@ -1,7 +1,7 @@
-# This is an updated version of language definition2.water.
+# This file is broken!! Purposefully!!!!!!
+# Because I want to improve error messages from the parser, so that
+# user errors like this will be easier for users to understand and fix.
 #
-# Before I get this to work, I'd like to automate test1 and test2, so I can be
-# more confident I'm not breaking parse.py as I work on it.
 >:
   env.symbols = {}
   env.next_sym_num = 0
@@ -13,9 +13,9 @@
     
 >
   statement ->
-    no_nl_statement "[ \t]*\n"
-    code: return no_nl_statement.str()
-  no_nl_statement -> assignment | for_loop | print_statement
+    no_newline_statement "[ \t]*\n"
+    code: return no_newline_statement.str()
+  no_newline_statement -> assignment | for_loop | print_statement
   assignment -> direct_assignment | incremental_assignment
   direct_assignment ->
     identifier ' = ' expression
@@ -25,13 +25,13 @@
     = "%s += %s" % (identifier.existing_name(), expression)
   expression -> identifier | number
   for_loop ->
-    'for (' no_nl_statement '; ' conditional '; ' no_nl_statement ') ' no_nl_statement
-    = "%s\nwhile (%s):\n %s\n %s" % (no_nl_statement[0], conditional, no_nl_statement[2], no_nl_statement[1])
+    'for (' statement '; ' conditional '; ' statement ') ' statement
+    = "%s\nwhile (%s):\n %s\n %s" % (statement[0], conditional, statement[2], statement[1])
   conditional ->
     expression ' < ' expression
     = "%s < %s" % (expression[0], expression[1])
   print_statement ->
-    'print ' identifier
+    ' print ' identifier
     = "print %s" % identifier.existing_name()
   identifier ->
     "[A-Za-z_]\w*"

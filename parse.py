@@ -180,7 +180,7 @@ class SeqRule(Rule):
     self.name = name
     self.seq = seq
     Rule.__init__(self)
-    self._add_fn('str', ' return "".join([str(t) for t in tokens])')
+    self._add_fn('str', ' return self.src()')
 
   def __getattribute__(self, name):
     try:
@@ -188,6 +188,9 @@ class SeqRule(Rule):
     except AttributeError:
       desc = "SeqRule '%s' has no '%s' attribute" % (self.name, name)
       raise AttributeError(desc)
+
+  def src(self):
+    return ''.join([_src(t) for t in self.tokens])
 
   def parse_mode(self, code, pos):
     dprint('parse', '%s parse_mode' % self.name)
@@ -367,6 +370,10 @@ def pop_mode(result):
   dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
   return result
 
+def error(msg):
+  dprint('error', 'Error: ' + msg)
+  exit(1)
+
 
 ###############################################################################
 #
@@ -384,6 +391,11 @@ def _push_mode(name, opts):
   mode.rules.update(all_rules[name])
   rules = mode.rules
   modes.append(mode)
+
+def _src(obj):
+  if type(obj) == str: return obj
+  elif isinstance(obj, Rule): return obj.src()
+  else: dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
 
 def _dbg_parse_start(name, code, pos):
   m = ' <%s>' % mode.id if len(mode.id) else ''
@@ -655,4 +667,5 @@ def test2():
   out1 = test1(True)
   out2 = test1(True)
   return expect('out1', '==', 'out2', locals())
+
 
