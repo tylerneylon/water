@@ -377,6 +377,20 @@ def error(msg):
 
 ###############################################################################
 #
+# bin functions.
+# Eventually these might fit into another module?
+#
+###############################################################################
+
+_run_ctx = {}
+
+def run(code):
+  #print(code)
+  exec code in _run_ctx
+
+
+###############################################################################
+#
 # Internal functions.
 #
 ###############################################################################
@@ -585,6 +599,23 @@ parse = sys.modules[__name__]
 #dbg_topics = ['temp', 'public', 'parse']
 dbg_topics = ['parse']
 #dbg_topics = 'all'
+
+
+###############################################################################
+#
+# Ability to run directly.
+#
+###############################################################################
+
+if __name__ == '__main__':
+  if len(sys.argv) != 2:
+    print("Usage: %s <water_filename>" % sys.argv[0])
+    exit(2)
+  #dbg_dst = [sys.stdout]
+  #dbg_topics = ['tree']
+  # TODO Maybe change code to clarify what happens here?
+  for tree in file(sys.argv[1]):
+    pass
 
 
 ###############################################################################
