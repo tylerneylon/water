@@ -39,8 +39,20 @@ mode_result = None
 parse = None
 env = None
 
-# Possibly TEMP. I'm using this for debugging.
 parse_stack = []
+
+# parse_info stores parse attempt data so we can display human-friendly error
+# information that simplifies debugging grammars and syntax errors alike.
+#
+# parse_info.attempts = [list of parse_attempt Objects]
+# parse_info.main_attempt = the parse_attempt we suspect was intended
+# parse_info.code = the code string being parsed
+# parse_info.start_pos = start, as byte index, of the last-tried phrase parse
+#
+# attempt.stack = list of rule names in the attempt, phrase-first
+# attempt.fail_pos = byte index of where the last stack token mismatched
+#
+parse_info = None
 
 # This is either 'all' or a list of whitelisted dbg_topic names.
 dbg_topics = 'all'
@@ -88,17 +100,6 @@ def dprint(dbg_topic, text, end='\n'):
 ###############################################################################
 
 class Object(object):
-  # Enable parentheses-free method calls, as in: retVal = myObj.method
-  # NOTE I added an extra underscore here to disable this next method:
-  def ___getattribute__(self, name):
-    selfname = '_'
-    d = object.__getattribute__(self, '__dict__')
-    if 'name' in d: selfname = d['name']
-    #print('__getattribute__(%s, %s)' % (selfname, name))
-    val = object.__getattribute__(self, name)
-    try: return val()
-    except (NameError, TypeError): return val
-  # Enable bracket-syntax on attributes, as in: retVal = myObj[methodName]
   def __getitem__(self, name):
     selfname = '_'
     if 'name' in self.__dict__: selfname = self.__dict__['name']
@@ -108,6 +109,11 @@ class Object(object):
   def __setitem__(self, name, value):
     dprint('temp', '__setitem__(self, %s, %s)' % (`name`, `value`))
     self.__dict__[name] = value
+  def __contains__(self, name):
+    try: self.__getitem__(name)
+    except AttributeError: return False
+    return True
+  def __repr__(self): return repr(self.__dict__)
 
 
 # TODO Should add_fn and _run_fn only be available on SeqRule?
@@ -171,6 +177,7 @@ class Rule(Object):
 
   def parse(self, code, pos):
     #return self.child().inst_parse(code, pos)
+    parse_info.start_pos = pos
     parse_stack.append(self.name)
     tree, pos = self.child().inst_parse(code, pos)
     parse_stack.pop()
@@ -344,9 +351,10 @@ def false_rule(name, mode=''):
   dprint('public', 'false_rule(%s, %s)' % (name, `mode`))
   return _add_rule(FalseRule(name), mode)
 
-def file(filename):
+def iterate(filename):
   f = open(filename)
   code = f.read()
+  parse_info.code = code
   pos = 0
   f.close()
   tree, pos = rules['phrase'].parse(code, pos)
@@ -355,6 +363,14 @@ def file(filename):
     tree, pos = rules['phrase'].parse(code, pos)
   if pos < len(code):
     raise Exception('Parsing failed at byte %d' % pos)
+
+def runfile(filename):
+  try:
+    for tree in iterate(filename):
+      pass
+  except:
+    _print_parse_failure()
+    raise
 
 def push_mode(name, opts={}):
   dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
@@ -436,6 +452,57 @@ def _debug_print(obj, indent='  ', seq_item=None):
       _debug_print(i, indent + '  ')
   else:
     dprint('tree', '%s' % `obj`)
+
+# Returns start, stop so that code[start:stop] is the line including pos.
+def _line_with_pos(code, pos):
+  start = code[:pos].rfind('\n') + 1  # Still works if find fails.
+  stop = code[pos:].find('\n')
+  stop = stop + pos + 1 if stop >= 0 else len(code)
+  return start, stop
+
+def _write_char_at_positions(write, ch, pos1, pos2):
+  write(' ' * min(pos1, pos2) + ch)
+  delta = max(pos1, pos2) - min(pos1, pos2) - 1
+  write(' ' * delta + ch + '\n')
+
+# TODO Consider making this public.
+# TODO Add support for higher verbosity.
+def _print_parse_failure(verbosity=1, dst=sys.stderr):
+  p, m, write = parse_info, parse_info.main_attempt, dst.write
+  write('\n')
+  write('Farthest parse stack:\n')
+  write('  ' + str(m.stack) + '\n')
+  write('Farthest token mismatch:\n')
+  src = p.code[m.fail_pos:m.fail_pos + 20]
+  if src.find('\n') >= 0: src = src[:src.find('\n')]
+  write('  Token ' + `m.stack[-1]` + ' vs Code ' + `src` + '\n')
+  lines = [_line_with_pos(p.code, p.start_pos),
+           _line_with_pos(p.code, m.fail_pos)]
+  pos = [p.start_pos - lines[0][0], m.fail_pos - lines[1][0]]
+  messages = ['parse began here', 'parse failed here']
+  write('Error point:\n')
+  if lines[0][0] == lines[1][0]:
+    line = p.code[lines[0][0]:lines[0][1]]
+    line += '' if line.endswith('\n') else '\n'
+    write('* %s' % line)
+    for ch in ['^', '|']:
+      _write_char_at_positions(write, ch, pos[0] + 2, pos[1] + 2)
+    msg = messages[1]
+    msg_delta = max(pos[1] - len(msg) // 2, pos[0] + 1) - pos[0] - 1
+    write('  ' + ' ' * pos[0] + '|' + ' ' * msg_delta + msg + '\n')
+    write('  ' + ' ' * pos[0] + '|\n')
+    msg = messages[0]
+    msg_pos = max(pos[0] - len(msg) // 2, 0)
+    write('  ' + ' ' * msg_pos + msg + '\n')
+  else:
+    for i in range(2):
+      line = p.code[lines[i][0]:lines[i][1]]
+      line += '' if line.endswith('\n') else '\n'
+      write('* %s  ' % line)
+      for ch in ['^', '|']: write('  ' + ' ' * pos[i] + ch + '\n')
+      msg_pos = max(pos[i] - len(messages[i]) // 2, 0)
+      write('  ' + ' ' * msg_pos + messages[i] + '\n')
+  write('\n')
     
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
@@ -466,9 +533,23 @@ def _parse_exact_re(s, code, pos):
     num_grp = len(m.groups()) + 1
     val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
     return val, pos + len(m.group(0))
+  # Parse fail. Record things for error reporting.
+
+  parse_stack.append(s)
   global err_pos, err_expected
   if pos > err_pos: err_expected, err_pos = s, pos
+  _store_parse_attempt(pos)
+  parse_stack.pop()
+
   return None, pos
+
+def _store_parse_attempt(pos):
+  attempt = Object()
+  attempt.stack = parse_stack[:]
+  attempt.fail_pos = pos
+  parse_info.attempts.append(attempt)
+  if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos < pos:
+    parse_info.main_attempt = attempt
 
 def _setup_base_rules():
   # Initial mode state.
@@ -594,6 +675,8 @@ def _setup_base_rules():
 ###############################################################################
 
 dbg_topics = []
+parse_info = Object()
+parse_info.attempts = []
 
 env = Object()
 push_mode('')  # Set up the global mode.
@@ -623,7 +706,7 @@ if __name__ == '__main__':
   else:
     dbg_dst = []
   # TODO Maybe change code to clarify what happens here?
-  for tree in file(sys.argv[1]):
+  for tree in iterate(sys.argv[1]):
     pass
 
 
@@ -667,7 +750,7 @@ def test0():
   dbg_topics = ['public']
   dbg_dst = [sys.stdout]
   try: 
-    for tree in file('language definition3.water'):
+    for tree in iterate('language definition3.water'):
       pass
       #tree.debug_print()
   except Exception as e:
@@ -685,7 +768,7 @@ def test1(return_out_str=False):
   out = StringIO()
   dbg_dst = [out]
   try: 
-    for tree in file('language definition3.water'):
+    for tree in iterate('language definition3.water'):
       tree.debug_print()
   except Exception as e:
     print('Fail (test1): %s: %s' % (type(e).__name__, e))
