@@ -1,0 +1,12 @@
+# sample10.water
+#
+# This is another error case meant to test out what is printed when a parse
+# error spans multiple lines.
+#
+
+>
+  statement ->
+    "hello" "\n\n" "there\n"
+hello
+
+ther

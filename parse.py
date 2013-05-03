@@ -498,7 +498,7 @@ def _print_parse_failure(verbosity=1, dst=sys.stderr):
     for i in range(2):
       line = p.code[lines[i][0]:lines[i][1]]
       line += '' if line.endswith('\n') else '\n'
-      write('* %s  ' % line)
+      write('* %s' % line)
       for ch in ['^', '|']: write('  ' + ' ' * pos[i] + ch + '\n')
       msg_pos = max(pos[i] - len(messages[i]) // 2, 0)
       write('  ' + ' ' * msg_pos + messages[i] + '\n')
@@ -705,9 +705,7 @@ if __name__ == '__main__':
     dbg_topics = ['tree', 'parse', 'public']
   else:
     dbg_dst = []
-  # TODO Maybe change code to clarify what happens here?
-  for tree in iterate(sys.argv[1]):
-    pass
+  runfile(sys.argv[1])
 
 
 ###############################################################################

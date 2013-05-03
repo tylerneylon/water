@@ -1,0 +1,14 @@
+# sample9.water
+#
+# This is an edited copy of language definition3.water.
+# My goal here is to have some within-mode parse errors so I can
+# make sure the parse error output is maximally helpful in that
+# case (deep-mode errors).
+#
+
+> dummy_mode
+  blank ->
+    "[ \t]*\n"
+    blah
+  comment ->
+    "#[^\n]*\n"
