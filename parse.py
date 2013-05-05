@@ -151,8 +151,13 @@ class Rule(Object):
     dprint('temp', '(runtime) fn_code:\n%s\n' % fn_code)
 
     fn_lo = {}
-    exec fn_code in globals(), fn_lo
-    res = fn_lo[fn_name](**lo)
+    try:
+      exec fn_code in globals(), fn_lo
+      res = fn_lo[fn_name](**lo)
+    except:
+      msg = 'Exception running a user-level function. Code:\n%s\n' % fn_code
+      dprint('error', msg)
+      raise
     #cprint('got result=%s' % `res`, 'blue')
     return res
 
@@ -700,9 +705,10 @@ if __name__ == '__main__':
   if len(sys.argv) != 2:
     print("Usage: %s <water_filename>" % sys.argv[0])
     exit(2)
-  if False:
+  if True:
     dbg_dst = [sys.stdout]
     dbg_topics = ['tree', 'parse', 'public']
+    dbg_topics = ['public']
   else:
     dbg_dst = []
   runfile(sys.argv[1])

@@ -19,7 +19,7 @@
     ident s inc_op
   while ->
     'while' s '(' s cond s ')' s '{' -|
-    start: parse.push('block')
+    start: parse.push_mode('block')
   call ->
     ident s '(' s args s ')'
   ident ->
@@ -27,7 +27,7 @@
   params -> multi_params | ident
   multi_params ->
     ident s ',' s params
-  expr -> obj_elem | call | var | str | num
+  expr -> obj_elem | call | var | js_str | num
   inc_op ->
     '--'
   cond ->
@@ -39,12 +39,11 @@
     var '.' ident
   var ->
     ident
-  str ->
+  js_str ->
     "['\"]" -|
     start:
-      parse.push_mode('str', {'endchar': tokens[0][0]})
+      parse.push_mode('js_str', {'endchar': tokens[0][0]})
       mode.chars = [mode.endchar]
-    
   num ->
     "[0-9]+"
   cond_op ->
@@ -55,9 +54,9 @@
   stmnt -> close_brace | reg_stmnt
   close_brace ->
     '}'
-    : parse.pop_mode()
+    : parse.pop_mode(None)
 
-> str
+> js_str
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
