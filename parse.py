@@ -40,6 +40,7 @@ parse = None
 env = None
 
 parse_stack = []
+start_pos = 0
 
 # parse_info stores parse attempt data so we can display human-friendly error
 # information that simplifies debugging grammars and syntax errors alike.
@@ -47,9 +48,9 @@ parse_stack = []
 # parse_info.attempts = [list of parse_attempt Objects]
 # parse_info.main_attempt = the parse_attempt we suspect was intended
 # parse_info.code = the code string being parsed
-# parse_info.start_pos = start, as byte index, of the last-tried phrase parse
 #
 # attempt.stack = list of rule names in the attempt, phrase-first
+# attempt.start_pos = byte index of where parse stack began parsing
 # attempt.fail_pos = byte index of where the last stack token mismatched
 #
 parse_info = None
@@ -139,7 +140,7 @@ class Rule(Object):
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
-    dprint('temp', 'lo=%s' % `lo`)
+    #dprint('temp', 'lo=%s' % `lo`)
     #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
     n = `mode.name` if 'name' in mode.__dict__ else '<None>'
     dprint('temp', 'mode.name=%s' % n)
@@ -181,14 +182,9 @@ class Rule(Object):
     self._bound_method(fn_name, run)
 
   def parse(self, code, pos):
-    #return self.child().inst_parse(code, pos)
-    parse_info.start_pos = pos
     parse_stack.append(self.name)
     tree, pos = self.child().inst_parse(code, pos)
     parse_stack.pop()
-    if self.name == 'phrase' and tree:
-      dprint('phrase', 'Successful phrase parse:')
-      _debug_print(tree)
     return tree, pos
 
 
@@ -295,8 +291,8 @@ class OrRule(Rule):
       raise
 
   def run_code(self, code):
-    dprint('temp', 'run_code(%s)' % `code`)
-    dprint('temp', 'mode.__dict__=%s' % `mode.__dict__`)
+    #dprint('temp', 'run_code(%s)' % `code`)
+    #dprint('temp', 'mode.__dict__=%s' % `mode.__dict__`)
     context = {'parse': parse, 'mode': mode}
     code = 'def or_else():' + code
     exec code in context
@@ -344,6 +340,16 @@ class FalseRule(Rule):
 #
 ###############################################################################
 
+def parse_phrase(code, pos):
+  global start_pos
+  start_pos = pos
+  tree, pos = rules['phrase'].parse(code, pos)
+  if tree:
+    dprint('phrase', 'Successful phrase parse:')
+    _debug_print(tree)
+    parse_info.attempts = []
+  return tree, pos
+
 def or_rule(name, or_list, mode=''):
   dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
   return _add_rule(OrRule(name, or_list), mode)
@@ -362,10 +368,10 @@ def iterate(filename):
   parse_info.code = code
   pos = 0
   f.close()
-  tree, pos = rules['phrase'].parse(code, pos)
+  tree, pos = parse_phrase(code, pos)
   while tree:
     yield tree
-    tree, pos = rules['phrase'].parse(code, pos)
+    tree, pos = parse_phrase(code, pos)
   if pos < len(code):
     raise Exception('Parsing failed at byte %d' % pos)
 
@@ -481,9 +487,9 @@ def _print_parse_failure(verbosity=1, dst=sys.stderr):
   src = p.code[m.fail_pos:m.fail_pos + 20]
   if src.find('\n') >= 0: src = src[:src.find('\n')]
   write('  Token ' + `m.stack[-1]` + ' vs Code ' + `src` + '\n')
-  lines = [_line_with_pos(p.code, p.start_pos),
+  lines = [_line_with_pos(p.code, m.start_pos),
            _line_with_pos(p.code, m.fail_pos)]
-  pos = [p.start_pos - lines[0][0], m.fail_pos - lines[1][0]]
+  pos = [m.start_pos - lines[0][0], m.fail_pos - lines[1][0]]
   messages = ['parse began here', 'parse failed here']
   write('Error point:\n')
   if lines[0][0] == lines[1][0]:
@@ -551,6 +557,7 @@ def _parse_exact_re(s, code, pos):
 def _store_parse_attempt(pos):
   attempt = Object()
   attempt.stack = parse_stack[:]
+  attempt.start_pos = start_pos
   attempt.fail_pos = pos
   parse_info.attempts.append(attempt)
   if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos < pos:
@@ -697,25 +704,6 @@ dbg_topics = ['parse']
 
 ###############################################################################
 #
-# Ability to run directly.
-#
-###############################################################################
-
-if __name__ == '__main__':
-  if len(sys.argv) != 2:
-    print("Usage: %s <water_filename>" % sys.argv[0])
-    exit(2)
-  if True:
-    dbg_dst = [sys.stdout]
-    dbg_topics = ['tree', 'parse', 'public']
-    dbg_topics = ['public']
-  else:
-    dbg_dst = []
-  runfile(sys.argv[1])
-
-
-###############################################################################
-#
 # Tests.
 #
 ###############################################################################
@@ -795,4 +783,22 @@ def test2():
   out2 = test1(True)
   return expect('out1', '==', 'out2', locals())
 
+
+###############################################################################
+#
+# Ability to run directly.
+#
+###############################################################################
+
+if __name__ == '__main__':
+  if len(sys.argv) != 2:
+    print("Usage: %s <water_filename>" % sys.argv[0])
+    exit(2)
+  if False:
+    dbg_dst = [sys.stdout]
+    dbg_topics = ['tree', 'parse', 'public']
+    dbg_topics = 'all'
+  else:
+    dbg_dst = []
+  runfile(sys.argv[1])
 
