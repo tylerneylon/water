@@ -1,0 +1,90 @@
+# Start work on javascript
+
+>:
+  env.symbols = {}
+  def log_fn(s): print(s)
+  log = {'type': 'fn', 'value': log_fn, 'num_params': 1}
+  console = {'type': 'obj', 'value': {'log': log}}
+  env.symbols['console'] = console
+
+>
+  s ->
+    "\s*"
+  statement ->
+    s stmnt
+  stmnt -> reg_stmnt
+  reg_stmnt ->
+    stmnt_no_smcln s "(;)?"
+    : run(stmnt_no_smcln.str())
+  stmnt_no_smcln -> func_def | assign | while | expr
+  func_def ->
+    'function' s ident s '(' s params s ')' s '{' s -|
+    start: parse.push_mode('block')
+    = "def %s(%s): %s" % (ident, params, mode_result)
+  assign -> direct_assign | inc_assign
+  direct_assign ->
+    "(var)?" s ident s '=' s expr
+  inc_assign ->
+    ident s inc_op
+  while ->
+    'while' s '(' s cond s ')' s '{' -|
+    start: parse.push_mode('block')
+  call ->
+    ident s '(' s args s ')'
+  ident ->
+    "[A-Za-z_]\w*"
+  params -> multi_params | ident
+  multi_params ->
+    ident s ',' s params
+  expr -> obj_elem | call | var | js_str | num
+  inc_op ->
+    '--'
+  cond ->
+    expr s cond_op s expr
+  args -> multi_args | expr
+  multi_args ->
+    expr s ',' s args
+  obj_elem ->
+    var '.' ident
+  var ->
+    ident
+  js_str ->
+    "['\"]" -|
+    start:
+      parse.push_mode('js_str', {'endchar': tokens[0][0]})
+      mode.chars = [mode.endchar]
+  num ->
+    "[0-9]+"
+  cond_op ->
+    '>'
+
+# So far this is for the body fo a func_def or while.
+> block
+  stmnt -> close_brace | reg_stmnt
+  close_brace ->
+    '}'
+    : parse.pop_mode(None)
+
+> js_str
+  phrase -> escape_seq | char
+  escape_seq ->
+    "\\\\(.)"
+    :
+      if tokens[0][1] != mode.endchar:
+        mode.chars.append("\\")
+      mode.chars.append(tokens[0][1])
+  char ->
+    "."
+    :
+      c = tokens[0][0]
+      mode.chars.append(c)
+      if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+
+function f(n) {
+  var p = console.log;
+  while (n > 0) {
+    p('hi');
+    n--;
+  }
+}
+f(3);

@@ -19,6 +19,7 @@
 # temp       blue      Very temporary stuff
 # error      red       Error
 # phrase     white     Every phrase parsed
+# run        grey      Strings sent to run fn
 #
 
 from __future__ import print_function
@@ -84,7 +85,8 @@ def cprint(text, color=None, end='\n'):
 
 def dprint(dbg_topic, text, end='\n'):
   color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',
-               'temp': 'blue', 'error': 'red', 'phrase': 'white'}
+               'temp': 'blue', 'error': 'red', 'phrase': 'white',
+               'run': 'grey'}
   if not dbg_topic in color_map:
     cprint('Error: dprint called with unknown dbg_topic (%s)' % dbg_topic,
            'red')
@@ -419,7 +421,8 @@ _run_ctx = {}
 
 def run(code):
   #print(code)
-  exec code in _run_ctx
+  dprint('run', 'run:\n' + code)
+  #exec code in _run_ctx
 
 
 ###############################################################################
@@ -797,7 +800,7 @@ if __name__ == '__main__':
   if False:
     dbg_dst = [sys.stdout]
     dbg_topics = ['tree', 'parse', 'public']
-    dbg_topics = 'all'
+    dbg_topics = ['run']
   else:
     dbg_dst = []
   runfile(sys.argv[1])
