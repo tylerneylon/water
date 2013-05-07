@@ -1,4 +1,6 @@
-# Start work on javascript
+# There is an error in the grammar where exiting an outermost block will result
+# in a pop_mode call followed by an attempt to access mode.block_stmnts, which
+# no longer exists. It would be nice if the error message produced was clearer.
 
 >:
   env.symbols = {}
@@ -64,13 +66,13 @@
 
 # So far this is for the body fo a func_def or while.
 > block
-  stmnt -> close_brace | func_stmnt
+  stmnt ->
+    func_stmnt
+    : mode.block_stmnts.append(func_stmnt)
+  func_stmnt -> close_brace | reg_stmnt
   close_brace ->
     '}'
     : parse.pop_mode(mode.block_stmnts)
-  func_stmnt ->
-    reg_stmnt
-    : mode.block_stmnts.append(reg_stmnt)
 
 > js_str
   phrase -> escape_seq | char

@@ -19,7 +19,7 @@
 # temp       blue      Very temporary stuff
 # error      red       Error
 # phrase     white     Every phrase parsed
-# run        grey      Strings sent to run fn
+# run        green     Strings sent to run fn
 #
 
 from __future__ import print_function
@@ -86,7 +86,7 @@ def cprint(text, color=None, end='\n'):
 def dprint(dbg_topic, text, end='\n'):
   color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',
                'temp': 'blue', 'error': 'red', 'phrase': 'white',
-               'run': 'grey'}
+               'run': 'green'}
   if not dbg_topic in color_map:
     cprint('Error: dprint called with unknown dbg_topic (%s)' % dbg_topic,
            'red')
@@ -444,6 +444,8 @@ def _push_mode(name, opts):
 
 def _src(obj):
   if type(obj) == str: return obj
+  elif type(obj) == tuple: return _src(obj[0])
+  elif type(obj) == list: return ''.join([_src(elm) for elm in obj])
   elif isinstance(obj, Rule): return obj.src()
   else: dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
 
@@ -786,6 +788,9 @@ def test2():
   out2 = test1(True)
   return expect('out1', '==', 'out2', locals())
 
+def test3():
+  runfile('sample12.water')
+
 
 ###############################################################################
 #
@@ -797,11 +802,12 @@ if __name__ == '__main__':
   if len(sys.argv) != 2:
     print("Usage: %s <water_filename>" % sys.argv[0])
     exit(2)
-  if False:
+  if True:
     dbg_dst = [sys.stdout]
     dbg_topics = ['tree', 'parse', 'public']
     dbg_topics = ['run']
   else:
+    #dbg_topics = 'all'
     dbg_dst = []
   runfile(sys.argv[1])
 
