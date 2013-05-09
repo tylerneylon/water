@@ -422,8 +422,8 @@ _run_ctx = {}
 
 def run(code):
   #print(code)
-  dprint('run', 'run:\n' + code)
-  #exec code in _run_ctx
+  dprint('run', '%s' % code)
+  #exec code in _run_ctx  # TEMP Normally this is uncommented.
 
 
 ###############################################################################
