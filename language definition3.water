@@ -151,8 +151,8 @@
     : mode.items.append(rule_item)
   rule_item -> bin_item | parse_item | method_item
   bin_item ->
-    '=' code_block
-    : mode.rule.add_fn('str', 'return ' + code_block.str())
+    '=' rest_of_line
+    : mode.rule.add_fn('str', 'return ' + rest_of_line.str())
   parse_item ->
     ':' code_block
     : mode.rule.add_fn('parsed', code_block.str())

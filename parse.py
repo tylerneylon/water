@@ -377,6 +377,7 @@ def iterate(filename):
   if pos < len(code):
     raise Exception('Parsing failed at byte %d' % pos)
 
+# TODO Don't print the parse failure message on every exception.
 def runfile(filename):
   try:
     for tree in iterate(filename):
@@ -649,8 +650,9 @@ def _setup_base_rules():
   r = seq_rule('indented_rule_item', ['"%(indent)s"', 'rule_item'], mode=m)
   r.add_fn('parsed', ' mode.items.append(rule_item)')
   or_rule('rule_item', ['bin_item', 'parse_item', 'method_item'], mode=m)
-  r = seq_rule('bin_item', ["'='", 'code_block'], mode=m)
-  r.add_fn('parsed', " mode.rule.add_fn('str', 'return ' + code_block.str())\n")
+  r = seq_rule('bin_item', ["'='", 'rest_of_line'], mode=m)
+  r.add_fn('parsed', (" mode.rule.add_fn("
+                      "'str', 'return ' + rest_of_line.str())\n"))
   r = seq_rule('parse_item', ["':'", 'code_block'], mode=m)
   r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.str())\n")
   r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)

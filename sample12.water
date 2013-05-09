@@ -6,23 +6,38 @@
   log = {'type': 'fn', 'value': log_fn, 'num_params': 1}
   console = {'type': 'obj', 'value': {'log': log}}
   env.symbols['console'] = console
+  mode.symbols = env.symbols
+  env.next_sym_num = 0
+  def new_sym():
+    sym = 'sym_%d' % env.next_sym_num
+    env.next_sym_num += 1
+    return sym
+  env.new_sym = new_sym
 
 >
   s ->
     "\s*"
   statement ->
     s stmnt
-  stmnt -> reg_stmnt
+  stmnt ->
+    reg_stmnt
+    : run(reg_stmnt.str())
   reg_stmnt ->
     stmnt_no_smcln s "(;)?"
-    : run(stmnt_no_smcln.str())
+    = stmnt_no_smcln.str()
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
     'function' s ident s '(' s params s ')' s '{' s -|
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
-    = "def %s(%s): %s" % (ident, params, mode_result)
+    str:
+      s = "fn_val = {'type': 'fn', 'num_params': %d}\n" % params.num()
+      s += "def fn(%s):\n  " % params
+      s += "\n  ".join([r.src() for r in mode_result]) + "\n"
+      s += "fn_val['value'] = fn\n"
+      s += "env.symbols['%s'] = fn_val\n" % ident
+      return s
   assign -> direct_assign | inc_assign
   direct_assign ->
     "(var)?" s ident s '=' s expr
@@ -37,9 +52,18 @@
     ident s '(' s args s ')'
   ident ->
     "[A-Za-z_]\w*"
+    = env.symbols.setdefault(self.src(), env.new_sym())
+    num: return 1
+    left_name: return self.str()
+    existing_name:
+      if self.src() not in env.symbols:
+        return parse.error('Undefined identifier: ' + self.src())
+      return env.symbols[self.src()]
   params -> multi_params | ident
   multi_params ->
     ident s ',' s params
+    num:
+      return params.num() + 1
   expr -> obj_elem | call | var | js_str | num
   inc_op ->
     '--'
