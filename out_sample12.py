@@ -7,6 +7,7 @@ def make_locals():
   lo = {}
   lo.update(symbols)
   return lo
+
 def fn(param0):
   symbols = make_locals()
   symbols['n'] = param0

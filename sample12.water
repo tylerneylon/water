@@ -1,11 +1,19 @@
 # Start work on javascript
 
 >:
-  run("symbols = {}")
-  run("def log_fn(str_obj): print(str_obj['value'])")
-  run("log_obj = {'type': 'fn', 'value': log_fn}")
-  run("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}")
-  run("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo")
+  #import pdb; pdb.set_trace()
+  run.push("symbols = {}\n")
+  run.push("def log_fn(str_obj): print(str_obj['value'])\n")
+  run.push("log_obj = {'type': 'fn', 'value': log_fn}\n")
+  run.push("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
+  run.push("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
+  run.read_all()
+
+# TODO Figure out how to allow this fn to be callable from push_code blocks.
+>:
+  def push_value(rule):
+    run.push(rule)
+    run.push("['value']")
 
 >:
   env.symbols = {}
@@ -28,16 +36,29 @@
     s stmnt
   stmnt ->
     reg_stmnt
-    : run(reg_stmnt.str())
+    :
+      run.push(reg_stmnt)
+      run.read_all()
   reg_stmnt ->
     stmnt_no_smcln s "(;)?"
     = stmnt_no_smcln.str()
+    push_code: run.push(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
     'function' s ident s '(' s params s ')' s '{' s -|
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
+    push_code:
+      src_names, code_names = params.names()
+      run.push("def fn(%s):\n" % ','.join(code_names))
+      run.push_indent('  ')
+      run.push("symbols = make_locals()\n")
+      for i in range(len(src_names)):
+        run.push("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
+      for r in mode_result: run.push(r)
+      run.pop_indent()
+      run.push("symbols['%s'] = {'type': 'fn', 'value': fn}" % ident.src())
     str:
       src_names, code_names = params.names()
       s  = "def fn(%s):\n" % ','.join(code_names)
@@ -51,15 +72,31 @@
   direct_assign ->
     "(var)?" s ident s '=' s expr
     = "%s = %s" % (ident.left_name(), expr)
+    push_code:
+      run.push("symbols['%s'] = " % ident.src())
+      run.push(expr)
+      run.push("\n")
   inc_assign ->
     ident s inc_op
     = "INC ASSIGN"
+    push_code:
+      run.push(ident)
+      run.push("['value'] ")
+      run.push(inc_op)
+      run.push("\n")
   while ->
     'while' s '(' s cond s ')' s '{' -|
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
     = "WHILE"
+    push_code:
+      run.push("while ")
+      run.push(cond)
+      run.push(":\n")
+      run.push_indent('  ')
+      for r in mode_result: run.push(r)
+      run.pop_indent()
   call ->
     ident s '(' s args s ')'
     str:
@@ -67,6 +104,10 @@
            "if fn.type != 'fn':\n"
            parse.error('Attempt to call non-function %s' % ident.src())
     = "CALL"
+    push_code:
+      run.push("symbols['%s']['value'](" % ident.src())
+      run.push(args)
+      run.push(")\n")
   ident ->
     "[A-Za-z_]\w*"
     = env.symbols.setdefault(self.src(), env.new_sym())
@@ -77,6 +118,8 @@
         return parse.error('Undefined identifier: ' + self.src())
       return env.symbols[self.src()]
     names: return [self.src()], ['param0']
+    push_code:
+      run.push("symbols['%s']" % self.src())
   params -> multi_params | ident
   multi_params ->
     ident s ',' s params
@@ -89,23 +132,39 @@
   expr -> obj_elem | call | var | js_str | num
   inc_op ->
     '--'
+    push_code: run.push("-= 1")
   cond ->
     expr s cond_op s expr
+    push_code:
+      run.push(expr[0])
+      run.push("['value']")
+      run.push(' %s ' % cond_op.src())
+      run.push(expr[1])
+      run.push("['value']")
   args -> multi_args | expr
   multi_args ->
     expr s ',' s args
   obj_elem ->
     var '.' ident
     = "symbols['%s'].value['%s']" % (var, ident.src())
+    push_code:
+      run.push("symbols['%s']['value']['%s']" % (var, ident.src()))
   var ->
     ident
+    push_code:
+      run.push("symbols['%s']" % ident.src())
   js_str ->
     "['\"]" -|
     start:
       parse.push_mode('js_str', {'endchar': tokens[0][0]})
       mode.chars = [mode.endchar]
+    push_code:
+      run.push("{'type': 'str', 'value': %s}" % self.src())
+    src: return mode_result
   num ->
     "[0-9]+"
+    push_code:
+      run.push("{'type': 'num', 'value': %s}" % self.src())
   cond_op ->
     '>'
 

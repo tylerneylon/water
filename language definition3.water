@@ -48,7 +48,7 @@
 #
 # TODO
 # * In many cases, I have \s where I mean \s but not \n.
-# * Drop dbg_topics references.
+# * Drop dbg.topics references.
 #
 
 # TODO I need mode.indent to be defined at startup now.
@@ -138,9 +138,8 @@
     "['\"]" -|
     start:
       parse.push_mode('str', {'endchar': tokens[0][0]})
-      global dbg_topics
-      mode.dt = dbg_topics
-      dbg_topics = []
+      mode.dt = dbg.topics
+      dbg.topics = []
       mode.chars = [mode.endchar]
     list: return [mode_result]
 
@@ -174,8 +173,7 @@
       c = tokens[0][0]
       mode.chars.append(c)
       if c == mode.endchar:
-        global dbg_topics
-        dbg_topics = mode.dt
+        dbg.topics = mode.dt
         parse.pop_mode(''.join(mode.chars))
 
 > nested_code_block

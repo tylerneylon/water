@@ -9,22 +9,13 @@
 # TODO Add 'public' output for >: commands.
 #
 
-# TEMP Print colors:
-#
-# printname  color     desc
-# --------------------------------------------------
-# tree       yellow    Nicely formatted parse tree.
-# parse      magenta   Useful function calls
-# public     cyan      parse public method calls
-# temp       blue      Very temporary stuff
-# error      red       Error
-# phrase     white     Every phrase parsed
-# run        green     Strings sent to run fn
-#
 
+# TODO Needed?
 from __future__ import print_function
 
+import dbg
 import re
+import run
 from StringIO import StringIO
 import sys
 import traceback
@@ -56,45 +47,6 @@ start_pos = 0
 #
 parse_info = None
 
-# This is either 'all' or a list of whitelisted dbg_topic names.
-dbg_topics = 'all'
-
-# This is a list of writable file-like objects which receive debug output.
-# Only sys.stdout is in color.
-dbg_dst = [open('tmpout', 'w')]
-
-
-# Set up cprint
-
-try:
-  from termcolor import colored
-except:
-  def _cprint(s, color=None): print(s)
-  def colored(s, color=None): return s
-
-def cprint(text, color=None, end='\n'):
-  s = text + end
-  for dst in dbg_dst:
-    if dst is sys.stdout:
-      # red output is redirected to stderr from stdout.
-      if color != 'red': dst.write(colored(s, color))
-    else:
-      dst.write(s)
-  if color == 'red':
-    sys.stderr.write(colored(s, color))
-
-def dprint(dbg_topic, text, end='\n'):
-  color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',
-               'temp': 'blue', 'error': 'red', 'phrase': 'white',
-               'run': 'green'}
-  if not dbg_topic in color_map:
-    cprint('Error: dprint called with unknown dbg_topic (%s)' % dbg_topic,
-           'red')
-    exit(1)
-  t = dbg_topic
-  if t != 'error' and dbg_topics != 'all' and t not in dbg_topics: return
-  if dbg_topic == 'parse': text = '  ' * len(parse_stack) + text
-  cprint(text, color=color_map[dbg_topic], end=end)
 
 ###############################################################################
 #
@@ -110,7 +62,7 @@ class Object(object):
     #traceback.print_stack()
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
-    dprint('temp', '__setitem__(self, %s, %s)' % (`name`, `value`))
+    dbg.dprint('temp', '__setitem__(self, %s, %s)' % (`name`, `value`))
     self.__dict__[name] = value
   def __contains__(self, name):
     try: self.__getitem__(name)
@@ -142,16 +94,16 @@ class Rule(Object):
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
-    #dprint('temp', 'lo=%s' % `lo`)
+    #dbg.dprint('temp', 'lo=%s' % `lo`)
     #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
     n = `mode.name` if 'name' in mode.__dict__ else '<None>'
-    dprint('temp', 'mode.name=%s' % n)
+    dbg.dprint('temp', 'mode.name=%s' % n)
 
     arglist = ', '.join(k + '=None' for k in lo.keys())
     prefix = 'def %s(%s): ' % (fn_name, arglist)
     fn_code = prefix + fn_code
 
-    dprint('temp', '(runtime) fn_code:\n%s\n' % fn_code)
+    dbg.dprint('temp', '(runtime) fn_code:\n%s\n' % fn_code)
 
     fn_lo = {}
     try:
@@ -159,7 +111,7 @@ class Rule(Object):
       res = fn_lo[fn_name](**lo)
     except:
       msg = 'Exception running a user-level function. Code:\n%s\n' % fn_code
-      dprint('error', msg)
+      dbg.dprint('error', msg)
       raise
     #cprint('got result=%s' % `res`, 'blue')
     return res
@@ -172,13 +124,13 @@ class Rule(Object):
       self._bound_method(fn_name, self._unbound_methods_[fn_name])
 
   def add_fn(self, fn_name, fn_code):
-    dprint('public', 'add_fn(%s, <code below>)' % fn_name)
-    dprint('public', fn_code)
+    dbg.dprint('public', 'add_fn(%s, <code below>)' % fn_name)
+    dbg.dprint('public', fn_code)
     self._add_fn(fn_name, fn_code)
 
   def _add_fn(self, fn_name, fn_code):
     def run(self):
-      dprint('parse', 'run %s <%s>' % (fn_name, self.name))
+      dbg.dprint('parse', 'run %s <%s>' % (fn_name, self.name))
       return self._run_fn(fn_name, fn_code)
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
@@ -209,12 +161,12 @@ class SeqRule(Rule):
     return ''.join([_src(t) for t in self.tokens])
 
   def parse_mode(self, code, pos):
-    dprint('parse', '%s parse_mode' % self.name)
+    dbg.dprint('parse', '%s parse_mode' % self.name)
     #traceback.print_stack()
     init_num_modes = len(modes)
     if 'start' not in self.__dict__:
       fmt = 'Grammar error: expected rule %s to have a "start" method.'
-      dprint('error', fmt % self.name)
+      dbg.dprint('error', fmt % self.name)
       exit(1)
     self.start()
     self.mode_id = mode.id
@@ -231,9 +183,9 @@ class SeqRule(Rule):
     self.pieces = {}
     self.startpos = pos
     for rule_name in self.seq:
-      dprint('temp', 'rule_name=%s' % rule_name)
+      dbg.dprint('temp', 'rule_name=%s' % rule_name)
       if rule_name == '-|':
-        dprint('parse', '%s parse reached -|' % self.name)
+        dbg.dprint('parse', '%s parse reached -|' % self.name)
         tree, pos = self.parse_mode(code, pos)
         return self._end_parse(tree, pos)
       c = rule_name[0]
@@ -242,14 +194,14 @@ class SeqRule(Rule):
       elif c == '"':
         re = rule_name[1:-1] % mode
         #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
-        dprint('temp', 're=%s' % `re`)
+        dbg.dprint('temp', 're=%s' % `re`)
         val, pos = _parse_exact_re(re, code, pos)
       else:
         val, pos = rules[rule_name].parse(code, pos)
         if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None:
         dbg_fmt = '%s parse failed at token %s ~= code %s'
-        dprint('parse', dbg_fmt % (self.name, rule_name, code[pos:pos + 10]))
+        dbg.dprint('parse', dbg_fmt % (self.name, rule_name, code[pos:pos + 10]))
         #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
         return self._end_parse(None, self.startpos)
       self.tokens.append(val)
@@ -259,14 +211,14 @@ class SeqRule(Rule):
 
   def _end_parse(self, tree, pos):
     if tree is None: return tree, pos
-    dprint('parse', '%s parse succeeded' % self.name)
+    dbg.dprint('parse', '%s parse succeeded' % self.name)
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
 
   def debug_print(self, indent='  '):
-    dprint('tree', '%s' % self.name)
+    dbg.dprint('tree', '%s' % self.name)
     for i in range(len(self.seq)):
-      dprint('tree', indent, end='')
+      dbg.dprint('tree', indent, end='')
       item = '-| %s' % self.mode_id if self.seq[i] == '-|' else self.seq[i]
       _debug_print(self.tokens[i], indent + '  ', item)
 
@@ -293,8 +245,8 @@ class OrRule(Rule):
       raise
 
   def run_code(self, code):
-    #dprint('temp', 'run_code(%s)' % `code`)
-    #dprint('temp', 'mode.__dict__=%s' % `mode.__dict__`)
+    #dbg.dprint('temp', 'run_code(%s)' % `code`)
+    #dbg.dprint('temp', 'mode.__dict__=%s' % `mode.__dict__`)
     context = {'parse': parse, 'mode': mode}
     code = 'def or_else():' + code
     exec code in context
@@ -304,20 +256,20 @@ class OrRule(Rule):
     _dbg_parse_start(self.name, code, pos)
     for r in self.or_list:
       if r[0] == ':':
-        dprint('parse', '%s parse finishing as or_else clause' % self.name)
+        dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         tree = self.run_code(r[1:])
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
         self.result = val
-        dprint('parse', '%s parse succeeded as %s' % (self.name, r))
+        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
         return self, pos
-    dprint('parse', '%s parse failed' % self.name)
+    dbg.dprint('parse', '%s parse failed' % self.name)
     # TODO Factor out all these '  ' * len(parse_stack) instances.
     return None, pos
 
   def debug_print(self, indent='  '):
-    dprint('tree', '%s -> ' % self.name, end='')
+    dbg.dprint('tree', '%s -> ' % self.name, end='')
     _debug_print(self.result, indent)
 
   def child(self):
@@ -347,21 +299,21 @@ def parse_phrase(code, pos):
   start_pos = pos
   tree, pos = rules['phrase'].parse(code, pos)
   if tree:
-    dprint('phrase', 'Successful phrase parse:')
+    dbg.dprint('phrase', 'Successful phrase parse:')
     _debug_print(tree)
     parse_info.attempts = []
   return tree, pos
 
 def or_rule(name, or_list, mode=''):
-  dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
+  dbg.dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
   return _add_rule(OrRule(name, or_list), mode)
 
 def seq_rule(name, seq, mode=''):
-  dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
+  dbg.dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
   return _add_rule(SeqRule(name, seq), mode)
 
 def false_rule(name, mode=''):
-  dprint('public', 'false_rule(%s, %s)' % (name, `mode`))
+  dbg.dprint('public', 'false_rule(%s, %s)' % (name, `mode`))
   return _add_rule(FalseRule(name), mode)
 
 def iterate(filename):
@@ -387,13 +339,13 @@ def runfile(filename):
     raise
 
 def push_mode(name, opts={}):
-  dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
+  dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
   _push_mode(name, opts)
 
 def pop_mode(result):
   global rules, mode, modes, mode_result
   if len(modes) == 1:
-    dprint('error',
+    dbg.dprint('error',
            "Grammar error: pop_mode() when only global mode on the stack")
     exit(1)
   old_mode = modes.pop()
@@ -403,11 +355,11 @@ def pop_mode(result):
   mode = modes[-1]
   rules = mode.rules
   mode_result = result
-  dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
+  dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
   return result
 
 def error(msg):
-  dprint('error', 'Error: ' + msg)
+  dbg.dprint('error', 'Error: ' + msg)
   exit(1)
 
 
@@ -418,11 +370,11 @@ def error(msg):
 #
 ###############################################################################
 
-_run_ctx = {}
+#_run_ctx = {}
 
-def run(code):
+#def run(code):
   #print(code)
-  dprint('run', '%s' % code)
+  #dbg.dprint('run', '%s' % code)
   #exec code in _run_ctx  # TEMP Normally this is uncommented.
 
 
@@ -448,27 +400,27 @@ def _src(obj):
   elif type(obj) == tuple: return _src(obj[0])
   elif type(obj) == list: return ''.join([_src(elm) for elm in obj])
   elif isinstance(obj, Rule): return obj.src()
-  else: dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
+  else: dbg.dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
 
 def _dbg_parse_start(name, code, pos):
   m = ' <%s>' % mode.id if len(mode.id) else ''
-  dprint('parse', '%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`))
+  dbg.dprint('parse', '%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`))
 
 def _debug_print(obj, indent='  ', seq_item=None):
   if isinstance(obj, Rule):
     obj.debug_print(indent)
   elif seq_item and seq_item.startswith('-|'):
-    dprint('tree', '%s ' % seq_item, end='')
+    dbg.dprint('tree', '%s ' % seq_item, end='')
     _debug_print(obj, indent)
   elif seq_item:
-    dprint('tree', '%s -> %s' % (seq_item, `obj`))
+    dbg.dprint('tree', '%s -> %s' % (seq_item, `obj`))
   elif type(obj) == list:
-    dprint('tree', '')
+    dbg.dprint('tree', '')
     for i in obj:
-      dprint('tree', indent, end='')
+      dbg.dprint('tree', indent, end='')
       _debug_print(i, indent + '  ')
   else:
-    dprint('tree', '%s' % `obj`)
+    dbg.dprint('tree', '%s' % `obj`)
 
 # Returns start, stop so that code[start:stop] is the line including pos.
 def _line_with_pos(code, pos):
@@ -537,13 +489,13 @@ err_pos = -1
 err_expected = None
 
 def _parse_exact_re(s, code, pos):
-  dprint('temp', 's before decode is %s' % `s`)
+  dbg.dprint('temp', 's before decode is %s' % `s`)
   s = s.decode('string_escape')
 
   a = code[pos:pos + 20]
   m = re.match(s, code[pos:], re.MULTILINE)
   if m:
-    dprint('temp', 're.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`))
+    dbg.dprint('temp', 're.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`))
 
   m = re.match(s, code[pos:], re.MULTILINE)
   if m:
@@ -637,9 +589,8 @@ def _setup_base_rules():
   r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
   r.add_fn('start', ("\n"
                      "  parse.push_mode('str', {'endchar': tokens[0][0]})\n"
-                     "  global dbg_topics\n"
-                     "  mode.dt = dbg_topics\n"
-                     "  dbg_topics = []\n"
+                     "  mode.dt = dbg.topics\n"
+                     "  dbg.topics = []\n"
                      "  mode.chars = [mode.endchar]\n"))
   r.add_fn('list', " return [mode_result]")
 
@@ -670,8 +621,7 @@ def _setup_base_rules():
                       "  c = tokens[0][0]\n"
                       "  mode.chars.append(c)\n"
                       "  if c == mode.endchar:\n"
-                      "    global dbg_topics\n"
-                      "    dbg_topics = mode.dt\n"
+                      "    dbg.topics = mode.dt\n"
                       "    parse.pop_mode(''.join(mode.chars))\n"))
 
   # nested_code_block rules.
@@ -693,20 +643,22 @@ def _setup_base_rules():
 #
 ###############################################################################
 
-dbg_topics = []
-parse_info = Object()
-parse_info.attempts = []
+def init():
+  global parse_info, env, parse
+  dbg.topics = []
+  parse_info = Object()
+  parse_info.attempts = []
 
-env = Object()
-push_mode('')  # Set up the global mode.
-_setup_base_rules()
+  env = Object()
+  push_mode('')  # Set up the global mode.
+  _setup_base_rules()
 
 
-parse = sys.modules[__name__]
+  parse = sys.modules[__name__]
 
-#dbg_topics = ['temp', 'public', 'parse']
-dbg_topics = ['parse']
-#dbg_topics = 'all'
+  #dbg.topics = ['temp', 'public', 'parse']
+  dbg.topics = ['parse']
+  #dbg.topics = 'all'
 
 
 ###############################################################################
@@ -715,7 +667,6 @@ dbg_topics = ['parse']
 #
 ###############################################################################
 
-# TODO More human-friendly formatting when a and b are long strings.
 def expect(a, cond, b, ctx):
   stack = traceback.extract_stack()
   caller = stack[-2][2]
@@ -745,9 +696,8 @@ def expect(a, cond, b, ctx):
 
 # Only check if we can parse the complete file, langauge definition3.water.
 def test0():
-  global dbg_topics, dbg_dst
-  dbg_topics = ['public']
-  dbg_dst = [sys.stdout]
+  dbg.topics = ['public']
+  dbg.dst = [sys.stdout]
   try: 
     for tree in iterate('language definition3.water'):
       pass
@@ -762,10 +712,9 @@ def test1(return_out_str=False):
   # * We parse the whole file.
   # * We get the right number of parse calls.
   # * The first and last parse calls look correct.
-  global dbg_topics, dbg_dst
-  dbg_topics = ['public']
+  dbg.topics = ['public']
   out = StringIO()
-  dbg_dst = [out]
+  dbg.dst = [out]
   try: 
     for tree in iterate('language definition3.water'):
       tree.debug_print()
@@ -804,12 +753,13 @@ if __name__ == '__main__':
   if len(sys.argv) != 2:
     print("Usage: %s <water_filename>" % sys.argv[0])
     exit(2)
+  init()
   if True:
-    dbg_dst = [sys.stdout]
-    dbg_topics = ['tree', 'parse', 'public']
-    dbg_topics = ['run']
+    dbg.dst = [sys.stdout]
+    dbg.topics = ['tree', 'parse', 'public']
+    dbg.topics = ['run']
   else:
-    #dbg_topics = 'all'
-    dbg_dst = []
+    #dbg.topics = 'all'
+    dbg.dst = []
   runfile(sys.argv[1])
 
