@@ -1,18 +1,21 @@
 # Project Water
 
-The goal of water is to build a dynamic compiler, which is explained below.
+The goal of water is to build a fluid compiler -- an adaptable compiler that can
+compile or modify any programming language; this enables non-compiler-experts
+to evolve languages, as well as powerful cross-language developer tools.
 The project is at a very early stage, and the current code is a rough
-prototype of a language parser.
+prototype of a language parser and compiler.
 
 ## Primary Goal
 
 Let language designers and programmers focus on language, and ignore the
 details of building parsers, compilers, optimizers, interpreters, and
-debuggers.
+debuggers. This modularity also allows tool developers to build for
+multiple languages at once.
 
-## Dynamic Compilers
+## Fluid Compilers
 
-A *dynamic compiler* is a compiler which:
+A *fluid compiler* is a compiler which:
 
 * can change the language as the source files are read,
 * has decoupled output modules that can produce custom bytecode or a standard
