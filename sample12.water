@@ -1,7 +1,6 @@
 # Start work on javascript
 
 >:
-  #import pdb; pdb.set_trace()
   run.push("symbols = {}\n")
   run.push("def log_fn(str_obj): print(str_obj['value'])\n")
   run.push("log_obj = {'type': 'fn', 'value': log_fn}\n")
@@ -41,7 +40,6 @@
       run.read_all()
   reg_stmnt ->
     stmnt_no_smcln s "(;)?"
-    = stmnt_no_smcln.str()
     push_code: run.push(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
@@ -59,26 +57,15 @@
       for r in mode_result: run.push(r)
       run.pop_indent()
       run.push("symbols['%s'] = {'type': 'fn', 'value': fn}" % ident.src())
-    str:
-      src_names, code_names = params.names()
-      s  = "def fn(%s):\n" % ','.join(code_names)
-      s += "  symbols = make_locals()"
-      for i in range(len(src_names)):
-        s += "\n  symbols['%s'] = %s" % (src_names[i], code_names[i])
-      s += "\n  ".join([r.str() for r in mode_result]) + "\n"
-      s += "symbols['%s'] = {'type': 'fn', 'value': fn}" % ident.src()
-      return s
   assign -> direct_assign | inc_assign
   direct_assign ->
     "(var)?" s ident s '=' s expr
-    = "%s = %s" % (ident.left_name(), expr)
     push_code:
       run.push("symbols['%s'] = " % ident.src())
       run.push(expr)
       run.push("\n")
   inc_assign ->
     ident s inc_op
-    = "INC ASSIGN"
     push_code:
       run.push(ident)
       run.push("['value'] ")
@@ -89,7 +76,6 @@
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
-    = "WHILE"
     push_code:
       run.push("while ")
       run.push(cond)
@@ -99,32 +85,18 @@
       run.pop_indent()
   call ->
     ident s '(' s args s ')'
-    str:
-      s = ("fn = env.symbols[ident.existing_name()]\n"
-           "if fn.type != 'fn':\n"
-           parse.error('Attempt to call non-function %s' % ident.src())
-    = "CALL"
     push_code:
       run.push("symbols['%s']['value'](" % ident.src())
       run.push(args)
       run.push(")\n")
   ident ->
     "[A-Za-z_]\w*"
-    = env.symbols.setdefault(self.src(), env.new_sym())
-    num: return 1
-    left_name: return self.str()
-    existing_name:
-      if self.src() not in env.symbols:
-        return parse.error('Undefined identifier: ' + self.src())
-      return env.symbols[self.src()]
     names: return [self.src()], ['param0']
     push_code:
       run.push("symbols['%s']" % self.src())
   params -> multi_params | ident
   multi_params ->
     ident s ',' s params
-    num:
-      return params.num() + 1
     src_names: return [ident.src()] + params.src_names()
     names:
       src = self.src_names()
@@ -146,25 +118,21 @@
     expr s ',' s args
   obj_elem ->
     var '.' ident
-    = "symbols['%s'].value['%s']" % (var, ident.src())
     push_code:
       run.push("symbols['%s']['value']['%s']" % (var, ident.src()))
   var ->
     ident
-    push_code:
-      run.push("symbols['%s']" % ident.src())
+    push_code: run.push("symbols['%s']" % ident.src())
   js_str ->
     "['\"]" -|
     start:
       parse.push_mode('js_str', {'endchar': tokens[0][0]})
       mode.chars = [mode.endchar]
-    push_code:
-      run.push("{'type': 'str', 'value': %s}" % self.src())
+    push_code: run.push("{'type': 'str', 'value': %s}" % self.src())
     src: return mode_result
   num ->
     "[0-9]+"
-    push_code:
-      run.push("{'type': 'num', 'value': %s}" % self.src())
+    push_code: run.push("{'type': 'num', 'value': %s}" % self.src())
   cond_op ->
     '>'
 

@@ -31,7 +31,7 @@ def read_all():
   global stack
   code = ''.join(stack)
   stack = []
-  if True:
+  if False:
     dbg.dprint('run', code)
   else:
     exec code in _run_ctx
