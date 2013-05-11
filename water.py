@@ -1,207 +1,114 @@
 #!/usr/bin/python
+#
+# water.py
+#
+# A fluid compiler.
+#
+# TODO Add public documentation.
+#
 
-import re
+import dbg
+import parse
 import sys
 
-# Set up a temporary grammar.
-# TODO Before using this list in code, set up item [0] as always being the string that
-#      will appear in the rule_dict; so literal tokens will be the same with a
-#      prepended ' character.
-#      Also add a throwaway whitespace token at the end internally.
-#      In the ultimate product, maybe don't do that whitespace internally, but
-#      think about how to balance control with ease of use.
-token_list = [['', r'for'],
-              ['', r'print'],
-              ['\'(', r'\('],
-              ['\')', r'\)'],
-              ['', r';'],
-              ['', r'<'],
-              ['', r'='],
-              ['\'+=', r'\+='],
-              ['%identifier', r'\w']]
-
-rule_dict = {'statement' : ['or', 'assignment', 'for_loop', 'print_statement'],
-             'assignment' : ['or', 'direct_assignment', 'incremental_assignment'],
-             'direct_assignment' : ['rules', '%identifier', '\'=', 'expression'],
-             'incremental_assignment' : ['rules', '%identifier', '\'+=', 'expression'],
-             'expression' : ['or', '%identifier', '%number'],
-             'for_loop' : ['rules', '\'for', '\'(', 'statement', '\';', 'conditional', '\';', 'statement', '\')', 'statement'],
-             'conditional' : ['rules', 'expression', '\'<', 'expression'],
-             'print_statement' : ['rules', '\'print', '%identifier']
-            }
-
-# TODO For now I'll explicitly build functions to turn a parse tree into a python string.
-#      In the future, I will pull these out so they are easy to specify in a .water file.
-def tree_to_str(t):
-  #import pdb; pdb.set_trace()
-  #print "tree_to_str( <type %s> <len %d> )" % (type(t), len(t))
-  if type(t) is tuple: return t[1]
-  if t[0] == 'direct_assignment':
-    return ' '.join(map(tree_to_str, t[1:]))
-  elif t[0] == 'incremental_assignment':
-    return ' '.join(map(tree_to_str, t[1:]))
-  elif t[0] == 'for_loop':
-    init = tree_to_str(t[3])
-    cond = tree_to_str(t[5])
-    inc  = tree_to_str(t[7])
-    body = tree_to_str(t[9])
-    return "%s\nwhile %s:\n  %s\n  %s" % (init, cond, body, inc)
-  elif t[0] == 'conditional':
-    return ' '.join(map(tree_to_str, t[1:]))
-  elif t[0] == 'print_statement':
-    return ' '.join(map(tree_to_str, t[1:]))
-  else: # This fall-through case is meant for 'or' rules.
-    return tree_to_str(t[1])
-
-def exec_statement_tree(t, ctx):
-  exec tree_to_str(t) in ctx
-  return ctx
-
-# Attempt to parse the current context as rule specified in the context.
-# The return value is (subtree, context) when the rule can be parsed, or None on failure. 
+###############################################################################
 #
-# grammar is
-#   0 -> token list
-#   1 -> rule list
-# context is
-#   0 -> black box for use by token peek and pop
-#   1 ->
-#   2 -> list (stack) of rules
-# TODO Turn these objects into dictionaries with descriptive keys.
-def parse_rule(grammar, context):
-  rule_name = context[2][-1]
-  token = token_peek(context[0])
-  if token is None: return None
-  #print "parse_rule(next_tok=%s, rule stack=%s)" % (token, context[2])
-  if (rule_is_token(rule_name)):
-    is_match = (token[0] == rule_name)
-    if is_match: token_pop(context[0])
-    return debug_return((token, context) if is_match else None)
+# Tests.
+#
+###############################################################################
+
+def expect(a, cond, b, ctx):
+  stack = traceback.extract_stack()
+  caller = stack[-2][2]
+  a_val = eval(a, ctx)
+  b_val = eval(b, ctx)
+  eval_str = `a_val` + cond + `b_val`
+  # Special handling for == on long strings.
+  if (cond == '==' and type(a_val) == type(b_val) == str and
+      len(a_val + b_val) > 100):
+    ls = enumerate(zip(a_val, b_val))
+    i = next((i for i in ls if i[1][0] != i[1][1]), None)
+    if i:
+      i = i[0]
+      a_val = '..' + a_val[max(0, i - 10):min(len(a_val), i + 10)] + '..'
+      b_val = '..' + b_val[max(0, i - 10):min(len(b_val), i + 10)] + '..'
+    elif len(a) != len(b):
+      a_val = a_val[:20] + ' + %d more chars' % (len(a_val) - 20)
+      b_val = b_val[:20] + ' + %d more chars' % (len(b_val) - 20)
   else:
-    rule = grammar[1][rule_name]
-    if rule[0] == 'or':
-      for subrule in rule[1:]:
-        context[2].append(subrule)
-        result = parse_rule(grammar, context)
-        context[2].pop()
-        if result:
-          tree, context = result
-          return debug_return(([rule_name, tree], context))
-      return debug_return(None)
-    elif rule[0] == 'rules':
-      subtree = [rule_name]
-      for subrule in rule[1:]:
-        context[2].append(subrule)
-        result = parse_rule(grammar, context)
-        context[2].pop()
-        if not result:
-          pb = tokens_from_tree(subtree)
-          #print "About to push back %s" % `pb`
-          token_push_list(context[0], tokens_from_tree(subtree))
-          #print "context[0] is now %s" % `context[0]`
-          return debug_return(None)
-        subtree.append(result[0])
-      return debug_return((subtree, context))
+    a_val = `a_val`
+    b_val = `b_val`
+  if not eval(eval_str, ctx):
+    fmt = 'Fail (%s):\n  Expected %s %s %s but:\n  %s = %s\n  %s = %s'
+    print(fmt % (caller, a, cond, b, a, a_val, b, b_val))
+    return False
+  return True
 
-def tokens_from_tree(tree):
-  if type(tree) == tuple: return [tree]
-  if type(tree) == str: return []
-  # Otherwise it's a list.
-  return sum(map(tokens_from_tree, tree), [])
+# Only check if we can parse the complete file, langauge definition3.water.
+def test0():
+  dbg.topics = ['public']
+  dbg.dst = [sys.stdout]
+  try: 
+    for tree in iterate('language definition3.water'):
+      pass
+      #tree.debug_print()
+  except Exception as e:
+    print('Fail (test0): %s: %s' % (type(e).__name__, e))
+    return False
+  return True
 
-def print_tree(tree, indent=0):
-  if type(tree) is list:
-    head = tree[0] if type(tree[0]) is str else `tree[0]`
-    print "  " * indent + head + ":"
-    for subtree in tree[1:]:
-      print_tree(subtree, indent=(indent + 1))
-  else:
-    head = tree if type(tree) is str else `tree`
-    print "  " * indent + head
+def test1(return_out_str=False):
+  # Check the following conditions:
+  # * We parse the whole file.
+  # * We get the right number of parse calls.
+  # * The first and last parse calls look correct.
+  dbg.topics = ['public']
+  out = StringIO()
+  dbg.dst = [out]
+  try: 
+    for tree in iterate('language definition3.water'):
+      tree.debug_print()
+  except Exception as e:
+    print('Fail (test1): %s: %s' % (type(e).__name__, e))
+    return False
+  out.seek(0)
+  out_str = out.read()
+  lines = out_str.split('\n')
+  if not expect('len(lines)', '==', '318', locals()): return False
+  first_line = "    push_mode('lang_def', {'indent': '  ', 'name': ''})"
+  if not expect('lines[0]', '==', 'first_line', locals()): return False
+  last_line = "    pop_mode(_); 'lang_def' -> ''"
+  if not expect('lines[-2]', '==', 'last_line', locals()): return False
+  return out_str if return_out_str else True
 
-# TODO TEMP DEBUG
-def debug_return(x):
-  #print "returning %s" % `x`
-  return x
+def test2():
+  # Check the following conditions:
+  # * Both parses succeed.
+  # * The parse calls are the same both times.
+  out1 = test1(True)
+  out2 = test1(True)
+  return expect('out1', '==', 'out2', locals())
 
-def rule_is_token(rule_name):
-  return rule_name.startswith('%') or rule_name.startswith('\'')
-
-# Token parsing functions.
-
-def token_init(filename, token_list):
-  f = open(filename, 'r')
-  next_tokens = []
-  return [f, next_tokens, token_list]
-
-# t is a tokenizer
-# TODO Make this a class.
-def token_peek(t):
-  _token_ensure_next(t)
-  return t[1][0] if t[1] else None
-
-def token_pop(t):
-  _token_ensure_next(t)
-  return t[1].pop(0) if t[1] else None
-
-def token_push_list(t, l):
-  t[1][0:0] = l
-
-def _token_ensure_next(t):
-  while not t[1] and not t[0].closed: _token_parse_line(t)
-
-def _token_parse_line(t):
-  if t[0].closed: return
-  line = t[0].readline()
-  if len(line) == 0:
-    t[0].close()
-    return
-  t[1] = _tokenize_line(t[2], line)
-
-def _tokenize_line(token_list, line):
-  for token_def in token_list:
-    m = re.match(token_def[1], line)
-    if m:
-      rest_of_line = line[m.end(0):]
-      rest_of_tokens = _tokenize_line(token_list, rest_of_line)
-      this_token = [(token_def[0], m.group(0))] if not token_def[0].startswith('_') else []
-      return this_token + rest_of_tokens
-  if len(line.strip()) > 0:
-    sys.stderr.write("Unable to tokenize the line suffix \"%s\"\n" % line)
-  return []
+def test3():
+  runfile('sample12.water')
 
 
-# main
+###############################################################################
+#
+# Ability to run directly.
+#
+###############################################################################
 
 if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print "Usage: %s <water-file>" % sys.argv[0]
+  if len(sys.argv) != 2:
+    print("Usage: %s <water_filename>" % sys.argv[0])
     exit(2)
-
-  # Prepare the token list.
-  for i in xrange(len(token_list)):
-    token_def = token_list[i]
-    if not token_def[0]: token_def[0] = "'" + token_def[1]
-  token_list.append(['_whitespace', r'\s+'])
-
-  t = token_init(sys.argv[1], token_list)
-
-  grammar = [token_list, rule_dict]
-  context = [t, None, ['statement']]
-
-  ctx = {}
-  result = parse_rule(grammar, context)
-  while result:
-    tree, context = result
-    if False:
-      print "%s" % `tree`
-      print("=== Parse tree is ===")
-      print_tree(tree)
-      print("=== Code is ===")
-      print tree_to_str(tree)
-      print "tree_to_str gives:\n%s" % tree_to_str(tree)
-    ctx = exec_statement_tree(tree, ctx)
-    result = parse_rule(grammar, context)
-
-
+  if True:
+    dbg.dst = [sys.stdout]
+    dbg.topics = ['tree', 'parse', 'public']
+    dbg.topics = ['run']
+  else:
+    #dbg.topics = 'all'
+    dbg.dst = []
+  parse.runfile(sys.argv[1])
 
