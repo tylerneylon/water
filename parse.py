@@ -331,7 +331,6 @@ def iterate(filename):
   if pos < len(code):
     raise ParseError('Parsing failed at byte %d' % pos)
 
-# TODO Don't print the parse failure message on every exception.
 def runfile(filename):
   try:
     for tree in iterate(filename):

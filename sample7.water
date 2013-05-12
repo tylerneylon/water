@@ -16,25 +16,39 @@
 >
   statement ->
     no_nl_statement "[ \t]*\n"
-    : run(no_nl_statement.str())
+    :
+      run.push(no_nl_statement)
+      run.read_all()
   no_nl_statement -> assignment | for_loop | print_statement
   assignment -> direct_assignment | incremental_assignment
   direct_assignment ->
     identifier ' = ' expression
-    = "%s = %s" % (identifier.left_name(), expression)
+    push_code:
+      run.push("%s = %s\n" % (identifier.left_name(), expression))
   incremental_assignment ->
     identifier ' += ' expression
-    = "%s += %s" % (identifier.existing_name(), expression)
+    push_code:
+      run.push("%s += %s\n" % (identifier.existing_name(), expression))
   expression -> identifier | number
   for_loop ->
     'for (' no_nl_statement '; ' conditional '; ' no_nl_statement ') ' no_nl_statement
-    = "%s\nwhile (%s):\n %s\n %s" % (no_nl_statement[0], conditional, no_nl_statement[2], no_nl_statement[1])
+    push_code:
+      run.push(no_nl_statement[0])
+      run.push("while ")
+      run.push(conditional)
+      run.push(":\n")
+      run.push_indent("  ")
+      run.push(no_nl_statement[2])
+      run.push(no_nl_statement[1])
+      run.pop_indent()
   conditional ->
     expression ' < ' expression
-    = "%s < %s" % (expression[0], expression[1])
+    push_code:
+      run.push("%s < %s" % (expression[0], expression[1]))
   print_statement ->
     'print ' identifier
-    = "print(%s)" % identifier.existing_name()
+    push_code:
+      run.push("print(%s)\n" % identifier.existing_name())
   identifier ->
     "[A-Za-z_]\w*"
     = env.symbols.setdefault(self.src(), env.new_sym())

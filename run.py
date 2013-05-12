@@ -13,6 +13,9 @@ indents = ['\n']
 stack_end_is_indent = False
 _run_ctx = {}
 
+# When this is True, we print out the strings to be run instead of running them.
+only_print = False
+
 def push(rule_or_str):
   if type(rule_or_str) == str:
     s = rule_or_str  # Clarify that it's a string.
@@ -31,8 +34,8 @@ def read_all():
   global stack
   code = ''.join(stack)
   stack = []
-  if False:
-    dbg.dprint('run', code)
+  if only_print:
+    dbg.dprint('run', code, end='')
   else:
     exec code in _run_ctx
 

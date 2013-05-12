@@ -56,7 +56,7 @@
         run.push("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
       for r in mode_result: run.push(r)
       run.pop_indent()
-      run.push("symbols['%s'] = {'type': 'fn', 'value': fn}" % ident.src())
+      run.push("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
   assign -> direct_assign | inc_assign
   direct_assign ->
     "(var)?" s ident s '=' s expr
