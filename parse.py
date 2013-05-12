@@ -286,6 +286,10 @@ class FalseRule(Rule):
     return None, pos
 
 
+class ParseError(Exception):
+  pass
+
+
 ###############################################################################
 #
 # Public functions.
@@ -325,14 +329,14 @@ def iterate(filename):
     yield tree
     tree, pos = parse_phrase(code, pos)
   if pos < len(code):
-    raise Exception('Parsing failed at byte %d' % pos)
+    raise ParseError('Parsing failed at byte %d' % pos)
 
 # TODO Don't print the parse failure message on every exception.
 def runfile(filename):
   try:
     for tree in iterate(filename):
       pass
-  except:
+  except ParseError:
     _print_parse_failure()
     raise
 
