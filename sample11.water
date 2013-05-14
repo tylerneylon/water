@@ -1,4 +1,9 @@
 # Start work on javascript
+#
+# This only parses; nothing runs yet.
+# See sample12.water for the beginning of
+# being able to run it.
+#
 
 >
   s ->
@@ -49,7 +54,7 @@
   cond_op ->
     '>'
 
-# So far this is for the body fo a func_def or while.
+# So far this is for the body of a func_def or while.
 > block
   stmnt -> close_brace | reg_stmnt
   close_brace ->

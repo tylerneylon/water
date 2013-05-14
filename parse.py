@@ -12,6 +12,7 @@
 
 from __future__ import print_function
 
+import bisect
 import dbg
 import re
 import run
@@ -31,6 +32,7 @@ env = None
 
 parse_stack = []
 start_pos = 0
+line_starts = []
 
 # parse_info stores parse attempt data so we can display human-friendly error
 # information that simplifies debugging grammars and syntax errors alike.
@@ -321,6 +323,7 @@ def false_rule(name, mode=''):
 def iterate(filename):
   f = open(filename)
   code = f.read()
+  _get_line_starts(code)
   parse_info.code = code
   pos = 0
   f.close()
@@ -329,7 +332,9 @@ def iterate(filename):
     yield tree
     tree, pos = parse_phrase(code, pos)
   if pos < len(code):
-    raise ParseError('Parsing failed at byte %d' % pos)
+    # TODO Add character offset.
+    line_num = _get_line_of_byte_index(pos)
+    raise ParseError('Parsing failed on line %d' % line_num)
 
 def runfile(filename):
   try:
@@ -384,6 +389,20 @@ def error(msg):
 # Internal functions.
 #
 ###############################################################################
+
+def _get_line_starts(code):
+  global line_starts
+  line_starts = []
+  pos = code.find('\n')
+  while pos > 0:
+    line_starts.append(pos)
+    pos = code.find('\n', pos + 1)
+
+def _get_line_of_byte_index(byte_idx):
+  # We send in byte_idx - 1 since bisect returns the first list index *after*
+  # all list indices with values <= what we send in.
+  line_starts_idx = bisect.bisect(line_starts, byte_idx - 1)
+  return line_starts_idx + 1
 
 def _push_mode(name, opts):
   global rules, mode, modes
