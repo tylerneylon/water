@@ -332,9 +332,11 @@ def iterate(filename):
     yield tree
     tree, pos = parse_phrase(code, pos)
   if pos < len(code):
-    # TODO Add character offset.
-    line_num = _get_line_of_byte_index(pos)
-    raise ParseError('Parsing failed on line %d' % line_num)
+    if 'main_attempt' in parse_info:
+      pos = parse_info.main_attempt['fail_pos']
+    line_num, char_offset = _get_line_of_byte_index(pos)
+    error_fmt = 'Parsing failed on line %d, character %d'
+    raise ParseError(error_fmt % (line_num, char_offset))
 
 def runfile(filename):
   try:
@@ -402,7 +404,9 @@ def _get_line_of_byte_index(byte_idx):
   # We send in byte_idx - 1 since bisect returns the first list index *after*
   # all list indices with values <= what we send in.
   line_starts_idx = bisect.bisect(line_starts, byte_idx - 1)
-  return line_starts_idx + 1
+  line_start_byte = line_starts[line_starts_idx - 1] if line_starts_idx else 0
+  char_offset = byte_idx - line_start_byte
+  return line_starts_idx + 1, char_offset  # These are 1-indexed coordinates.
 
 def _push_mode(name, opts):
   global rules, mode, modes
