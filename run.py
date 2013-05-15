@@ -16,21 +16,24 @@ _run_ctx = {}
 # When this is True, we print out the strings to be run instead of running them.
 only_print = False
 
-def push(rule_or_str):
+def _add(rule_or_str):
   if type(rule_or_str) == str:
     s = rule_or_str  # Clarify that it's a string.
     global stack_end_is_indent
     stack_end_is_indent = s.endswith('\n')
     s = indents[-1].join(s.split('\n'))
     stack.append(s)
-  # TODO Avoid parse.py being main so that we can do this correctly.
   elif 'Rule' in str(type(rule_or_str)):
     #elif isinstance(rule_or_str, parse.Rule):
-    rule_or_str.push_code()
+    rule_or_str.add_code()
   else:
-    parse.error('Illegal input to run.push; type=%s' % type(rule_or_str))
+    parse.error('Illegal input to run.add; type=%s' % type(rule_or_str))
 
-def read_all():
+def add(*args):
+  for arg in args: _add(arg)
+
+def run(*args):
+  add(*args)
   global stack
   code = ''.join(stack)
   stack = []

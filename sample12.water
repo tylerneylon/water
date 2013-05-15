@@ -1,18 +1,18 @@
 # Start work on javascript
 
 >:
-  run.push("symbols = {}\n")
-  run.push("def log_fn(str_obj): print(str_obj['value'])\n")
-  run.push("log_obj = {'type': 'fn', 'value': log_fn}\n")
-  run.push("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
-  run.push("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
-  run.read_all()
+  run.add("symbols = {}\n")
+  run.add("def log_fn(str_obj): print(str_obj['value'])\n")
+  run.add("log_obj = {'type': 'fn', 'value': log_fn}\n")
+  run.add("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
+  run.add("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
+  run.run()
 
-# TODO Figure out how to allow this fn to be callable from push_code blocks.
+# TODO Figure out how to allow this fn to be callable from add_code blocks.
 >:
   def push_value(rule):
-    run.push(rule)
-    run.push("['value']")
+    run.add(rule)
+    run.add("['value']")
 
 >:
   env.symbols = {}
@@ -35,65 +35,57 @@
     s stmnt
   stmnt ->
     reg_stmnt
-    :
-      run.push(reg_stmnt)
-      run.read_all()
+    : run.run(reg_stmnt)
   reg_stmnt ->
     stmnt_no_smcln s "(;)?"
-    push_code: run.push(stmnt_no_smcln)
+    add_code: run.add(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
     'function' s ident s '(' s params s ')' s '{' s -|
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
-    push_code:
+    add_code:
       src_names, code_names = params.names()
-      run.push("def fn(%s):\n" % ','.join(code_names))
+      run.add("def fn(%s):\n" % ','.join(code_names))
       run.push_indent('  ')
-      run.push("symbols = make_locals()\n")
+      run.add("symbols = make_locals()\n")
       for i in range(len(src_names)):
-        run.push("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
-      for r in mode_result: run.push(r)
+        run.add("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
+      for r in mode_result: run.add(r)
       run.pop_indent()
-      run.push("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
+      run.add("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
   assign -> direct_assign | inc_assign
   direct_assign ->
     "(var)?" s ident s '=' s expr
-    push_code:
-      run.push("symbols['%s'] = " % ident.src())
-      run.push(expr)
-      run.push("\n")
+    add_code:
+      run.add("symbols['%s'] = " % ident.src())
+      run.add(expr, "\n")
   inc_assign ->
     ident s inc_op
-    push_code:
-      run.push(ident)
-      run.push("['value'] ")
-      run.push(inc_op)
-      run.push("\n")
+    add_code:
+      run.add(ident, "['value'] ", inc_op, "\n")
   while ->
     'while' s '(' s cond s ')' s '{' -|
     start:
       parse.push_mode('block')
       mode.block_stmnts = []
-    push_code:
-      run.push("while ")
-      run.push(cond)
-      run.push(":\n")
+    add_code:
+      run.add("while ", cond, ":\n")
       run.push_indent('  ')
-      for r in mode_result: run.push(r)
+      for r in mode_result: run.add(r)
       run.pop_indent()
   call ->
     ident s '(' s args s ')'
-    push_code:
-      run.push("symbols['%s']['value'](" % ident.src())
-      run.push(args)
-      run.push(")\n")
+    add_code:
+      run.add("symbols['%s']['value'](" % ident.src())
+      run.add(args)
+      run.add(")\n")
   ident ->
     "[A-Za-z_]\w*"
     names: return [self.src()], ['param0']
-    push_code:
-      run.push("symbols['%s']" % self.src())
+    add_code:
+      run.add("symbols['%s']" % self.src())
   params -> multi_params | ident
   multi_params ->
     ident s ',' s params
@@ -104,35 +96,33 @@
   expr -> obj_elem | call | var | js_str | num
   inc_op ->
     '--'
-    push_code: run.push("-= 1")
+    add_code: run.add("-= 1")
   cond ->
     expr s cond_op s expr
-    push_code:
-      run.push(expr[0])
-      run.push("['value']")
-      run.push(' %s ' % cond_op.src())
-      run.push(expr[1])
-      run.push("['value']")
+    add_code:
+      run.add(expr[0], "['value']")
+      run.add(' %s ' % cond_op.src())
+      run.add(expr[1], "['value']")
   args -> multi_args | expr
   multi_args ->
     expr s ',' s args
   obj_elem ->
     var '.' ident
-    push_code:
-      run.push("symbols['%s']['value']['%s']" % (var, ident.src()))
+    add_code:
+      run.add("symbols['%s']['value']['%s']" % (var, ident.src()))
   var ->
     ident
-    push_code: run.push("symbols['%s']" % ident.src())
+    add_code: run.add("symbols['%s']" % ident.src())
   js_str ->
     "['\"]" -|
     start:
       parse.push_mode('js_str', {'endchar': tokens[0][0]})
       mode.chars = [mode.endchar]
-    push_code: run.push("{'type': 'str', 'value': %s}" % self.src())
+    add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
     src: return mode_result
   num ->
     "[0-9]+"
-    push_code: run.push("{'type': 'num', 'value': %s}" % self.src())
+    add_code: run.add("{'type': 'num', 'value': %s}" % self.src())
   cond_op ->
     '>'
 
