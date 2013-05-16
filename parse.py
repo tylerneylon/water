@@ -179,6 +179,7 @@ class SeqRule(Rule):
 
   def inst_parse(self, code, pos):
     _dbg_parse_start(self.name, code, pos)
+    self.start_pos = pos
     self.tokens = []
     self.pieces = {}
     self.startpos = pos
@@ -210,7 +211,13 @@ class SeqRule(Rule):
     return self._end_parse(self, pos)
 
   def _end_parse(self, tree, pos):
+    self.end_pos = pos
     if tree is None: return tree, pos
+    # TODO Think of a way to do this more cleanly. Right now run._state is
+    # awkwardly set from both parse and run.
+    # For examle, maybe a command could set up its code_block as the body of an
+    # add_code fn, and then call run.add on itself.
+    run._state = {'start': self.start_pos, 'end': self.end_pos}
     dbg.dprint('parse', '%s parse succeeded' % self.name)
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
@@ -254,14 +261,17 @@ class OrRule(Rule):
 
   def inst_parse(self, code, pos):
     _dbg_parse_start(self.name, code, pos)
+    self.start_pos = pos
     for r in self.or_list:
       if r[0] == ':':
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         tree = self.run_code(r[1:])
+        self.end_pos = pos
         return tree, pos
       val, pos = rules[r].parse(code, pos)
       if val:
         self.result = val
+        self.end_pos = pos
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
         return self, pos
     dbg.dprint('parse', '%s parse failed' % self.name)
@@ -323,10 +333,10 @@ def false_rule(name, mode=''):
 def iterate(filename):
   f = open(filename)
   code = f.read()
+  f.close()
   _get_line_starts(code)
   parse_info.code = code
   pos = 0
-  f.close()
   tree, pos = parse_phrase(code, pos)
   while tree:
     yield tree
