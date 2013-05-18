@@ -48,11 +48,11 @@ def add(*args):
 
 def run(*args):
   add(*args)
-  global stack, code_list, state_list
+  global stack, code_list, state_list, _state_stack
   code_list += stack
   state_list += _state_stack
   code = ''.join(stack)
-  stack = []
+  stack, _state_stack = [], []
   if print_code: dbg.dprint('run', code, end='')
   if run_code: exec code in _run_ctx
 

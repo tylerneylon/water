@@ -36,9 +36,9 @@ def showwork(filename):
   src_ranges = []
   idx = 0
   for line in src_lines:
-    len = len(line) + 1
-    src_ranges.append((idx, idx + len))
-    idx += len
+    size = len(line) + 1
+    src_ranges.append((idx, idx + size))
+    idx += size
 
   # 2. Consolidate code info so consecutive ranges are distinct.
 
@@ -56,8 +56,8 @@ def showwork(filename):
   for i in range(len(run.code_list)):
     rng = range_of_state(run.state_list[i])
     code = run.code_list[i]
-    if i > 0 and rng_cmp(code_ranges[i - 1], rng) == 0:
-      code_list[i - 1] += code
+    if len(code_ranges) and rng_cmp(code_ranges[-1], rng) == 0:
+      code_list[-1] += code
     else:
       code_ranges.append(rng)
       code_list.append(code)
@@ -72,48 +72,55 @@ def showwork(filename):
   last_chunk = (0, 0)  # This will be < whatever is next.
   next_code = code_ranges[0] if len(code_ranges) else None
   next_src = src_ranges[0] if len(src_ranges) else None
-  src_idx = 0
-  code_idx = 0
+  s, c = 0, 0  # s & c are the src & code indices.
+  sline = src_lines[s] if next_src else ''
+  cline = code_list[c] if next_code else ''
   def new_chunk(src, code):
     chunks.append([src, code])
-    if src: src_idx += 1
-    if code: code_idx += 1
   def add_to_last(src, code):
-    if src:
-      chunks[-1][0] += src
-      src_idx += 1
-    if code:
-      chunks[-1][1] += code
-      code_idx += 1
+    chunks[-1][0] += src
+    chunks[-1][1] += code
   while next_code and next_src:
     # We have both new src and new code to add.
-    s, c = src_lines[src_idx], code_list[code_idx]
     if rng_cmp(next_src, next_code) == 0:
       # Next src & code overlap, so make them a new chunk. The lists were
       # consolidated above, so we don't want to append to the last chunk.
-      new_chunk(src_lines[src_idx], code_list[code_idx])
+      new_chunk(sline, cline)
+      s += 1
+      c += 1
       last_chunk = next_src
     else:
       # Next src & code don't overlap, so we will only add one or the other.
       if rng_cmp(next_src, last_chunk) == 0:
         # Looks like the current src is still part of the last chunk.
-        add_to_last(src_lines[src_idx], '')
+        add_to_last(sline, '')
+        s += 1
         last_chunk = next_src
       else:
         # Next src is not part of last chunk; new chunk w whichever is first.
-        src_is_before_code = (rng_cmp(next_src, next_code) == -1)
-        pair = (s, '') if src_is_before_code else ('', c)
-        new_chunk(*pair)
-        last_chunk = next_src if src_is_before_code else next_code
-    next_src = src_ranges[src_index]
-    next_code = code_ranges[code_index]
-  if next_code or next_src: new_chunk('', '')  # New chunk to hold the rest.
-  while src_idx < len(src_lines): add_to_last(src_lines[src_idx], '')
-  while code_idx < len(code_list): add_to_last('', code_list[code_idx])
+        if rng_cmp(next_src, next_code) == -1:
+          # src before code
+          new_chunk(sline, '')
+          s += 1
+          last_chunk = next_src
+        else:
+          # code before src
+          new_chunk('', cline)
+          c += 1
+          last_chunk = next_code
+    next_src = src_ranges[s]
+    next_code = code_ranges[c]
+    sline = src_lines[s] if next_src else ''
+    cline = code_list[c] if next_code else ''
+  if next_code or next_src: chunks.append(['', ''])  # Chunk to hold the rest.
+  while s < len(src_lines): add_to_last(src_lines[s], ''); s += 1
+  while c < len(code_list): add_to_last('', code_list[c]); c += 1
 
-  # 4. TODO Label this step.
+  # 4. Collate, word-wrap, and print the lines side-by-side.
 
   cols = int(os.popen('stty size').read().split()[1])
+  max_cols = 200
+  if cols > max_cols: cols = max_cols
   w = (cols - 1) // 2  # Width per screen half; 1 column for a vert split.
 
   # Returns a list of word-wrapped lines from one newline-free line.
@@ -136,15 +143,15 @@ def showwork(filename):
     return lines
 
   for chunk in chunks:
-    print('-' * cols)
+    #print('-' * cols)
     left_lines = make_lines(chunk[0])
     right_lines = make_lines(chunk[1])
     def print_a_line(left, right):
       if left is None: left = ''
       if right is None: right = ''
-      print('%%-%ds|%%-%ds' % w % (left, right))
+      print('%%-%ds|%%-%ds' % (w, w) % (left, right))
     map(print_a_line, left_lines, right_lines)
-  print('-' * cols)
+  #print('-' * cols)
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
