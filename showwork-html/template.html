@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="jquery-2.0.0.min.js"></script>
+    <script src="jquery.range-highlight.js"></script>
+    <style>
+      .holder {
+        width: 49%;
+        display: inline-block;
+        overflow: auto;
+        vertical-align: top;
+      }
+      .content {
+        font-family: Courier New;
+        font-size: 14px;
+      }
+      .pre {
+        font-family: Courier New;
+        font-size: 14px;
+      }
+      .highlight {
+        background-color: #0ED;
+      }
+      .code-highlight {
+        background-color: #0ED;
+      }
+    </style>
+  <body>
+    <h1>[[source file name]]</h1>
+    <div class="holder" style="background-color:#EEE">
+      <h2>input source</h2>
+      <div id="src-content" class="content"><pre>[[src content]]</pre></div>
+    </div>
+    <div class="holder" style="background-color:#EEE">
+      <h2>output code</h2>
+      <div id="code-content" class="content">
+        <pre>[[code content]]</pre>
+      </div>
+    </div>
+    <script>
+      function sizeUpdate() {
+        $('.holder').css({height: ($(window).height() - 100) + 'px'});
+      }
+
+      sizeUpdate();
+      $(window).resize(sizeUpdate);
+
+      [[javascript]]
+
+      $('.code-span').mouseover(function () {
+        $('.code-highlight').removeClass('code-highlight');
+        $(this).addClass('code-highlight');
+        var rng = ranges[this.id];
+        $('#src-content').unhighlight();
+        $('#src-content').highlight(rng[0], rng[1]);
+        //$('.highlight')[0].scrollIntoView();
+      });
+    </script>
+  </body>
+</html>

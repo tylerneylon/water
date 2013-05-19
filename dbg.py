@@ -58,6 +58,8 @@ def dprint(dbg_topic, text, end='\n'):
     exit(1)
   t = dbg_topic
   if t != 'error' and topics != 'all' and t not in topics: return
-  if dbg_topic == 'parse': text = '  ' * len(parse_stack) + text
+  # TODO If I want this back in, I need to get the parse_stack length from
+  #      input since the module dependencies will get sticky if I import parse.
+  #if dbg_topic == 'parse': text = '  ' * len(parse.parse_stack) + text
   cprint(text, color=color_map[dbg_topic], end=end)
 
