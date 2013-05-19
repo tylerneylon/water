@@ -1,12 +1,11 @@
 # Start work on javascript
 
 >:
-  run.add("symbols = {}\n")
-  run.add("def log_fn(str_obj): print(str_obj['value'])\n")
-  run.add("log_obj = {'type': 'fn', 'value': log_fn}\n")
-  run.add("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
-  run.add("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
-  run.run()
+  run.run("symbols = {}\n")
+  run.run("def log_fn(str_obj): print(str_obj['value'])\n")
+  run.run("log_obj = {'type': 'fn', 'value': log_fn}\n")
+  run.run("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
+  run.run("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
 
 # TODO Figure out how to allow this fn to be callable from add_code blocks.
 >:

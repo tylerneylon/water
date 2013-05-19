@@ -38,8 +38,10 @@ def _add(rule_or_str):
     _state_stack.append(_state)
   elif isinstance(rule_or_str, parse.Rule):
     r = rule_or_str  # Clarify that it's a rule.
+    old_state = _state
     _state = {'start': r.start_pos, 'end': r.end_pos}
     r.add_code()
+    _state = old_state
   else:
     parse.error('Illegal input to run.add; type=%s' % type(rule_or_str))
 
