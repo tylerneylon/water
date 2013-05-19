@@ -5,13 +5,14 @@
 # Runtime functions for project water.
 #
 
+from __future__ import print_function
+
 import dbg
 import parse
 import sys
 
 stack = []
-indents = ['\n']
-stack_end_is_indent = False
+indents = ['']
 _run_ctx = {}
 _state = None
 _state_stack = []
@@ -28,12 +29,15 @@ if '--showcode' in sys.argv:
   run_code = False
   print_code= True
 
+def _newline_indent():
+  return '\n' + indents[-1]
+
 def _add(rule_or_str):
   if type(rule_or_str) == str:
     s = rule_or_str  # Clarify that it's a string.
-    global stack, stack_end_is_indent, _state, _state_stack
-    stack_end_is_indent = s.endswith('\n')
-    s = indents[-1].join(s.split('\n'))
+    global stack, _state, _state_stack
+    if stack and stack[-1].endswith('\n'): s = indents[-1] + s
+    s = _newline_indent().join(s[:-1].split('\n')) + s[-1]
     stack.append(s)
     _state_stack.append(_state)
   elif isinstance(rule_or_str, parse.Rule):
@@ -60,14 +64,10 @@ def run(*args):
 
 def push_indent(indent):
   indents.append(indents[-1] + indent)
-  if stack_end_is_indent: stack[-1] += indent
 
 def pop_indent():
   if len(indents) == 1:
     parse.error('Call to pop_indent() when indent stack is empty.')
   else:
-    diff = len(indents[-2]) - len(indents[-1])
     indents.pop()
-    if stack_end_is_indent:
-      stack[-1] = stack[-1][:diff]  # Drop the popped indent.
 
