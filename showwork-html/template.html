@@ -4,11 +4,30 @@
     <script src="jquery-2.0.0.min.js"></script>
     <script src="jquery.range-highlight.js"></script>
     <style>
+      body {
+        margin: 0;
+        font-family: Helvetica;
+        background-color: #F8FFFA;
+      }
+      h1 {
+        margin: 8px;
+      }
+      h2 {
+        font-weight: normal;
+      }
       .holder {
-        width: 49%;
+        width: 50%;
         display: inline-block;
         overflow: auto;
         vertical-align: top;
+        box-sizing: border-box;
+        padding: 5px;
+      }
+      .inner-holder {
+        background-color: #EAEFE8;
+        overflow: auto;
+        padding: 5px;
+        border-radius: 5px;
       }
       .content {
         font-family: Courier New;
@@ -19,22 +38,26 @@
         font-size: 14px;
       }
       .highlight {
-        background-color: #0ED;
+        background-color: #FFDA6B;
       }
       .code-highlight {
-        background-color: #0ED;
+        background-color: #FFDA6B;
       }
     </style>
   <body>
     <h1>[[source file name]]</h1>
-    <div class="holder" style="background-color:#EEE">
-      <h2>input source</h2>
-      <div id="src-content" class="content"><pre>[[src content]]</pre></div>
-    </div>
-    <div class="holder" style="background-color:#EEE">
-      <h2>output code</h2>
-      <div id="code-content" class="content">
-        <pre>[[code content]]</pre>
+    <div class="holder">
+      <div class="inner-holder">
+        <h2>input source</h2>
+        <div id="src-content" class="content"><pre>[[src content]]</pre></div>
+      </div>
+    </div><!--
+ --><div class="holder">
+      <div class="inner-holder">
+        <h2>output code</h2>
+        <div id="code-content" class="content">
+          <pre>[[code content]]</pre>
+        </div>
       </div>
     </div>
     <script>
