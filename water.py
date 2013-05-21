@@ -191,9 +191,23 @@ def showwork(filename):
   max_cols = 200
   if cols > max_cols: cols = max_cols
   w = (cols - 1) // 2  # Width per screen half; 1 column for a vert split.
+  widths = [w, w]
+
+  # Check if we can improve the widths; smaller is better if the text fits.
+  max_w = [0, 0]
+  for c in chunks:
+    for i in [0, 1]:
+      if c[i]: max_w[i] = max(max_w[i], max(map(len, c[i].split('\n'))))
+  min_max_w = min(max_w)
+  if min_max_w < w:
+    i = max_w.index(min_max_w)
+    widths[i] = max_w[i]
+    # Make other width as small as the text it contains, if possible.
+    widths[1 - i] = min(max_w[1 - i], cols - 1 - widths[i])
+  cols = widths[0] + 1 + widths[1]
 
   # Returns a list of word-wrapped lines from one newline-free line.
-  def word_wrap(one_line):
+  def word_wrap(one_line, w):
     if one_line == '': return ['']
     short_lines = []
     while len(one_line) > w:
@@ -203,24 +217,24 @@ def showwork(filename):
     return short_lines
 
   # Separates one newline-including string into word-wrapped lines.
-  def make_lines(long_string):
+  def make_lines(long_string, w):
     if long_string is None: long_string = ''
     lines = long_string.split('\n')
     i = 0
     while i < len(lines):
-      short_lines = word_wrap(lines[i])
+      short_lines = word_wrap(lines[i], w)
       lines[i:i + 1] = short_lines
       i += len(short_lines)
     return lines
 
   for chunk in chunks:
     print('-' * cols)
-    left_lines = make_lines(chunk[0])
-    right_lines = make_lines(chunk[1])
+    left_lines = make_lines(chunk[0], widths[0])
+    right_lines = make_lines(chunk[1], widths[1])
     def print_a_line(left, right):
       if left is None: left = ''
       if right is None: right = ''
-      print('%%-%ds|%%-%ds' % (w, w) % (left, right))
+      print('%%-%ds|%%-%ds' % (widths[0], widths[1]) % (left, right))
     map(print_a_line, left_lines, right_lines)
   print('-' * cols)
 
