@@ -1,10 +1,9 @@
 #!/usr/bin/python
 #
-# water.py
+# showwork.py
 #
-# A fluid compiler.
-#
-# TODO Add public documentation.
+# A water module to nicely display a line-to-line correspondence between the
+# input source (src) and the output code.
 #
 
 from __future__ import print_function
@@ -238,20 +237,11 @@ def showwork(filename):
     map(print_a_line, left_lines, right_lines)
   print('-' * cols)
 
-if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    my_name = os.path.basename(sys.argv[0])
-    print("Usage: %s <water_filename> [options]" % my_name)
+# We expect args[0] to be the part of the shell command up to and including our
+# command name - which may contain spaces, and have been considered different
+# arguments by the shell itself.
+def main(args):
+  if len(args) < 2:
+    print("Usage: %s <water_filename>" % args[0])
     exit(2)
-  if True:
-    dbg.dst = [sys.stdout]
-    dbg.topics = ['tree', 'parse', 'public']
-    dbg.topics = ['run']
-  else:
-    #dbg.topics = 'all'
-    dbg.dst = []
-  if '--showwork' in sys.argv:
-    showwork(sys.argv[1])
-  else:
-    parse.runfile(sys.argv[1])
-
+  showwork(args[1])
