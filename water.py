@@ -34,6 +34,15 @@ def _get_module(mod_name):
   sys.path.pop(0)
   return m
 
+def _run_module(mod_name):
+  if mod_name not in _module_names:
+    fmt = "Uknown module '%s'; known modules are installed in %s"
+    print(fmt % (mod_name, _module_dir))
+    exit(2)
+  mod = _get_module(mod_name)
+  mod_dir = path.dirname(path.abspath(mod.__file__))
+  # This translation gives args to the command that feel shell-native-ish to it.
+  mod.main([' '.join(sys.argv[0:2])] + sys.argv[2:], self_dir=mod_dir)
 
 if __name__ == '__main__':
   _get_module_names()
@@ -49,17 +58,8 @@ if __name__ == '__main__':
   else:
     #dbg.topics = 'all'
     dbg.dst = []
-  if sys.argv[1].startswith('-'):
-    # It's a module request.
-    mod_name = sys.argv[1][1:]
-    if mod_name not in _module_names:
-      fmt = "Uknown module '%s'; known modules are installed in %s"
-      print(fmt % (mod_name, _module_dir))
-      exit(2)
-    mod = _get_module(mod_name)
+  if sys.argv[1].startswith('-'):  # It's a module request.
     # The first arg will be a single string like "water -<mod_name>".
-    # This preserves the usual case that args[1:] are the nontrivial arguments
-    # used to decide what to do.
-    mod.main([' '.join(sys.argv[0:2])] + sys.argv[2:])
+    _run_module(sys.argv[1][1:])
   else:
     parse.runfile(sys.argv[1])

@@ -7,13 +7,13 @@
 
 jQuery.extend({
     highlight: function (node, start, len) {
-        console.log('1', node.nodeType)
+        // console.log('1', node.nodeType)
         if (node.nodeType === 3) {
-            console.log('2')
+            // console.log('2')
             if (node.data.length <= start) return start - node.data.length;
             var highlight = document.createElement('span');
             highlight.className = 'highlight';
-            console.log(node);
+            // console.log(node);
             var hlNode = node.splitText(start);
             hlNode.splitText(len);
             var hlClone = hlNode.cloneNode(true);
@@ -23,10 +23,10 @@ jQuery.extend({
         } else if ((node.nodeType === 1 && node.childNodes) && // only element nodes that have children
                 !/(script|style)/i.test(node.tagName) && // ignore script and style nodes
                 !(node.tagName === 'SPAN' && node.className === 'highlight')) { // skip if already highlighted
-            console.log('3')
+            // console.log('3')
             var s = start;
             for (var i = 0; i < node.childNodes.length; i++) {
-                console.log('4')
+                // console.log('4')
                 s = jQuery.highlight(node.childNodes[i], s, len);
                 if (s === -1) break;
             }

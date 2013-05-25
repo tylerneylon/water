@@ -7,7 +7,9 @@
 #
 
 # Enable imports from the parent directory.
-import sys; sys.path.append('..')
+#import sys; sys.path.append('..')
+
+from __future__ import print_function
 
 import os
 import parse
@@ -30,6 +32,13 @@ class Template(object):
     idx = self.pieces.index(key)
     self.pieces[idx] = value
 
+  def set_all(self, key, value):
+    p = self.pieces
+    idx = p.index(key) if key in p else None
+    while idx is not None:
+      p[idx] = value
+      idx = p.index(key) if key in p else None
+
   def write_to(self, dst):
     f = open(dst, 'w') if type(dst) == str else dst
     f.write(str(self))
@@ -38,11 +47,13 @@ class Template(object):
     return ''.join(self.pieces)
   
 
-if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print('Usage: %s <water_filename>' % sys.argv[0])
+def main(args, self_dir):
+
+  if len(args) < 2:
+    print('Usage: %s <water_filename>' % args[0])
     exit(2)
-  in_filename = sys.argv[1]
+
+  in_filename = args[1]
   run.run_code = False
   parse.runfile(in_filename)
   
@@ -58,7 +69,8 @@ if __name__ == '__main__':
     js.append('[%d, %d]' % (rng['start'], rng['end']))
   js.append('];')
 
-  template = Template('template.html')
+  template = Template(os.path.join(self_dir, 'template.html'))
+  template.set_all('[[path]]', self_dir + os.path.sep)
   template.set('[[source file name]]', os.path.basename(in_filename))
   template.set('[[src content]]', src)
   template.set('[[code content]]', ''.join(code_html))
