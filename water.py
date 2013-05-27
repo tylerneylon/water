@@ -53,7 +53,7 @@ if __name__ == '__main__':
     exit(2)
   if True:
     dbg.dst = [sys.stdout]
-    dbg.topics = ['tree', 'parse', 'public']
+    dbg.topics = ['tree', 'parse', 'public', 'temp']
     dbg.topics = ['run']
   else:
     #dbg.topics = 'all'

@@ -29,6 +29,13 @@ topics = 'all'
 # Only sys.stdout is in color.
 dst = []
 
+# If true, prints a number before every dprint statement.
+# This can be useful for setting a breakpoint for a deterministic error.
+showNums = False    # Default: False
+breakOnNum = None   # Default: None
+_num = 0
+
+
 # Set up cprint
 
 try:
@@ -38,7 +45,10 @@ except:
   def colored(s, color=None): return s
 
 def cprint(text, color=None, end='\n'):
+  global _num, showNums, breakOnNum
   s = text + end
+  _num += 1
+  if showNums: s = str(_num) + ' ' + s
   for d in dst:
     if d is sys.stdout:
       # red output is redirected to stderr from stdout.
@@ -47,6 +57,8 @@ def cprint(text, color=None, end='\n'):
       d.write(s)
   if color == 'red':
     sys.stderr.write(colored(s, color))
+  if _num == breakOnNum:
+    import pdb; pdb.set_trace()
 
 def dprint(dbg_topic, text, end='\n'):
   color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',

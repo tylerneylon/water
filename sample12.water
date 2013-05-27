@@ -32,18 +32,18 @@
     "\s*"
   statement ->
     s stmnt
+    add_code: run.add(stmnt)
   stmnt ->
     reg_stmnt
     : run.run(reg_stmnt)
+    add_code: run.add(reg_stmnt)
   reg_stmnt ->
     stmnt_no_smcln s "(;)?"
     add_code: run.add(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
     'function' s ident s '(' s params s ')' s '{' s -|
-    start:
-      parse.push_mode('block')
-      mode.block_stmnts = []
+    start: parse.push_mode('block')
     add_code:
       src_names, code_names = params.names()
       run.add("def fn(%s):\n" % ','.join(code_names))
@@ -66,9 +66,7 @@
       run.add(ident, "['value'] ", inc_op, "\n")
   while ->
     'while' s '(' s cond s ')' s '{' -|
-    start:
-      parse.push_mode('block')
-      mode.block_stmnts = []
+    start: parse.push_mode('block')
     add_code:
       run.add("while ", cond, ":\n")
       run.push_indent('  ')
@@ -116,9 +114,7 @@
     "['\"]" -|
     start:
       parse.push_mode('js_str', {'endchar': tokens[0][0]})
-      mode.chars = [mode.endchar]
     add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
-    src: return mode_result
   num ->
     "[0-9]+"
     add_code: run.add("{'type': 'num', 'value': %s}" % self.src())
@@ -130,25 +126,20 @@
   stmnt -> close_brace | func_stmnt
   close_brace ->
     '}'
-    : parse.pop_mode(mode.block_stmnts)
+    : parse.pop_mode()
+    add_code: pass
   func_stmnt ->
     reg_stmnt
-    : mode.block_stmnts.append(reg_stmnt)
+    add_code: run.add(reg_stmnt)
 
 > js_str
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
-    :
-      if tokens[0][1] != mode.endchar:
-        mode.chars.append("\\")
-      mode.chars.append(tokens[0][1])
   char ->
     "."
     :
-      c = tokens[0][0]
-      mode.chars.append(c)
-      if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
 
 function f(n) {
   var p = console.log;
