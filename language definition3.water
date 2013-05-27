@@ -4,23 +4,23 @@
 # Kind of inception, I know.
 #
 # Objects:
-#  bin talks to the dynamic process
+#  run talks to the runtime engine; and shouldn't be called from
+#      pure grammars like this, only from code that actually does stuff
 #  parse talks to the parser
-#    parse.push_mode(mode.name, opts) adds new opts to the current
+#    parse.push_mode(mode.name, opts) pushes a mode to the mode stack
 #    parse.modes is a list with the mode stack, oldest-first
 #  mode is a synonym for parse.mode, which has:
 #    mode.id and mode.<opt>, so mode[s] refers to what was sent in as opts[s]
 #  tokens is a list of the parsed objects, with special treatment for regex's
-#  compiler is a global any-type object reserved for sharing data
-#    I might consider some scoping rules for the compiler object.
+#  env is a global object reserved for compile-time shared data
 #
 # I can consider using 'src' in place of 'code'.
 #
 # : (commands)
 #  is a set of python commands to be run as soon as the rule is parsed
 #
-# = (string)
-#  is a shortcut for bin.run(string) in a : block
+# = (eval-able code)
+#  is a shortcut for adding a "str" method which returns the eval'd code
 #
 # parse.push_mode(mode.id, opts) pushes mode.id onto the parser mode stack
 #   and opts is a dict that is added to the mode object.
@@ -45,14 +45,12 @@
 #   leaves escaped characters the same, which are converted within python
 #   to whatever they represent. For '-strings, \' is still converted, also by
 #   the parser, but otherwise everything else stays exactly the same.
+#   TODO Check the accuracy of the above comment.
 #
 # TODO
 # * In many cases, I have \s where I mean \s but not \n.
-# * Drop dbg.topics references.
 #
 
-# TODO I need mode.indent to be defined at startup now.
-#      This means preserving global opts between refreshes.
 >: mode.indent = ''
 
 >
@@ -70,13 +68,11 @@
     ">\n(?=(\s+))" -|
     start:
       parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})
-      mode.new_rules = []
   mode_grammar ->
     '> ' word "\n(?=(\s+))" -|
     start:
       opts = {'name': word.src(), 'indent': tokens[2][1]}
       parse.push_mode('lang_def', opts)
-      mode.new_rules = []
   word ->
     "[A-Za-z_]\w*"
   code_block -> indented_code_block | rest_of_line 
@@ -84,17 +80,14 @@
     "[^\n]*\n"
   indented_code_block ->
     "\s*\n(?=(%(indent)s\s+))" -|
-    = mode_result
     start:
       opts = {'indent': tokens[0][1]}
       parse.push_mode('nested_code_block', opts)
-      mode.src = ['\n']
 
 > lang_def
-  phrase -> indented_rule |: return parse.pop_mode(mode.new_rules)
+  phrase -> indented_rule |: return parse.pop_mode()
   indented_rule ->
     "%(indent)s" rule
-    : mode.new_rules.append(rule)
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
     word " ->\s+False[ \t]*\n"
@@ -122,7 +115,6 @@
       opts = {'indent': mode.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
       mode.rule = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
-      mode.items = []
   seq -> item_end | mode_result_end | item_list
   item_end ->
     item "[ \t]*\n"
@@ -138,50 +130,37 @@
     "['\"]" -|
     start:
       parse.push_mode('str', {'endchar': tokens[0][0]})
-      mode.dt = dbg.topics
-      dbg.topics = []
-      mode.chars = [mode.endchar]
     list: return [self.src()]
 
 > rule_block
-  phrase -> indented_rule_item |: return parse.pop_mode(mode.items)
+  phrase -> indented_rule_item |: return parse.pop_mode()
   indented_rule_item ->
     "%(indent)s" rule_item
-    : mode.items.append(rule_item)
-  rule_item -> bin_item | parse_item | method_item
-  bin_item ->
+  rule_item -> str_item | parsed_item | method_item
+  str_item ->
     '=' rest_of_line
-    : mode.rule.add_fn('str', 'return ' + rest_of_line.str())
-  parse_item ->
+    : mode.rule.add_fn('str', 'return ' + rest_of_line.src())
+  parsed_item ->
     ':' code_block
     : mode.rule.add_fn('parsed', code_block.src())
   method_item ->
     word ':' code_block
-    : mode.rule.add_fn(word.str(), code_block.src())
+    : mode.rule.add_fn(word.src(), code_block.src())
  
 > str
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
-    :
-      if tokens[0][1] != mode.endchar:
-        mode.chars.append("\\")
-      mode.chars.append(tokens[0][1])
   char ->
     "."
     :
-      c = tokens[0][0]
-      mode.chars.append(c)
-      if c == mode.endchar:
-        dbg.topics = mode.dt
-        parse.pop_mode(''.join(mode.chars))
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
 
 > nested_code_block
-  phrase -> indented_code_line |: return parse.pop_mode(''.join(mode.src))
+  phrase -> indented_code_line |: return parse.pop_mode()
   indented_code_line ->
     "%(indent)s" code_line
   code_line ->
     "[^\n]*\n"
-    : mode.src.append('  ' + tokens[0])
 
     
