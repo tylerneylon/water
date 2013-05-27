@@ -264,7 +264,7 @@ def showwork(filename):
 # We expect args[0] to be the part of the shell command up to and including our
 # command name - which may contain spaces, and have been considered different
 # arguments by the shell itself.
-def main(args):
+def main(args, self_dir):
   if len(args) < 2:
     print("Usage: %s <water_filename>" % args[0])
     exit(2)

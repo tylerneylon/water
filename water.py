@@ -42,7 +42,7 @@ def _run_module(mod_name):
   mod = _get_module(mod_name)
   mod_dir = path.dirname(path.abspath(mod.__file__))
   # This translation gives args to the command that feel shell-native-ish to it.
-  mod.main([' '.join(sys.argv[0:2])] + sys.argv[2:], self_dir=mod_dir)
+  mod.main([' '.join(sys.argv[0:2])] + sys.argv[2:], mod_dir)
 
 if __name__ == '__main__':
   _get_module_names()
