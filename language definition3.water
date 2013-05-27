@@ -65,7 +65,7 @@
   grammar -> command | global_grammar | mode_grammar
   command ->
     '>:' code_block
-    : exec('def _tmp():' + code_block.str()); _tmp()
+    : exec('def _tmp():' + code_block.src()); _tmp()
   global_grammar ->
     ">\n(?=(\s+))" -|
     start:
@@ -141,7 +141,7 @@
       mode.dt = dbg.topics
       dbg.topics = []
       mode.chars = [mode.endchar]
-    list: return [mode_result]
+    list: return [self.src()]
 
 > rule_block
   phrase -> indented_rule_item |: return parse.pop_mode(mode.items)
@@ -154,10 +154,10 @@
     : mode.rule.add_fn('str', 'return ' + rest_of_line.str())
   parse_item ->
     ':' code_block
-    : mode.rule.add_fn('parsed', code_block.str())
+    : mode.rule.add_fn('parsed', code_block.src())
   method_item ->
     word ':' code_block
-    : mode.rule.add_fn(word.str(), code_block.str())
+    : mode.rule.add_fn(word.str(), code_block.src())
  
 > str
   phrase -> escape_seq | char

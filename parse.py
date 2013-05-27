@@ -94,6 +94,7 @@ class Rule(Object):
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
+    # This dprint is expensive so comment it out when unused.
     #dbg.dprint('temp', 'lo=%s' % `lo`)
     #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
     n = `mode.name` if 'name' in mode.__dict__ else '<None>'
@@ -170,9 +171,18 @@ class SeqRule(Rule):
       exit(1)
     self.start()
     self.mode_id = mode.id
-    while len(modes) > init_num_modes:
+    mode_result = []
+
+    # A mode is popped from either a successful parse or a |: clause. The |:
+    # is a special case where the returned tree is None, but it is not a parse
+    # error; that case is the reason for the if clause after this while loop.
+    while True:
       tree, pos = rules['phrase'].parse(code, pos)
+      if len(modes) == init_num_modes: break
       if tree is None: return None, self.startpos
+      mode_result.append(tree)
+    if tree: mode_result.append(tree)
+
     self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
     return self, pos
@@ -265,9 +275,9 @@ class OrRule(Rule):
     for r in self.or_list:
       if r[0] == ':':
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
-        tree = self.run_code(r[1:])
+        self.run_code(r[1:])
         self.end_pos = pos
-        return tree, pos
+        return None, pos
       val, pos = rules[r].parse(code, pos)
       if val:
         self.result = val
@@ -360,6 +370,7 @@ def push_mode(name, opts={}):
   dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
   _push_mode(name, opts)
 
+# TODO Modify for the new mode_result setup.
 def pop_mode(result):
   global rules, mode, modes, mode_result
   if len(modes) == 1:
@@ -379,21 +390,6 @@ def pop_mode(result):
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)
-
-
-###############################################################################
-#
-# bin functions.
-# Eventually these might fit into another module?
-#
-###############################################################################
-
-#_run_ctx = {}
-
-#def run(code):
-  #print(code)
-  #dbg.dprint('run', '%s' % code)
-  #exec code in _run_ctx  # TEMP Normally this is uncommented.
 
 
 ###############################################################################
@@ -566,13 +562,13 @@ def _setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'])
   r = seq_rule('command', ["'>:'", 'code_block'])
-  r.add_fn('parsed', " exec('def _tmp():' + code_block.str()); _tmp()\n")
+  r.add_fn('parsed', " exec('def _tmp():' + code_block.src()); _tmp()\n")
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
   r.add_fn('start', ("\n"
                      "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
                      " 'name': ''})\n  mode.new_rules = []\n"))
   r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-|'])
-  r.add_fn('start', ("\n  opts = {'name': word.str(), 'indent': tokens[2][1]}\n"
+  r.add_fn('start', ("\n  opts = {'name': word.src(), 'indent': tokens[2][1]}\n"
                      "  parse.push_mode('lang_def', opts)\n"
                      "  mode.new_rules = []\n"))
   seq_rule('word', ['"[A-Za-z_]\w*"'])
@@ -593,9 +589,9 @@ def _setup_base_rules():
   r.add_fn('parsed', " mode.new_rules.append(rule)")
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
   r = seq_rule('false_rule', ['word', r'" ->\s+False[ \t]*\n"'], mode='lang_def')
-  r.add_fn('parsed', " parse.false_rule(word.str(), mode=mode.name)")
+  r.add_fn('parsed', " parse.false_rule(word.src(), mode=mode.name)")
   r = seq_rule('or_rule', ['word', "' -> '", 'or_list'])
-  r.add_fn('parsed', (" parse.or_rule(word.str(), or_list.list(), "
+  r.add_fn('parsed', (" parse.or_rule(word.src(), or_list.list(), "
                       "mode=mode.name)\n"))
   or_rule('or_list', ['multi_or_list', 'or_list_end'])
   r = seq_rule('or_list_end', ['rule_name', r'"[ \t]*\n"'])
@@ -604,13 +600,13 @@ def _setup_base_rules():
   r = seq_rule('std_multi_or_list', ['rule_name', "' | '", 'or_list'])
   r.add_fn('list', " return rule_name.list() + or_list.list()")
   r = seq_rule('else_multi_or_list', ['rule_name', "' |: '", 'rest_of_line'])
-  r.add_fn('list', " return rule_name.list() + [':' + rest_of_line.str()]")
+  r.add_fn('list', " return rule_name.list() + [':' + rest_of_line.src()]")
   r = seq_rule('rule_name', ['word'])
-  r.add_fn('list', " return [word.str()]")
+  r.add_fn('list', " return [word.src()]")
   r = seq_rule('seq_rule', ['word', r'" ->\n%(indent)s(\s+)"', 'seq', '-|'])
   r.add_fn('start', ("\n  opts = {'indent': mode.indent + tokens[1][1]}\n"
                      "  parse.push_mode('rule_block', opts)\n"
-                     "  mode.rule = parse.seq_rule(word.str(), seq.list(),"
+                     "  mode.rule = parse.seq_rule(word.src(), seq.list(),"
                      " mode=mode.name)\n  mode.items = []\n"))
   or_rule('seq', ['item_end', 'mode_result_end', 'item_list'])
   r = seq_rule('item_end', ['item', r'"[ \t]*\n"'])
@@ -626,7 +622,7 @@ def _setup_base_rules():
                      "  mode.dt = dbg.topics\n"
                      "  dbg.topics = []\n"
                      "  mode.chars = [mode.endchar]\n"))
-  r.add_fn('list', " return [mode_result]")
+  r.add_fn('list', " return [self.src()]")
 
   # rule_block rules.
   m = 'rule_block'
@@ -639,9 +635,9 @@ def _setup_base_rules():
   r.add_fn('parsed', (" mode.rule.add_fn("
                       "'str', 'return ' + rest_of_line.str())\n"))
   r = seq_rule('parse_item', ["':'", 'code_block'], mode=m)
-  r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.str())\n")
+  r.add_fn('parsed', " mode.rule.add_fn('parsed', code_block.src())\n")
   r = seq_rule('method_item', ['word', "':'", 'code_block'], mode=m)
-  r.add_fn('parsed', " mode.rule.add_fn(word.str(), code_block.str())")
+  r.add_fn('parsed', " mode.rule.add_fn(word.src(), code_block.src())")
 
   # str rules.
   or_rule('phrase', ['escape_seq', 'char'], mode='str')
