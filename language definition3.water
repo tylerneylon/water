@@ -74,7 +74,7 @@
   mode_grammar ->
     '> ' word "\n(?=(\s+))" -|
     start:
-      opts = {'name': word.str(), 'indent': tokens[2][1]}
+      opts = {'name': word.src(), 'indent': tokens[2][1]}
       parse.push_mode('lang_def', opts)
       mode.new_rules = []
   word ->
@@ -98,10 +98,10 @@
   rule -> false_rule | or_rule | seq_rule
   false_rule ->
     word " ->\s+False[ \t]*\n"
-    : parse.false_rule(word.str(), mode=mode.name)
+    : parse.false_rule(word.src(), mode=mode.name)
   or_rule ->
     word ' -> ' or_list
-    : parse.or_rule(word.str(), or_list.list(), mode=mode.name)
+    : parse.or_rule(word.src(), or_list.list(), mode=mode.name)
   or_list -> multi_or_list | or_list_end
   or_list_end ->
     rule_name "[ \t]*\n"
@@ -112,16 +112,16 @@
     list: return rule_name.list() + or_list.list()
   else_multi_or_list ->
     rule_name ' |: ' rest_of_line
-    list: return rule_name.list() + [':' + rest_of_line.str()]
+    list: return rule_name.list() + [':' + rest_of_line.src()]
   rule_name ->
     word
-    list: return [word.str()]
+    list: return [word.src()]
   seq_rule ->
     word " ->\n%(indent)s(\s+)" seq -|
     start: 
       opts = {'indent': mode.indent + tokens[1][1]}
       parse.push_mode('rule_block', opts)
-      mode.rule = parse.seq_rule(word.str(), seq.list(), mode=mode.name)
+      mode.rule = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
       mode.items = []
   seq -> item_end | mode_result_end | item_list
   item_end ->
