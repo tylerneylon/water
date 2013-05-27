@@ -26,7 +26,6 @@ all_rules = {'': {}}
 rules = None
 modes = []
 mode = None
-mode_result = None
 parse = None
 env = None
 
@@ -370,20 +369,17 @@ def push_mode(name, opts={}):
   dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
   _push_mode(name, opts)
 
-# TODO Modify for the new mode_result setup.
 def pop_mode(result):
-  global rules, mode, modes, mode_result
+  global rules, mode, modes
   if len(modes) == 1:
     dbg.dprint('error',
            "Grammar error: pop_mode() when only global mode on the stack")
     exit(1)
   old_mode = modes.pop()
-  if len(modes) == 1:
-    # Refresh rules if we're at the global context.
-    _push_mode('', modes.pop().__dict__)
+  # Refresh rules if we're at the global context.
+  if len(modes) == 1: _push_mode('', modes.pop().__dict__)
   mode = modes[-1]
   rules = mode.rules
-  mode_result = result
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
   return result
 
