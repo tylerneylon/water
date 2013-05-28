@@ -48,7 +48,6 @@
     "['\"]" -|
     start:
       parse.push_mode('js_str', {'endchar': tokens[0][0]})
-      mode.chars = [mode.endchar]
   num ->
     "[0-9]+"
   cond_op ->
@@ -59,22 +58,16 @@
   stmnt -> close_brace | reg_stmnt
   close_brace ->
     '}'
-    : parse.pop_mode(None)
+    : parse.pop_mode()
 
 > js_str
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
-    :
-      if tokens[0][1] != mode.endchar:
-        mode.chars.append("\\")
-      mode.chars.append(tokens[0][1])
   char ->
     "."
     :
-      c = tokens[0][0]
-      mode.chars.append(c)
-      if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
 
 function f(n) {
   var p = console.log;
