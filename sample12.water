@@ -42,8 +42,7 @@
     add_code: run.add(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
-    'function' s ident s '(' s params s ')' s '{' s -|
-    start: parse.push_mode('block')
+    'function' s ident s '(' s params s ')' s '{' s -block
     add_code:
       src_names, code_names = params.names()
       run.add("def fn(%s):\n" % ','.join(code_names))
@@ -65,8 +64,7 @@
     add_code:
       run.add(ident, "['value'] ", inc_op, "\n")
   while ->
-    'while' s '(' s cond s ')' s '{' -|
-    start: parse.push_mode('block')
+    'while' s '(' s cond s ')' s '{' -block
     add_code:
       run.add("while ", cond, ":\n")
       run.push_indent('  ')
@@ -111,9 +109,8 @@
     ident
     add_code: run.add("symbols['%s']" % ident.src())
   js_str ->
-    "['\"]" -|
-    start:
-      parse.push_mode('js_str', {'endchar': tokens[0][0]})
+    "['\"]" -js_str
+    mode_params: return {'endchar': tokens[0][0]}
     add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
   num ->
     "[0-9]+"

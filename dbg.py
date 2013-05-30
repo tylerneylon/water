@@ -44,19 +44,19 @@ except:
   def _cprint(s, color=None): print(s)
   def colored(s, color=None): return s
 
+# TODO Avoid setting a breakpoint if no output went to a tty?
 def cprint(text, color=None, end='\n'):
   global _num, showNums, breakOnNum
   s = text + end
   _num += 1
-  if showNums: s = str(_num) + ' ' + s
+  if showNums and end == '\n': s = str(_num) + ' ' + s
   for d in dst:
-    if d is sys.stdout:
+    if d.isatty(): s = colored(s, color)
+    if d is sys.stdout and color == 'red':
       # red output is redirected to stderr from stdout.
-      if color != 'red': d.write(colored(s, color))
+      sys.stderr.write(s)
     else:
       d.write(s)
-  if color == 'red':
-    sys.stderr.write(colored(s, color))
   if _num == breakOnNum:
     import pdb; pdb.set_trace()
 

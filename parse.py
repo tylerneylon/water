@@ -439,7 +439,9 @@ def _debug_print(obj, indent='  ', seq_item=None):
     dbg.dprint('tree', '%s ' % seq_item, end='')
     _debug_print(obj, indent)
   elif seq_item:
-    dbg.dprint('tree', '%s -> %s' % (seq_item, `obj`))
+    # TODO Improve how this works for mode results.
+    val = '[...]' if type(obj) is list else `obj`
+    dbg.dprint('tree', '%s -> %s' % (seq_item, val))
   elif type(obj) == list:
     dbg.dprint('tree', '')
     for i in obj:
@@ -563,8 +565,8 @@ def _setup_base_rules():
   r.add_fn('mode_params', "return {'indent': tokens[0][1], 'name': ''}\n")
   r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-lang_def'])
   r.add_fn('mode_params', ("\n"
-                           "return {'name': word.src(), "
-                           "'indent': tokens[2][1]\n"))
+                           "  return {'name': word.src(), "
+                           "'indent': tokens[2][1]}\n"))
   seq_rule('word', ['"[A-Za-z_]\w*"'])
   or_rule('code_block', ['indented_code_block', 'rest_of_line'])
   seq_rule('rest_of_line', [r'"[^\n]*\n"'])
