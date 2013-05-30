@@ -17,7 +17,6 @@ import dbg
 import re
 import run
 import sys
-import traceback  # TODO Needed?
 import types
 
 # Globals.
@@ -57,8 +56,6 @@ class Object(object):
   def __getitem__(self, name):
     selfname = '_'
     if 'name' in self.__dict__: selfname = self.__dict__['name']
-    #print('__getitem__(%s, %s)' % (selfname, name))
-    #traceback.print_stack()
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
     dbg.dprint('temp', '__setitem__(self, %s, %s)' % (`name`, `value`))
@@ -160,18 +157,14 @@ class SeqRule(Rule):
   def src(self):
     return ''.join([_src(t) for t in self.tokens])
 
+  # Expects self.mode_id to be set, and will push that mode.
   def parse_mode(self, code, pos):
-    dbg.dprint('parse', '%s parse_mode' % self.name)
-    #traceback.print_stack()
+    dbg.dprint('parse', '%s parse_mode %s' % (self.name, self.mode_id))
     init_num_modes = len(modes)
-    if 'start' not in self.__dict__:
-      fmt = 'Grammar error: expected rule %s to have a "start" method.'
-      dbg.dprint('error', fmt % self.name)
-      exit(1)
-    self.start()
-    self.mode_id = mode.id
+    params = {}
+    push_mode(self.mode_id)
+    if 'mode_params' in self.__dict__: _set_mode_params(self.mode_params())
     mode_result = []
-
     # A mode is popped from either a successful parse or a |: clause. The |:
     # is a special case where the returned tree is None, but it is not a parse
     # error; that case is the reason for the if clause after this while loop.
@@ -181,7 +174,6 @@ class SeqRule(Rule):
       if tree is None: return None, self.startpos
       mode_result.append(tree)
     if tree: mode_result.append(tree)
-
     self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
     return self, pos
@@ -194,12 +186,13 @@ class SeqRule(Rule):
     self.startpos = pos
     for rule_name in self.seq:
       dbg.dprint('temp', 'rule_name=%s' % rule_name)
-      if rule_name == '-|':
-        dbg.dprint('parse', '%s parse reached -|' % self.name)
+      c = rule_name[0]
+      if c == '-':
+        dbg.dprint('parse', '%s parse reached %s' % (self.name, rule_name))
+        self.mode_id = rule_name[1:]
         tree, pos = self.parse_mode(code, pos)
         return self._end_parse(tree, pos)
-      c = rule_name[0]
-      if c == "'":
+      elif c == "'":
         val, pos = _parse_exact_str(rule_name[1:-1], code, pos)
       elif c == '"':
         re = rule_name[1:-1] % mode
@@ -365,9 +358,10 @@ def runfile(filename):
     _print_parse_failure()
     raise
 
-def push_mode(name, opts={}):
-  dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `opts`))
-  _push_mode(name, opts)
+# TODO Rename opts to params everywhere in this file.
+def push_mode(name, params={}):
+  dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `params`))
+  _push_mode(name, params)
 
 def pop_mode():
   global rules, mode, modes
@@ -409,16 +403,23 @@ def _get_line_of_byte_index(byte_idx):
   char_offset = byte_idx - line_start_byte
   return line_starts_idx + 1, char_offset  # These are 1-indexed coordinates.
 
-def _push_mode(name, opts):
+# TODO Maybe push_mode should not be public?
+def _push_mode(name, params):
   global rules, mode, modes
   mode = Object()
   if len(modes): mode.__dict__.update(modes[-1].__dict__)
-  mode.__dict__.update(opts)
   mode.id = name
   mode.rules = modes[-1].rules.copy() if len(modes) else {}
   mode.rules.update(all_rules[name])
   rules = mode.rules
   modes.append(mode)
+  _set_mode_params(params)
+
+def _set_mode_params(params):
+  global mode
+  protected_keys = ['id', 'rules']
+  params = {k: params[k] for k in params if k not in protected_keys}
+  mode.__dict__.update(params)
 
 def _src(obj):
   if type(obj) == str: return obj
@@ -558,24 +559,22 @@ def _setup_base_rules():
   or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'])
   r = seq_rule('command', ["'>:'", 'code_block'])
   r.add_fn('parsed', " exec('def _tmp():' + code_block.src()); _tmp()\n")
-  r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-|'])
-  r.add_fn('start', ("\n"
-                     "  parse.push_mode('lang_def', {'indent': tokens[0][1],"
-                     " 'name': ''})\n"))
-  r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-|'])
-  r.add_fn('start', ("\n  opts = {'name': word.src(), 'indent': tokens[2][1]}\n"
-                     "  parse.push_mode('lang_def', opts)\n"))
+  r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-lang_def'])
+  r.add_fn('mode_params', "return {'indent': tokens[0][1], 'name': ''}\n")
+  r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-lang_def'])
+  r.add_fn('mode_params', ("\n"
+                           "return {'name': word.src(), "
+                           "'indent': tokens[2][1]\n"))
   seq_rule('word', ['"[A-Za-z_]\w*"'])
   or_rule('code_block', ['indented_code_block', 'rest_of_line'])
   seq_rule('rest_of_line', [r'"[^\n]*\n"'])
-  r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"', '-|'])
+  r = seq_rule('indented_code_block', [r'"\s*\n(?=(%(indent)s\s+))"',
+                                       '-nested_code_block'])
   r.add_fn('str', " return mode_result")
-  r.add_fn('start', ("\n"
-                     "  opts = {'indent': tokens[0][1]}\n"
-                     "  parse.push_mode('nested_code_block', opts)\n"))
+  r.add_fn('mode_params', "return {'indent': tokens[0][1]}\n")
 
   # lang_def rules.
-  or_rule('phrase', ['indented_rule', ": return parse.pop_mode()\n"],
+  or_rule('phrase', ['indented_rule', ": parse.pop_mode()\n"],
                     mode='lang_def')
   seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
   or_rule('rule', ['false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
@@ -594,28 +593,29 @@ def _setup_base_rules():
   r.add_fn('list', " return rule_name.list() + [':' + rest_of_line.src()]")
   r = seq_rule('rule_name', ['word'])
   r.add_fn('list', " return [word.src()]")
-  r = seq_rule('seq_rule', ['word', r'" ->\n%(indent)s(\s+)"', 'seq', '-|'])
-  r.add_fn('start', ("\n  opts = {'indent': mode.indent + tokens[1][1]}\n"
-                     "  parse.push_mode('rule_block', opts)\n"
-                     "  mode.rule = parse.seq_rule(word.src(), seq.list(),"
-                     " mode=mode.name)\n"))
+  r = seq_rule('seq_rule', ['word', r'" ->\n%(indent)s(\s+)"',
+                            'seq', '-rule_block'])
+  r.add_fn('mode_params', ("\n"
+      "  params = {'indent': mode.indent + tokens[1][1]}\n"
+      "  params['rule'] = parse.seq_rule(word.src(), "
+      "seq.list(), mode=mode.name)\n"
+      "  return params\n"))
   or_rule('seq', ['item_end', 'mode_result_end', 'item_list'])
   r = seq_rule('item_end', ['item', r'"[ \t]*\n"'])
   r.add_fn('list', " return item.list()\n")
-  r = seq_rule('mode_result_end', ["'-|'", r'"[ \t]*\n"'])
-  r.add_fn('list', " return ['-|']\n")
+  r = seq_rule('mode_result_end', ["'-'", 'word', r'"[ \t]*\n"'])
+  r.add_fn('list', " return ['-' + word.src()]\n")
   r = seq_rule('item_list', ['item', "' '", 'seq'])
   r.add_fn('list', " return item.list() + seq.list()\n")
   or_rule('item', ['str', 'rule_name'])
-  r = seq_rule('str', ['"[\'\\\"]"', '-|'])  # print(seq[0]) gives "['\"]"
-  r.add_fn('start', ("\n"
-                     "  parse.push_mode('str', {'endchar': tokens[0][0]})\n"))
+  r = seq_rule('str', ['"[\'\\\"]"', '-str'])  # print(seq[0]) gives "['\"]"
+  r.add_fn('mode_params', "return {'endchar': tokens[0][0]}\n")
   r.add_fn('list', " return [self.src()]")
 
   # rule_block rules.
   m = 'rule_block'
   or_rule('phrase', ['indented_rule_item',
-                     ": return parse.pop_mode()\n"], mode=m)
+                     ": parse.pop_mode()\n"], mode=m)
   r = seq_rule('indented_rule_item', ['"%(indent)s"', 'rule_item'], mode=m)
   or_rule('rule_item', ['str_item', 'parsed_item', 'method_item'], mode=m)
   r = seq_rule('str_item', ["'='", 'rest_of_line'], mode=m)
@@ -635,7 +635,7 @@ def _setup_base_rules():
   # nested_code_block rules.
   m = 'nested_code_block'
   or_rule('phrase', ['indented_code_line',
-                     ": return parse.pop_mode()"], mode=m)
+                     ": parse.pop_mode()"], mode=m)
   seq_rule('indented_code_line', ['"%(indent)s"', 'code_line'], mode=m)
   r = seq_rule('code_line', [r'"[^\n]*\n"'], mode=m)
 

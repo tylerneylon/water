@@ -3,6 +3,8 @@
 # A syntax specification for reading language definition files.
 # Kind of inception, I know.
 #
+# TODO Change the comments below to reflect the latest mode syntax.
+#
 # Objects:
 #  run talks to the runtime engine; and shouldn't be called from
 #      pure grammars like this, only from code that actually does stuff
@@ -65,27 +67,25 @@
     '>:' code_block
     : exec('def _tmp():' + code_block.src()); _tmp()
   global_grammar ->
-    ">\n(?=(\s+))" -|
-    start:
-      parse.push_mode('lang_def', {'indent': tokens[0][1], 'name': ''})
+    ">\n(?=(\s+))" -lang_def
+    mode_params:
+      return {'indent': tokens[0][1], 'name': ''}
   mode_grammar ->
-    '> ' word "\n(?=(\s+))" -|
-    start:
-      opts = {'name': word.src(), 'indent': tokens[2][1]}
-      parse.push_mode('lang_def', opts)
+    '> ' word "\n(?=(\s+))" -lang_def
+    mode_params:
+      return {'name': word.src(), 'indent': tokens[2][1]}
   word ->
     "[A-Za-z_]\w*"
   code_block -> indented_code_block | rest_of_line 
   rest_of_line ->
     "[^\n]*\n"
   indented_code_block ->
-    "\s*\n(?=(%(indent)s\s+))" -|
-    start:
-      opts = {'indent': tokens[0][1]}
-      parse.push_mode('nested_code_block', opts)
+    "\s*\n(?=(%(indent)s\s+))" -nested_code_block
+    mode_params:
+      return {'indent': tokens[0][1]}
 
 > lang_def
-  phrase -> indented_rule |: return parse.pop_mode()
+  phrase -> indented_rule |: parse.pop_mode()
   indented_rule ->
     "%(indent)s" rule
   rule -> false_rule | or_rule | seq_rule
@@ -110,30 +110,30 @@
     word
     list: return [word.src()]
   seq_rule ->
-    word " ->\n%(indent)s(\s+)" seq -|
-    start: 
-      opts = {'indent': mode.indent + tokens[1][1]}
-      parse.push_mode('rule_block', opts)
-      mode.rule = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
+    word " ->\n%(indent)s(\s+)" seq -rule_block
+    mode_params:
+      params = {'indent': mode.indent + tokens[1][1]}
+      params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
+      return params
   seq -> item_end | mode_result_end | item_list
   item_end ->
     item "[ \t]*\n"
     list: return item.list()
   mode_result_end ->
-    '-|' "[ \t]*\n"
-    list: return ['-|']
+    '-' word "[ \t]*\n"
+    list: return ['-' + word.src()]
   item_list ->
     item ' ' seq
     list: return item.list() + seq.list()
   item -> str | rule_name
   str ->
-    "['\"]" -|
-    start:
-      parse.push_mode('str', {'endchar': tokens[0][0]})
+    "['\"]" -str
+    mode_params:
+      return {'endchar': tokens[0][0]}
     list: return [self.src()]
 
 > rule_block
-  phrase -> indented_rule_item |: return parse.pop_mode()
+  phrase -> indented_rule_item |: parse.pop_mode()
   indented_rule_item ->
     "%(indent)s" rule_item
   rule_item -> str_item | parsed_item | method_item
@@ -157,7 +157,7 @@
       if tokens[0][0] == mode.endchar: parse.pop_mode()
 
 > nested_code_block
-  phrase -> indented_code_line |: return parse.pop_mode()
+  phrase -> indented_code_line |: parse.pop_mode()
   indented_code_line ->
     "%(indent)s" code_line
   code_line ->

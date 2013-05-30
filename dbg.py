@@ -31,7 +31,7 @@ dst = []
 
 # If true, prints a number before every dprint statement.
 # This can be useful for setting a breakpoint for a deterministic error.
-showNums = False    # Default: False
+showNums =   False  # Default: False
 breakOnNum = None   # Default: None
 _num = 0
 

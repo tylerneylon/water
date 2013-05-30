@@ -81,8 +81,8 @@ def test1(return_out_str=False, **kwargs):
   out.seek(0)
   out_str = out.read()
   lines = out_str.split('\n')
-  if not expect('len(lines)', '==', '285', locals()): return False
-  first_line = "    push_mode('lang_def', {'indent': '  ', 'name': ''})"
+  if not expect('len(lines)', '==', '283', locals()): return False
+  first_line = "    push_mode('lang_def', {})"
   if not expect('lines[0]', '==', 'first_line', locals()): return False
   last_line = "    pop_mode(_); 'lang_def' -> ''"
   if not expect('lines[-2]', '==', 'last_line', locals()): return False
