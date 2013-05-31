@@ -310,6 +310,11 @@ class ParseError(Exception):
 #
 ###############################################################################
 
+def command(cmd):
+  # We wrap cmd as a function body to make it easier to deal with user indents.
+  exec('def _tmp(): ' + cmd)
+  _tmp()
+
 def parse_phrase(code, pos):
   global start_pos
   start_pos = pos
@@ -560,7 +565,7 @@ def _setup_base_rules():
   false_rule('statement')
   or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'])
   r = seq_rule('command', ["'>:'", 'code_block'])
-  r.add_fn('parsed', " exec('def _tmp():' + code_block.src()); _tmp()\n")
+  r.add_fn('parsed', " parse.command(code_block.src())\n")
   r = seq_rule('global_grammar', [r'">\n(?=(\s+))"', '-lang_def'])
   r.add_fn('mode_params', "return {'indent': tokens[0][1], 'name': ''}\n")
   r = seq_rule('mode_grammar', ["'> '", 'word', r'"\n(?=(\s+))"', '-lang_def'])
