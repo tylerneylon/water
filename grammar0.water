@@ -1,9 +1,0 @@
-# grammar0.water
-#
-# TODO Update commends.
-#
-
->
-  phrase ->
-    '>:' "[^\n]*\n"
-    : parse.command(tokens[1])
