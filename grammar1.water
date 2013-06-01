@@ -1,0 +1,26 @@
+# grammar1.water
+#
+# TODO Update commends.
+#
+
+>
+  command ->
+    '>:' code_block
+    : parse.command(code_block.src())
+  code_block -> indented_code_block | rest_of_line 
+  rest_of_line ->
+    "[^\n]*\n"
+  indented_code_block ->
+    "\s*\n(?=(\s+))" -nested_code_block
+    mode_params:
+      return {'indent': tokens[0][1]}
+
+> nested_code_block
+  phrase -> indented_code_line |: parse.pop_mode()
+  indented_code_line ->
+    "%(indent)s" code_line
+  code_line ->
+    "[^\n]*\n"
+
+>
+  phrase -> command

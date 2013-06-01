@@ -17,27 +17,44 @@ import run
 
 make_rule_str = None
 rule_cmd_strs = []
+include_newlines = True
 
 # functions
+
+# This filters out newlines if the user requests it.
+# This can introduce loss of indent recognition, so it
+# requires the input to be one-line-friendly.
+def print_out(s):
+  s = s.rstrip()
+  if not include_newlines:
+    m = re.match('\s+', s)
+    if m: s = s[m.end():]
+    s = s.replace('\n', ';')
+  print('>: %s' % s)
 
 def end_last_rule():
   global make_rule_str, rule_cmd_strs
   if make_rule_str is None: return
   if len(rule_cmd_strs) == 0:
-    print('>: %s' % make_rule_str)
+    print_out(make_rule_str)
     make_rule_str = None
     return
-  print('>:\n  r = %s' % make_rule_str)
-  for s in rule_cmd_strs:
-    print('  %s' % s)
+  s = '\n  r = %s' % make_rule_str
+  for rule_cmd in rule_cmd_strs:
+    s += '\n  %s' % rule_cmd
+  print_out(s)
   make_rule_str = None
   rule_cmd_strs = []
+
+def end_all_rules():
+  end_last_rule()
+  print_out('\n  push_mode(\'\')\n  pop_mode()\n')
 
 def hook_command_fn():
   old_fn = parse.command
   def new_fn(cmd):
     end_last_rule()
-    print('>:%s' % cmd, end='')
+    print_out(cmd)
     old_fn(cmd)
   parse.command = new_fn
 
@@ -68,6 +85,9 @@ def main(args, self_dir):
     print('Usage: %s <water_filename>' % args[0])
     exit(2)
 
+  global include_newlines
+  include_newlines = not ('--nonewlines' in args)
+
   in_filename = args[1]
   run.run_code = False
 
@@ -78,5 +98,5 @@ def main(args, self_dir):
   hook_add_fn_method()
 
   parse.runfile(in_filename)
-  end_last_rule()
+  end_all_rules()
 

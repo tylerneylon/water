@@ -1,0 +1,166 @@
+# grammar2.water
+#
+# A syntax specification for reading language definition files.
+# Kind of inception, I know.
+#
+# TODO Change the comments below to reflect the latest mode syntax.
+#
+# Objects:
+#  run talks to the runtime engine; and shouldn't be called from
+#      pure grammars like this, only from code that actually does stuff
+#  parse talks to the parser
+#    parse.push_mode(mode.name, opts) pushes a mode to the mode stack
+#    parse.modes is a list with the mode stack, oldest-first
+#  mode is a synonym for parse.mode, which has:
+#    mode.id and mode.<opt>, so mode[s] refers to what was sent in as opts[s]
+#  tokens is a list of the parsed objects, with special treatment for regex's
+#  env is a global object reserved for compile-time shared data
+#
+# I can consider using 'src' in place of 'code'.
+#
+# : (commands)
+#  is a set of python commands to be run as soon as the rule is parsed
+#
+# = (eval-able code)
+#  is a shortcut for adding a "str" method which returns the eval'd code
+#
+# parse.push_mode(mode.id, opts) pushes mode.id onto the parser mode stack
+#   and opts is a dict that is added to the mode object.
+#
+# A seq rule ending in -| is a mode rule. It's expected to push a mode, and
+#   is considered to be parsed when that mode is popped. The return value is
+#   stored in mode_result.
+#   Note that the : code block is always run when the full rule is parsed, so
+#   mode rules need a start: code block that's run just before -| is parsed,
+#   and this is where we expect the mode to be pushed.
+#
+# Calling an unrecognized method on an OrRule delegates it to whatever rule was
+#   resolved to. This should also work with the str method.
+#
+# The only rule name known by the core is 'phrase', and it just keeps on
+# parsing in phrases. The standard setup will try to make it so that
+# we only need to redefine 'statement', and possibly 'comment'.
+#
+# Note on strings:
+#   "-delimited strings are regex's, '-ones are literals.
+#   For "-strings, the parser converts \" to an internal " and otherwise
+#   leaves escaped characters the same, which are converted within python
+#   to whatever they represent. For '-strings, \' is still converted, also by
+#   the parser, but otherwise everything else stays exactly the same.
+#   TODO Check the accuracy of the above comment.
+#
+# TODO
+# * In many cases, I have \s where I mean \s but not \n.
+#
+
+>: mode.indent = ''
+
+>
+  phrase -> statement | comment | blank | grammar
+  blank ->
+    "[ \t]*\n"
+  comment ->
+    "#[^\n]*\n"
+  statement -> False
+  grammar -> command | global_grammar | mode_grammar
+  command ->
+    '>:' code_block
+    : parse.command(code_block.src())
+  global_grammar ->
+    ">\n(?=(\s+))" -lang_def
+    mode_params:
+      return {'indent': tokens[0][1], 'name': ''}
+  mode_grammar ->
+    '> ' word "\n(?=(\s+))" -lang_def
+    mode_params:
+      return {'name': word.src(), 'indent': tokens[2][1]}
+  word ->
+    "[A-Za-z_]\w*"
+  code_block -> indented_code_block | rest_of_line 
+  rest_of_line ->
+    "[^\n]*\n"
+  indented_code_block ->
+    "\s*\n(?=(%(indent)s\s+))" -nested_code_block
+    mode_params:
+      return {'indent': tokens[0][1]}
+
+> lang_def
+  phrase -> indented_rule |: parse.pop_mode()
+  indented_rule ->
+    "%(indent)s" rule
+  rule -> false_rule | or_rule | seq_rule
+  false_rule ->
+    word " ->\s+False[ \t]*\n"
+    : parse.false_rule(word.src(), mode=mode.name)
+  or_rule ->
+    word ' -> ' or_list
+    : parse.or_rule(word.src(), or_list.list(), mode=mode.name)
+  or_list -> multi_or_list | or_list_end
+  or_list_end ->
+    rule_name "[ \t]*\n"
+    list: return rule_name.list()
+  multi_or_list -> std_multi_or_list | else_multi_or_list
+  std_multi_or_list ->
+    rule_name ' | ' or_list
+    list: return rule_name.list() + or_list.list()
+  else_multi_or_list ->
+    rule_name ' |: ' rest_of_line
+    list: return rule_name.list() + [':' + rest_of_line.src()]
+  rule_name ->
+    word
+    list: return [word.src()]
+  seq_rule ->
+    word " ->\n%(indent)s(\s+)" seq -rule_block
+    mode_params:
+      params = {'indent': mode.indent + tokens[1][1]}
+      params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
+      return params
+  seq -> item_end | mode_result_end | item_list
+  item_end ->
+    item "[ \t]*\n"
+    list: return item.list()
+  mode_result_end ->
+    '-' word "[ \t]*\n"
+    list: return ['-' + word.src()]
+  item_list ->
+    item ' ' seq
+    list: return item.list() + seq.list()
+  item -> str | rule_name
+  str ->
+    "['\"]" -str
+    mode_params:
+      return {'endchar': tokens[0][0]}
+    list: return [self.src()]
+
+> rule_block
+  phrase -> indented_rule_item |: parse.pop_mode()
+  indented_rule_item ->
+    "%(indent)s" rule_item
+  rule_item -> str_item | parsed_item | method_item
+  str_item ->
+    '=' rest_of_line
+    : mode.rule.add_fn('str', 'return ' + rest_of_line.src())
+  parsed_item ->
+    ':' code_block
+    : mode.rule.add_fn('parsed', code_block.src())
+  method_item ->
+    word ':' code_block
+    : mode.rule.add_fn(word.src(), code_block.src())
+ 
+> str
+  phrase -> escape_seq | char
+  escape_seq ->
+    "\\\\(.)"
+  char ->
+    "."
+    :
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
+
+> nested_code_block
+  phrase -> indented_code_line |: parse.pop_mode()
+  indented_code_line ->
+    "%(indent)s" code_line
+  code_line ->
+    "[^\n]*\n"
+
+    

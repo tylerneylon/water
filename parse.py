@@ -555,6 +555,15 @@ def _store_parse_attempt(pos):
     parse_info.main_attempt = attempt
 
 def _setup_base_rules():
+  if True:
+    r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
+    r.add_fn('parsed', ' parse.command(tokens[1])\n')
+    push_mode('')
+    pop_mode()
+    runfile('grammar1.cmd.water')
+    runfile('grammar2.cmd.water')
+    return
+
   # Initial mode state.
   mode.indent = ''
 
@@ -664,10 +673,9 @@ parse_info.attempts = []
 
 env = Object()
 push_mode('')  # Set up the global mode.
+parse = sys.modules[__name__]
 _setup_base_rules()
 
-
-parse = sys.modules[__name__]
 
 #dbg.topics = ['temp', 'public', 'parse']
 dbg.topics = ['parse']
