@@ -10,5 +10,8 @@
 # bootstrap.water and base_grammar.water.
 #
 
-water -commands bootstrap.water --nonewlines > base_grammar.cmd.water
-water -commands base_grammar.water >> base_grammar.cmd.water
+# Use a temporary file since a redirected output destination cannot
+# be read from; e.g. "cat file > file" will result in file being empty,
+# no matter what it started with.
+water -commands base_grammar.water --nonewlines > tmpfile
+mv tmpfile base_grammar.cmd.water

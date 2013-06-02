@@ -1,0 +1,23 @@
+
+Farthest parse stack:
+  ['phrase', 'grammar', 'mode_grammar', 'phrase', 'indented_rule', 'rule', 'seq_rule', 'phrase', 'indented_rule_item', 'rule_item', 'method_item', ':']
+Farthest token mismatch:
+  Token ':' vs Code ''
+Error point:
+* > dummy_mode
+  ^
+  |
+  parse began here
+*     blah
+          ^
+          |
+  parse failed here
+
+Traceback (most recent call last):
+  File "/usr/local/bin/water", line 65, in <module>
+    parse.runfile(sys.argv[1])
+  File "/Users/tylerneylon/Dropbox/Documents/code/water/parse.py", line 355, in runfile
+    for tree in iterate(filename):
+  File "/Users/tylerneylon/Dropbox/Documents/code/water/parse.py", line 351, in iterate
+    raise ParseError(error_fmt % (line_num, char_offset))
+parse.ParseError: Parsing failed on line 12, character 9

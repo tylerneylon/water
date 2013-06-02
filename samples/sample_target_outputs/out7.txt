@@ -1,0 +1,7 @@
+[32msym_0 = 0
+[0m[32msym_1 = 0
+while sym_1 < 100:
+  sym_0 += sym_1
+  sym_1 += 1
+[0m[32mprint(sym_0)
+[0m
