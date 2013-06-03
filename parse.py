@@ -54,11 +54,8 @@ parse_info = None
 
 class Object(object):
   def __getitem__(self, name):
-    selfname = '_'
-    if 'name' in self.__dict__: selfname = self.__dict__['name']
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
-    dbg.dprint('temp', '__setitem__(self, %s, %s)' % (`name`, `value`))
     self.__dict__[name] = value
   def __contains__(self, name):
     try: self.__getitem__(name)
