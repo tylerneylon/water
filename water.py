@@ -2,7 +2,7 @@
 #
 # water.py
 #
-# A fluid compiler.
+# An open compiler.
 #
 # TODO Add public documentation.
 #

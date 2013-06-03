@@ -1,6 +1,6 @@
 # Project Water
 
-The goal of water is to build a fluid compiler -- an adaptable compiler that can
+The goal of water is to build an open compiler -- an adaptable compiler that can
 compile or modify any programming language; this enables non-compiler-experts
 to evolve languages, as well as powerful cross-language developer tools.
 The project is at a very early stage, and the current code is a rough
@@ -13,9 +13,9 @@ details of building parsers, compilers, optimizers, interpreters, and
 debuggers. This modularity also allows tool developers to build for
 multiple languages at once.
 
-## Fluid Compilers
+## Open Compilers
 
-A *fluid compiler* is a compiler which:
+An *open compiler* is a compiler which:
 
 * can change the language as the source files are read,
 * has decoupled output modules that can produce custom bytecode or a standard
