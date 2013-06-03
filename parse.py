@@ -2,7 +2,7 @@
 #
 # parse.py
 #
-# The code needed to build, modify, and run a dynamic language parser.
+# Code to parse, compile, and modify a language.
 #
 # TODO Document public functions.
 #
@@ -46,11 +46,9 @@ line_starts = []
 parse_info = None
 
 
-###############################################################################
-#
-# Define classes.
-#
-###############################################################################
+#------------------------------------------------------------------------------
+#  Define classes.
+#------------------------------------------------------------------------------
 
 class Object(object):
   def __getitem__(self, name):
@@ -301,11 +299,9 @@ class ParseError(Exception):
   pass
 
 
-###############################################################################
-#
-# Public functions.
-#
-###############################################################################
+#------------------------------------------------------------------------------
+#  Public functions.
+#------------------------------------------------------------------------------
 
 def command(cmd):
   # We wrap cmd as a function body to make it easier to deal with user indents.
@@ -383,11 +379,9 @@ def error(msg):
   exit(1)
 
 
-###############################################################################
-#
-# Internal functions.
-#
-###############################################################################
+#------------------------------------------------------------------------------
+#  Internal functions.
+#------------------------------------------------------------------------------
 
 def _get_line_starts(code):
   global line_starts
@@ -555,27 +549,21 @@ def _setup_base_rules():
   r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
   push_mode('')
-  pop_mode()
   runfile('base_grammar.cmd.water')
 
 
-###############################################################################
-#
-# Set up initial state.
-#
-###############################################################################
+#------------------------------------------------------------------------------
+#  Set up initial state.
+#------------------------------------------------------------------------------
 
-#global parse_info, env, parse
-dbg.topics = []
-parse_info = Object()
-parse_info.attempts = []
+def _setup():
+  global parse_info, env, parse
+  dbg.topics = []
+  parse_info = Object()
+  parse_info.attempts = []
+  env = Object()
+  parse = sys.modules[__name__]
+  _setup_base_rules()
+  dbg.topics = ['parse']  # Choices: 'public', 'parse'; see dbg.py for others.
 
-env = Object()
-push_mode('')  # Set up the global mode.
-parse = sys.modules[__name__]
-_setup_base_rules()
-
-
-#dbg.topics = ['temp', 'public', 'parse']
-dbg.topics = ['parse']
-#dbg.topics = 'all'
+_setup()
