@@ -60,6 +60,10 @@ def cprint(text, color=None, end='\n'):
   if _num == breakOnNum:
     import pdb; pdb.set_trace()
 
+#------------------------------------------------------------------------------
+#  Public functions.
+#------------------------------------------------------------------------------
+
 def dprint(dbg_topic, text, end='\n'):
   color_map = {'tree': 'yellow', 'parse': 'magenta', 'public': 'cyan',
                'temp': 'blue', 'error': 'red', 'phrase': 'white',
@@ -74,4 +78,58 @@ def dprint(dbg_topic, text, end='\n'):
   #      input since the module dependencies will get sticky if I import parse.
   #if dbg_topic == 'parse': text = '  ' * len(parse.parse_stack) + text
   cprint(text, color=color_map[dbg_topic], end=end)
+
+def print_parse_failure(parse_info, verbosity=1, dst=sys.stderr):
+  p, m, write = parse_info, parse_info.main_attempt, dst.write
+  write('\n')
+  write('Farthest parse stack:\n')
+  write('  ' + str(m.stack) + '\n')
+  write('Farthest token mismatch:\n')
+  src = p.code[m.fail_pos:m.fail_pos + 20]
+  if src.find('\n') >= 0: src = src[:src.find('\n')]
+  write('  Token ' + `m.stack[-1]` + ' vs Code ' + `src` + '\n')
+  lines = [_line_with_pos(p.code, m.start_pos),
+           _line_with_pos(p.code, m.fail_pos)]
+  pos = [m.start_pos - lines[0][0], m.fail_pos - lines[1][0]]
+  messages = ['parse began here', 'parse failed here']
+  write('Error point:\n')
+  if lines[0][0] == lines[1][0]:
+    line = p.code[lines[0][0]:lines[0][1]]
+    line += '' if line.endswith('\n') else '\n'
+    write('* %s' % line)
+    for ch in ['^', '|']:
+      _write_char_at_positions(write, ch, pos[0] + 2, pos[1] + 2)
+    msg = messages[1]
+    msg_delta = max(pos[1] - len(msg) // 2, pos[0] + 1) - pos[0] - 1
+    write('  ' + ' ' * pos[0] + '|' + ' ' * msg_delta + msg + '\n')
+    write('  ' + ' ' * pos[0] + '|\n')
+    msg = messages[0]
+    msg_pos = max(pos[0] - len(msg) // 2, 0)
+    write('  ' + ' ' * msg_pos + msg + '\n')
+  else:
+    for i in range(2):
+      line = p.code[lines[i][0]:lines[i][1]]
+      line += '' if line.endswith('\n') else '\n'
+      write('* %s' % line)
+      for ch in ['^', '|']: write('  ' + ' ' * pos[i] + ch + '\n')
+      msg_pos = max(pos[i] - len(messages[i]) // 2, 0)
+      write('  ' + ' ' * msg_pos + messages[i] + '\n')
+  write('\n')
+    
+
+#------------------------------------------------------------------------------
+#  Internal functions.
+#------------------------------------------------------------------------------
+
+# Returns start, stop so that code[start:stop] is the line including pos.
+def _line_with_pos(code, pos):
+  start = code[:pos].rfind('\n') + 1  # Still works if find fails.
+  stop = code[pos:].find('\n')
+  stop = stop + pos + 1 if stop >= 0 else len(code)
+  return start, stop
+
+def _write_char_at_positions(write, ch, pos1, pos2):
+  write(' ' * min(pos1, pos2) + ch)
+  delta = max(pos1, pos2) - min(pos1, pos2) - 1
+  write(' ' * delta + ch + '\n')
 

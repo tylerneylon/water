@@ -62,7 +62,6 @@ class Object(object):
   def __repr__(self): return repr(self.__dict__)
 
 
-# TODO Should add_fn and _run_fn only be available on SeqRule?
 class Rule(Object):
 
   def __init__(self):
@@ -71,12 +70,9 @@ class Rule(Object):
   def __str__(self): return self.str()
 
   def _run_fn(self, fn_name, fn_code):
-    # This function is wonky because exec has wonky treatment of locals. See:
+    # We send in lo as kwargs because exec uses the local context strangely:
     # http://stackoverflow.com/a/1463370
     # http://stackoverflow.com/a/2906198
-
-    #cprint('********** in _run_fn, self.__dict__=%s' % `self.__dict__`, 'blue')
-
     lo = {}
     if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
     if 'pieces' in self.__dict__:
@@ -85,28 +81,18 @@ class Rule(Object):
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
     lo['self'] = self
 
-    # This dprint is expensive so comment it out when unused.
-    #dbg.dprint('temp', 'lo=%s' % `lo`)
-    #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
-    n = `mode.name` if 'name' in mode.__dict__ else '<None>'
-    dbg.dprint('temp', 'mode.name=%s' % n)
-
     arglist = ', '.join(k + '=None' for k in lo.keys())
     prefix = 'def %s(%s): ' % (fn_name, arglist)
     fn_code = prefix + fn_code
 
-    dbg.dprint('temp', '(runtime) fn_code:\n%s\n' % fn_code)
-
     fn_lo = {}
     try:
       exec fn_code in globals(), fn_lo
-      res = fn_lo[fn_name](**lo)
+      return fn_lo[fn_name](**lo)
     except:
       msg = 'Exception running a user-level function. Code:\n%s\n' % fn_code
       dbg.dprint('error', msg)
       raise
-    #cprint('got result=%s' % `res`, 'blue')
-    return res
 
   def _bound_method(self, fn_name, unbound_fn):
     self.__dict__[fn_name] = types.MethodType(unbound_fn, self, self.__class__)
@@ -449,57 +435,6 @@ def _debug_print(obj, indent='  ', seq_item=None):
   else:
     dbg.dprint('tree', '%s' % `obj`)
 
-# Returns start, stop so that code[start:stop] is the line including pos.
-def _line_with_pos(code, pos):
-  start = code[:pos].rfind('\n') + 1  # Still works if find fails.
-  stop = code[pos:].find('\n')
-  stop = stop + pos + 1 if stop >= 0 else len(code)
-  return start, stop
-
-def _write_char_at_positions(write, ch, pos1, pos2):
-  write(' ' * min(pos1, pos2) + ch)
-  delta = max(pos1, pos2) - min(pos1, pos2) - 1
-  write(' ' * delta + ch + '\n')
-
-# TODO Consider making this public.
-# TODO Add support for higher verbosity.
-def _print_parse_failure(verbosity=1, dst=sys.stderr):
-  p, m, write = parse_info, parse_info.main_attempt, dst.write
-  write('\n')
-  write('Farthest parse stack:\n')
-  write('  ' + str(m.stack) + '\n')
-  write('Farthest token mismatch:\n')
-  src = p.code[m.fail_pos:m.fail_pos + 20]
-  if src.find('\n') >= 0: src = src[:src.find('\n')]
-  write('  Token ' + `m.stack[-1]` + ' vs Code ' + `src` + '\n')
-  lines = [_line_with_pos(p.code, m.start_pos),
-           _line_with_pos(p.code, m.fail_pos)]
-  pos = [m.start_pos - lines[0][0], m.fail_pos - lines[1][0]]
-  messages = ['parse began here', 'parse failed here']
-  write('Error point:\n')
-  if lines[0][0] == lines[1][0]:
-    line = p.code[lines[0][0]:lines[0][1]]
-    line += '' if line.endswith('\n') else '\n'
-    write('* %s' % line)
-    for ch in ['^', '|']:
-      _write_char_at_positions(write, ch, pos[0] + 2, pos[1] + 2)
-    msg = messages[1]
-    msg_delta = max(pos[1] - len(msg) // 2, pos[0] + 1) - pos[0] - 1
-    write('  ' + ' ' * pos[0] + '|' + ' ' * msg_delta + msg + '\n')
-    write('  ' + ' ' * pos[0] + '|\n')
-    msg = messages[0]
-    msg_pos = max(pos[0] - len(msg) // 2, 0)
-    write('  ' + ' ' * msg_pos + msg + '\n')
-  else:
-    for i in range(2):
-      line = p.code[lines[i][0]:lines[i][1]]
-      line += '' if line.endswith('\n') else '\n'
-      write('* %s' % line)
-      for ch in ['^', '|']: write('  ' + ' ' * pos[i] + ch + '\n')
-      msg_pos = max(pos[i] - len(messages[i]) // 2, 0)
-      write('  ' + ' ' * msg_pos + messages[i] + '\n')
-  write('\n')
-    
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
@@ -547,6 +482,9 @@ def _store_parse_attempt(pos):
   parse_info.attempts.append(attempt)
   if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos < pos:
     parse_info.main_attempt = attempt
+
+def _print_parse_failure():
+  dbg.print_parse_failure(parse_info)
 
 def _setup_base_rules():
   r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
