@@ -56,7 +56,7 @@ def test0(run_silent=False, **kwargs):
   dbg.topics = ['public']
   dbg.dst = [] if run_silent else [sys.stdout] 
   try: 
-    for tree in parse.iterate('language definition3.water'):
+    for tree in parse.iterate('base_grammar.water'):
       pass
       #tree.debug_print()
   except Exception as e:
@@ -73,7 +73,7 @@ def test1(return_out_str=False, **kwargs):
   out = StringIO()
   dbg.dst = [out]
   try: 
-    for tree in parse.iterate('language definition3.water'):
+    for tree in parse.iterate('base_grammar.water'):
       tree.debug_print()
   except Exception as e:
     print('Fail (test1): %s: %s' % (type(e).__name__, e))
