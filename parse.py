@@ -331,6 +331,9 @@ def false_rule(name, mode=''):
   return _add_rule(FalseRule(name), mode)
 
 def iterate(filename):
+  global parse_info
+  parse_info = Object()
+  parse_info.attempts = []
   f = open(filename)
   code = f.read()
   f.close()
@@ -559,8 +562,6 @@ def _setup_base_rules():
 def _setup():
   global parse_info, env, parse
   dbg.topics = []
-  parse_info = Object()
-  parse_info.attempts = []
   env = Object()
   parse = sys.modules[__name__]
   _setup_base_rules()
