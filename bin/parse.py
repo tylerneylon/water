@@ -14,6 +14,7 @@ from __future__ import print_function
 
 import bisect
 import dbg
+import os
 import re
 import run
 import sys
@@ -490,7 +491,7 @@ def _setup_base_rules():
   r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
   push_mode('')
-  runfile('base_grammar.cmd.water')
+  runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.cmd.water'))
 
 
 #------------------------------------------------------------------------------

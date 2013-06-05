@@ -15,13 +15,14 @@ from os import path
 import parse
 import sys
 
+
 _module_dir = None
 _module_names = []
 
 def _get_module_names():
   global _module_dir, _module_names
   base_dir = path.dirname(path.realpath(sys.argv[0]))
-  _module_dir = path.join(base_dir, 'modules')
+  _module_dir = path.join(base_dir, '..', 'modules')
   _module_names = os.listdir(_module_dir)
   def is_mod(m): return path.isdir(path.join(_module_dir, m))
   _module_names = filter(is_mod, _module_names)
