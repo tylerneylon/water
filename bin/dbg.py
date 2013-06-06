@@ -115,7 +115,33 @@ def print_parse_failure(parse_info, verbosity=1, dst=sys.stderr):
       msg_pos = max(pos[i] - len(messages[i]) // 2, 0)
       write('  ' + ' ' * msg_pos + messages[i] + '\n')
   write('\n')
-    
+
+def print_tree(obj, indent='  ', seq_item=None):
+  # We do type-checking in a hacky way to avoid needing to 'import parse'.
+  if type(obj).__name__ == 'SeqRule':
+    dprint('tree', '%s' % obj.name)
+    for i in range(len(obj.seq)):
+      dprint('tree', indent, end='')
+      item = '-| %s' % obj.mode_id if obj.seq[i] == '-|' else obj.seq[i]
+      print_tree(obj.tokens[i], indent + '  ', item)
+  elif type(obj).__name__ == 'OrRule':
+    dprint('tree', '%s -> ' % obj.name, end='')
+    print_tree(obj.result, indent)
+  elif seq_item and seq_item.startswith('-|'):
+    dprint('tree', '%s ' % seq_item, end='')
+    print_tree(obj, indent)
+  elif seq_item:
+    # TODO Improve how this works for mode results.
+    val = '[...]' if type(obj) is list else `obj`
+    dprint('tree', '%s -> %s' % (seq_item, val))
+  elif type(obj) == list:
+    dprint('tree', '')
+    for i in obj:
+      dprint('tree', indent, end='')
+      print_tree(i, indent + '  ')
+  else:
+    dprint('tree', '%s' % `obj`)
+
 
 #------------------------------------------------------------------------------
 #  Internal functions.

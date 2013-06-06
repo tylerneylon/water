@@ -63,7 +63,7 @@ of the javascript language. Here's a selection from the grammar spec in that fil
         run.pop_indent()
 
 This might remind you of Lex and Yacc, except that it goes a couple steps
-farther than parsing into a syntax tree. It also compiles and executes
+further than parsing into a syntax tree. It also compiles and executes
 the code.
 
 Like many modern code execution flows, it follows the steps of parsing,

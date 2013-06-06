@@ -12,13 +12,14 @@
 
 from __future__ import print_function
 
-import bisect
-import dbg
 import os
 import re
-import run
 import sys
 import types
+
+import bisect
+import dbg
+import run
 
 # Globals.
 
@@ -206,13 +207,6 @@ class SeqRule(Rule):
     if 'parsed' in self.__dict__: self.parsed()
     return tree, pos
 
-  def debug_print(self, indent='  '):
-    dbg.dprint('tree', '%s' % self.name)
-    for i in range(len(self.seq)):
-      dbg.dprint('tree', indent, end='')
-      item = '-| %s' % self.mode_id if self.seq[i] == '-|' else self.seq[i]
-      _debug_print(self.tokens[i], indent + '  ', item)
-
   def child(self):
     c = SeqRule(self.name, self.seq)
     c.__dict__ = self.__dict__.copy()
@@ -262,10 +256,6 @@ class OrRule(Rule):
     # TODO Factor out all these '  ' * len(parse_stack) instances.
     return None, pos
 
-  def debug_print(self, indent='  '):
-    dbg.dprint('tree', '%s -> ' % self.name, end='')
-    _debug_print(self.result, indent)
-
   def child(self):
     c = OrRule(self.name, self.or_list)
     c.__dict__ = self.__dict__.copy()
@@ -301,7 +291,7 @@ def parse_phrase(code, pos):
   tree, pos = rules['phrase'].parse(code, pos)
   if tree:
     dbg.dprint('phrase', 'Successful phrase parse:')
-    _debug_print(tree)
+    dbg.print_tree(tree)
     parse_info.attempts = []
   return tree, pos
 
@@ -417,24 +407,6 @@ def _src(obj):
 def _dbg_parse_start(name, code, pos):
   m = ' <%s>' % mode.id if len(mode.id) else ''
   dbg.dprint('parse', '%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`))
-
-def _debug_print(obj, indent='  ', seq_item=None):
-  if isinstance(obj, Rule):
-    obj.debug_print(indent)
-  elif seq_item and seq_item.startswith('-|'):
-    dbg.dprint('tree', '%s ' % seq_item, end='')
-    _debug_print(obj, indent)
-  elif seq_item:
-    # TODO Improve how this works for mode results.
-    val = '[...]' if type(obj) is list else `obj`
-    dbg.dprint('tree', '%s -> %s' % (seq_item, val))
-  elif type(obj) == list:
-    dbg.dprint('tree', '')
-    for i in obj:
-      dbg.dprint('tree', indent, end='')
-      _debug_print(i, indent + '  ')
-  else:
-    dbg.dprint('tree', '%s' % `obj`)
 
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
