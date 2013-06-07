@@ -58,7 +58,7 @@ def test0(run_silent=False, **kwargs):
   try: 
     for tree in parse.iterate('base_grammar.water'):
       pass
-      #tree.debug_print()
+      #dbg.print_tree(tree)
   except Exception as e:
     print('Fail (test0): %s: %s' % (type(e).__name__, e))
     return False
@@ -74,7 +74,7 @@ def test1(return_out_str=False, **kwargs):
   dbg.dst = [out]
   try: 
     for tree in parse.iterate('base_grammar.water'):
-      tree.debug_print()
+      dbg.print_tree(tree)
   except Exception as e:
     print('Fail (test1): %s: %s' % (type(e).__name__, e))
     return False
