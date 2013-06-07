@@ -418,33 +418,17 @@ def _parse_exact_str(s, code, pos):
   for e in to_escape: s = s.replace(e, "\\" + e)
   return _parse_exact_re(s, code, pos)
 
-# TODO Consider ways to do this witout using globals.
-
-err_pos = -1
-err_expected = None
-
 def _parse_exact_re(s, code, pos):
-  dbg.dprint('temp', 's before decode is %s' % `s`)
   s = s.decode('string_escape')
-
-  a = code[pos:pos + 20]
-  m = re.match(s, code[pos:], re.MULTILINE)
-  if m:
-    dbg.dprint('temp', 're.match(%s, %s, re.M) gives %s' % (`s`, `a`, `m.group(0)`))
-
   m = re.match(s, code[pos:], re.MULTILINE)
   if m:
     num_grp = len(m.groups()) + 1
     val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
     return val, pos + len(m.group(0))
   # Parse fail. Record things for error reporting.
-
   parse_stack.append(s)
-  global err_pos, err_expected
-  if pos > err_pos: err_expected, err_pos = s, pos
   _store_parse_attempt(pos)
   parse_stack.pop()
-
   return None, pos
 
 def _store_parse_attempt(pos):
