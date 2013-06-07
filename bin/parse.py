@@ -30,7 +30,6 @@ parse = None
 env = None
 
 parse_stack = []
-start_pos = 0
 
 # parse_info stores parse attempt data so we can display human-friendly error
 # information that simplifies debugging grammars and syntax errors alike.
@@ -38,11 +37,13 @@ start_pos = 0
 # parse_info.attempts = [list of parse_attempt Objects]
 # parse_info.main_attempt = the parse_attempt we suspect was intended
 # parse_info.code = the code string being parsed
+# parse_info.phrase_start_pos = the last pos where a phrase parse began
 #
 # attempt.stack = list of rule names in the attempt, phrase-first
 # attempt.start_pos = byte index of where parse stack began parsing
 # attempt.fail_pos = byte index of where the last stack token mismatched
 #
+# TODO Pull this out into a modules & class that does not depend on parse.
 parse_info = None
 
 
@@ -284,8 +285,8 @@ def command(cmd):
   _tmp()
 
 def parse_phrase(code, pos):
-  global start_pos
-  start_pos = pos
+  global parse_info
+  parse_info.phrase_start_pos = pos
   tree, pos = rules['phrase'].parse(code, pos)
   if tree:
     dbg.dprint('phrase', 'Successful phrase parse:')
@@ -413,9 +414,10 @@ def _parse_exact_re(s, code, pos):
   return None, pos
 
 def _store_parse_attempt(pos):
+  global parse_info
   attempt = Object()
   attempt.stack = parse_stack[:]
-  attempt.start_pos = start_pos
+  attempt.start_pos = parse_info.phrase_start_pos
   attempt.fail_pos = pos
   parse_info.attempts.append(attempt)
   if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos < pos:
