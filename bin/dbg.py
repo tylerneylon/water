@@ -20,6 +20,8 @@
 #
 
 from __future__ import print_function
+
+import bisect
 import sys
 
 # This is either 'all' or a list of whitelisted dbg_topic names.
@@ -59,6 +61,28 @@ def cprint(text, color=None, end='\n'):
       d.write(s)
   if _num == breakOnNum:
     import pdb; pdb.set_trace()
+
+#------------------------------------------------------------------------------
+#  Classes.
+#------------------------------------------------------------------------------
+
+# Helper class to convert byte indices into line nums and char offsets.
+class LineNums (object):
+
+  def __init__(self, src):
+    self.line_starts = []
+    pos = src.find('\n')
+    while pos > 0:
+      self.line_starts.append(pos)
+      pos = src.find('\n', pos + 1)
+
+  def line_num_and_offset(self, byte_idx):
+    # We send in byte_idx - 1 since bisect returns the first list index *after*
+    # all list indices with values <= what we send in.
+    index = bisect.bisect(self.line_starts, byte_idx - 1)
+    line_start_byte = self.line_starts[index - 1] if index else 0
+    char_offset = byte_idx - line_start_byte
+    return index + 1, char_offset  # These are 1-indexed coordinates.
 
 #------------------------------------------------------------------------------
 #  Public functions.

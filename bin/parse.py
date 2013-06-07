@@ -17,7 +17,6 @@ import re
 import sys
 import types
 
-import bisect
 import dbg
 import run
 
@@ -32,7 +31,6 @@ env = None
 
 parse_stack = []
 start_pos = 0
-line_starts = []
 
 # parse_info stores parse attempt data so we can display human-friendly error
 # information that simplifies debugging grammars and syntax errors alike.
@@ -314,7 +312,7 @@ def iterate(filename):
   f = open(filename)
   code = f.read()
   f.close()
-  _get_line_starts(code)
+  line_nums = dbg.LineNums(code)
   parse_info.code = code
   pos = 0
   tree, pos = parse_phrase(code, pos)
@@ -324,7 +322,7 @@ def iterate(filename):
   if pos < len(code):
     if 'main_attempt' in parse_info:
       pos = parse_info.main_attempt['fail_pos']
-    line_num, char_offset = _get_line_of_byte_index(pos)
+    line_num, char_offset = line_nums.line_num_and_offset(pos)
     error_fmt = 'Parsing failed on line %d, character %d'
     raise ParseError(error_fmt % (line_num, char_offset))
 
@@ -363,23 +361,6 @@ def error(msg):
 #  Internal functions.
 #------------------------------------------------------------------------------
 
-def _get_line_starts(code):
-  global line_starts
-  line_starts = []
-  pos = code.find('\n')
-  while pos > 0:
-    line_starts.append(pos)
-    pos = code.find('\n', pos + 1)
-
-def _get_line_of_byte_index(byte_idx):
-  # We send in byte_idx - 1 since bisect returns the first list index *after*
-  # all list indices with values <= what we send in.
-  line_starts_idx = bisect.bisect(line_starts, byte_idx - 1)
-  line_start_byte = line_starts[line_starts_idx - 1] if line_starts_idx else 0
-  char_offset = byte_idx - line_start_byte
-  return line_starts_idx + 1, char_offset  # These are 1-indexed coordinates.
-
-# TODO Maybe push_mode should not be public?
 def _push_mode(name, params):
   global rules, mode, modes
   mode = Object()
