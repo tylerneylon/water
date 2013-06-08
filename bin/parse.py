@@ -4,11 +4,32 @@
 #
 # Code to parse, compile, and modify a language.
 #
-# TODO Document public functions.
+# Public interface, usable at compile-time or by other modules:
 #
-# TODO Add 'public' output for >: commands.
+#  * env, a global Object for all user-based compile-time variables.
+#
+#  * command(cmd)                     Run Python code in compile-time env.
+#  * parse_phrase(src, pos)           Get next phrase syntax tree from src.
+#
+#    The next three methods add new rules to the grammar:
+#  * or_rule(name, or_list, mode='')
+#  * seq_rule(name, seq, mode='')
+#  * false_rule(name, mode='')
+#
+#    Any rule also accepts the useful method:
+#  * rule.add_fn(fn_name, fn_code)
+#
+#  * iterate(filename)                Get all phrase syntax trees in a for loop.
+#  * runfile(filename)                Parse and run the given file.
+#  * push_mode(name, params={})       Push a mode to the mode stack.
+#  * pop_mode()                       Pop a mode from the mode stack.
+#  * error(msg)                       Print an error message and quit.
+#  
 #
 
+# TODO Items:
+#    * Add 'public' output for >: commands.
+#
 
 from __future__ import print_function
 
@@ -46,7 +67,6 @@ parse_stack = []
 # TODO Pull this out into a modules & class that does not depend on parse.
 parse_info = None
 
-
 #------------------------------------------------------------------------------
 #  Define classes.
 #------------------------------------------------------------------------------
@@ -61,7 +81,6 @@ class Object(object):
     except AttributeError: return False
     return True
   def __repr__(self): return repr(self.__dict__)
-
 
 class Rule(Object):
 
@@ -119,7 +138,6 @@ class Rule(Object):
     tree, pos = self.child().inst_parse(code, pos)
     parse_stack.pop()
     return tree, pos
-
 
 class SeqRule(Rule):
 
@@ -212,7 +230,6 @@ class SeqRule(Rule):
     c._bind_all_methods()
     return c
 
-
 class OrRule(Rule):
 
   def __init__(self, name, or_list):
@@ -261,7 +278,6 @@ class OrRule(Rule):
     c._bind_all_methods()
     return c
 
-
 class FalseRule(Rule):
 
   def __init__(self, name):
@@ -270,10 +286,8 @@ class FalseRule(Rule):
   def parse(self, code, pos):
     return None, pos
 
-
 class ParseError(Exception):
   pass
-
 
 #------------------------------------------------------------------------------
 #  Public functions.
@@ -357,7 +371,6 @@ def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)
 
-
 #------------------------------------------------------------------------------
 #  Internal functions.
 #------------------------------------------------------------------------------
@@ -431,7 +444,6 @@ def _setup_base_rules():
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
   push_mode('')
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.cmd.water'))
-
 
 #------------------------------------------------------------------------------
 #  Set up initial state.
