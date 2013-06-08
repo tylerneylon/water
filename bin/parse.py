@@ -50,6 +50,7 @@ mode = None
 parse = None
 env = None
 
+prefix = None
 parse_stack = []
 
 # parse_info stores parse attempt data so we can display human-friendly error
@@ -179,14 +180,20 @@ class SeqRule(Rule):
     return self, pos
 
   def inst_parse(self, code, pos):
+    global prefix
     _dbg_parse_start(self.name, code, pos)
-    self.start_pos = pos
+    self.start_pos = pos # TODO Drop either start_pos or startpos.
     self.tokens = []
     self.pieces = {}
     self.startpos = pos
+    self.saved_prefix = prefix
     for rule_name in self.seq:
       dbg.dprint('temp', 'rule_name=%s' % rule_name)
       c = rule_name[0]
+      if c == '.':
+        rule_name = rule_name[1:]
+        c = rule_name[0]
+        prefix = None
       if c == '-':
         dbg.dprint('parse', '%s parse reached %s' % (self.name, rule_name))
         self.mode_id = rule_name[1:]
@@ -208,12 +215,14 @@ class SeqRule(Rule):
         #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
         return self._end_parse(None, self.startpos)
       self.tokens.append(val)
+      prefix = self.saved_prefix
     #for key in self.pieces:
     #  if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
     return self._end_parse(self, pos)
 
   def _end_parse(self, tree, pos):
     self.end_pos = pos
+    set_prefix(self.saved_prefix)
     if tree is None: return tree, pos
     # TODO Think of a way to do this more cleanly. Right now run._state is
     # awkwardly set from both parse and run.
@@ -366,6 +375,10 @@ def pop_mode():
   mode = modes[-1]
   rules = mode.rules
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
+
+def set_prefix(new_prefix):
+  global prefix
+  prefix = new_prefix
 
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
