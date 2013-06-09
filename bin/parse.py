@@ -422,17 +422,25 @@ def _add_rule(rule, mode):
   return rule
 
 def _parse_exact_str(s, code, pos):
-  to_escape = list("+()|*")
+  to_escape = list("+()|*.")
   for e in to_escape: s = s.replace(e, "\\" + e)
   return _parse_exact_re(s, code, pos)
 
-def _parse_exact_re(s, code, pos):
-  s = s.decode('string_escape')
+# Returns val, new_pos; val is the match on success or None otherwise.
+def _direct_parse(s, code, pos):
   m = re.match(s, code[pos:], re.MULTILINE)
+  if m is None: return None, pos
+  return m, pos + len(m.group(0))
+
+def _parse_exact_re(s, code, pos):
+  global prefix
+  if prefix is not None: m, pos = _direct_parse(prefix, code, pos)
+  s = s.decode('string_escape')
+  m, pos = _direct_parse(s, code, pos)
   if m:
     num_grp = len(m.groups()) + 1
     val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-    return val, pos + len(m.group(0))
+    return val, pos
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
   _store_parse_attempt(pos)

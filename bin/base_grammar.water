@@ -120,12 +120,15 @@
     item "[ \t]*\n"
     list: return item.list()
   mode_result_end ->
-    '-' word "[ \t]*\n"
-    list: return ['-' + word.src()]
+    "\.?-" word "[ \t]*\n"
+    list: return [tokens[0] + word.src()]
   item_list ->
     item ' ' seq
     list: return item.list() + seq.list()
-  item -> str | rule_name
+  item ->
+    "(\.)?" item_no_dot
+    list: return [self.src()]
+  item_no_dot -> str | rule_name
   str ->
     "['\"]" -str
     mode_params:

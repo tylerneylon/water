@@ -1,98 +1,124 @@
-# There is an error in the grammar where exiting an outermost block will result
-# in a pop_mode call followed by an attempt to access mode.block_stmnts, which
-# no longer exists. It would be nice if the error message produced was clearer.
+# A subset of JavaScript
 
 >:
-  env.symbols = {}
-  def log_fn(s): print(s)
-  log = {'type': 'fn', 'value': log_fn, 'num_params': 1}
-  console = {'type': 'obj', 'value': {'log': log}}
-  env.symbols['console'] = console
+  run.run("symbols = {}\n")
+  run.run("def log_fn(str_obj): print(str_obj['value'])\n")
+  run.run("log_obj = {'type': 'fn', 'value': log_fn}\n")
+  run.run("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
+  run.run("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
+
+# In the future, I am considering adding a special-name 'prefix' method that
+# can set a prefix just while parsing a given rule.
 
 >
-  s ->
-    "\s*"
   statement ->
-    s stmnt
-  stmnt -> reg_stmnt
-  reg_stmnt ->
-    stmnt_no_smcln s "(;)?"
-    : run(stmnt_no_smcln.str())
+    stmnt
+    : run.run(stmnt)
+    add_code: run.add(stmnt)
+  stmnt ->
+    stmnt_no_smcln "(;)?([ \t]*\n)?"
+    add_code: run.add(stmnt_no_smcln)
   stmnt_no_smcln -> func_def | assign | while | expr
   func_def ->
-    'function' s ident s '(' s params s ')' s '{' s -|
-    start:
-      parse.push_mode('block')
-      mode.block_stmnts = []
-    = "def %s(%s): %s" % (ident, params, mode_result)
+    'function' ident '(' params ')' '{' -block
+    add_code:
+      src_names, code_names = params.names()
+      run.add("def fn(%s):\n" % ','.join(code_names))
+      run.push_indent('  ')
+      run.add("symbols = make_locals()\n")
+      for i in range(len(src_names)):
+        run.add("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
+      for r in mode_result: run.add(r)
+      run.pop_indent()
+      run.add("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
   assign -> direct_assign | inc_assign
   direct_assign ->
-    "(var)?" s ident s '=' s expr
+    "(var)?" ident '=' expr
+    add_code:
+      run.add("symbols['%s'] = " % ident.src())
+      run.add(expr, "\n")
   inc_assign ->
-    ident s inc_op
+    ident inc_op
+    add_code:
+      run.add(ident, "['value'] ", inc_op, "\n")
   while ->
-    'while' s '(' s cond s ')' s '{' -|
-    start:
-      parse.push_mode('block')
-      mode.block_stmnts = []
+    'while' '(' cond ')' '{' -block
+    add_code:
+      run.add("while ", cond, ":\n")
+      run.push_indent('  ')
+      for r in mode_result: run.add(r)
+      run.pop_indent()
   call ->
-    ident s '(' s args s ')'
+    ident '(' args ')'
+    add_code:
+      run.add("symbols['%s']['value'](" % ident.src())
+      run.add(args)
+      run.add(")\n")
   ident ->
     "[A-Za-z_]\w*"
+    names: return [self.src()], ['param0']
+    add_code:
+      run.add("symbols['%s']" % self.src())
   params -> multi_params | ident
   multi_params ->
-    ident s ',' s params
+    ident ',' params
+    src_names: return [ident.src()] + params.src_names()
+    names:
+      src = self.src_names()
+      return src, ['param%d' % i for i in range(len(src))]
   expr -> obj_elem | call | var | js_str | num
   inc_op ->
     '--'
+    add_code: run.add("-= 1")
   cond ->
-    expr s cond_op s expr
+    expr cond_op expr
+    add_code:
+      run.add(expr[0], "['value']")
+      run.add(' %s ' % cond_op.src())
+      run.add(expr[1], "['value']")
   args -> multi_args | expr
   multi_args ->
-    expr s ',' s args
+    expr ',' args
   obj_elem ->
     var '.' ident
+    add_code:
+      run.add("symbols['%s']['value']['%s']" % (var, ident.src()))
   var ->
     ident
+    add_code: run.add("symbols['%s']" % ident.src())
   js_str ->
-    "['\"]" -|
-    start:
-      parse.push_mode('js_str', {'endchar': tokens[0][0]})
-      mode.chars = [mode.endchar]
+    "['\"]" .-js_str
+    mode_params: return {'endchar': tokens[0][0]}
+    add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
   num ->
     "[0-9]+"
+    add_code: run.add("{'type': 'num', 'value': %s}" % self.src())
   cond_op ->
     '>'
 
 # So far this is for the body fo a func_def or while.
 > block
-  stmnt ->
-    func_stmnt
-    : mode.block_stmnts.append(func_stmnt)
-  func_stmnt -> close_brace | reg_stmnt
+  statement -> close_brace | stmnt
   close_brace ->
     '}'
-    : parse.pop_mode(mode.block_stmnts)
+    : parse.pop_mode()
+    add_code: pass
 
 > js_str
   phrase -> escape_seq | char
   escape_seq ->
     "\\\\(.)"
-    :
-      if tokens[0][1] != mode.endchar:
-        mode.chars.append("\\")
-      mode.chars.append(tokens[0][1])
   char ->
     "."
     :
-      c = tokens[0][0]
-      mode.chars.append(c)
-      if c == mode.endchar: parse.pop_mode(''.join(mode.chars))
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
+
+>: set_prefix(r'\s*') 
 
 function f(n) {
   var p = console.log;
   while (n > 0) {
-    p('hi');
+    p('hi there');
     n--;
   }
 }
