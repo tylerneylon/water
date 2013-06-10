@@ -1,0 +1,37 @@
+456
+line 1
+line 2
+line 1
+line 2
+yes
+yes
+3.141
+6.022e+23
+Before test_vars, strA=function
+Inside test_vars, strA=local strA
+After test_vars, strA=function
+in while loop, intD=1
+in while loop, intD=2
+in while loop, intD=3
+in while loop, intD=4
+in do-while loop, intD=5
+Checking op precedence, we should see 10 on the next line:
+10
+true
+false
+true
+true
+true
+false
+true
+false
+true
+false
+true
+false
+true
+false
+true
+false
+true
+false
