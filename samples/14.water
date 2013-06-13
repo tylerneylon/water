@@ -27,6 +27,7 @@
 #    add_code: run.add(stmnt)
 #
 # Later, filter out control characters from string literals.
+# Later, find a good way to allow fraction and exponent on a num_lit.
 #
 >
   statement ->
@@ -52,7 +53,7 @@
     expr ',' expr_list
   assignment -> # TODO
   literal -> num_lit | str_lit | obj_lit | arr_lit | fn | regex_lit
-  num_lit -> False # TODO
+  num_lit -> integer
   str_lit ->
     "['\"]" .-str_lit
     mode_params: return {'endchar': tokens[0][0]}
@@ -99,6 +100,12 @@
   new_expr -> False
   delete_expr -> False
   prefix_op -> # TODO
+  integer ->
+    "0|[1-9]\d*"
+  fraction ->
+    "\\.\d*"
+  exponent ->
+    "[eE][+-]?\d+"
 
 > fn_body
   statement -> var_stmnt |: parse.pop_mode(); parse.push_mode('block')
