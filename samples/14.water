@@ -25,6 +25,9 @@
 #    stmnt
 #    : run.run(stmnt)
 #    add_code: run.add(stmnt)
+#
+# Later, filter out control characters from string literals.
+#
 >
   statement ->
     stmnt
@@ -56,7 +59,20 @@
     add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
   obj_lit -> False
   arr_lit -> False
-  fn -> # TODO
+  fn ->
+    fn_decl_start parameters -fn_body
+  fn_decl_start -> fn_named_start | fn_anon_start
+  fn_anon_start ->
+    'function'
+  fn_named_start ->
+    'function' name
+  parameters ->
+    '(' params ')'
+  params -> multi_params | one_param
+  multi_params ->
+    one_param ',' params
+  one_param ->
+    name
   regex_lit -> False
   for_stmnt ->
     'for' '(' for_loop_setup ')' -block
@@ -84,12 +100,33 @@
   delete_expr -> False
   prefix_op -> # TODO
 
+> fn_body
+  statement -> var_stmnt |: parse.pop_mode(); parse.push_mode('block')
+  var_stmnt ->
+    'var' var_stmnt_tail ';'
+  var_stmnt_tail -> multi_var_assign | one_var_assign
+  multi_var_assign ->
+    one_var_assign ',' var_stmnt_tail
+  one_var_assign ->
+    name '=' expr
+
 > block
   statement -> close_brace | stmnt
   close_brace ->
     '}'
     : parse.pop_mode()
     add_code: pass
+
+> str_lit
+  phrase -> unicode_esc | escape_seq | char
+  unicode_esc ->
+    "\\\\u[0-9A-Fa-f]{4,4}"
+  escape_seq ->
+    "\\\\([\"'\\\\/bfnrt])"
+  char ->
+    "[^\\\\]"
+    :
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
     
 # ---------------------------------------
 # stuff above here is to keep
