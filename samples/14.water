@@ -32,7 +32,7 @@
 >
   statement ->
     stmnt
-  stmnt -> expr_stmnt_w_semicolon | for_stmnt
+  stmnt -> expr_stmnt_w_semicolon | for_stmnt | if_stmnt
   expr_stmnt_w_semicolon ->
     expr_stmnt ';'
   expr_stmnt -> delete_stmnt | nondelete_expr_stmnt
@@ -58,7 +58,18 @@
     "['\"]" .-str_lit
     mode_params: return {'endchar': tokens[0][0]}
     add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
-  obj_lit -> False
+  obj_lit ->
+    '{' obj_lit_tail
+  obj_lit_tail -> multi_item_obj_tail | one_item_obj_tail | close_brace
+  multi_item_obj_tail ->
+    one_obj_item ', ' obj_lit_tail
+  one_item_obj_tail ->
+    one_obj_item '}'
+  one_obj_item ->
+    obj_lit_key ':' expr
+  obj_lit_key -> name | str_lit
+  close_brace ->
+    '}'
   arr_lit -> False
   fn ->
     fn_decl_start parameters -fn_body
@@ -74,9 +85,20 @@
     one_param ',' params
   one_param ->
     name
+  name ->
+    "[a-zA-Z][a-zA-Z0-9_]*"
   regex_lit -> False
+  if_stmnt ->
+    'if' '(' expr ')' '{' if_tail
+  if_tail -> elseif_tail | else_tail | noelse_tail
+  elseif_tail ->
+    -block 'else' if_stmnt
+  else_tail ->
+    -block 'else' '{' -block
+  noelse_tail ->
+    -block
   for_stmnt ->
-    'for' '(' for_loop_setup ')' -block
+    'for' '(' for_loop_setup ')' '{' -block
   for_loop_setup -> for_x_in_y_setup | for_init_cond_inc_setup
   for_x_in_y_setup -> False
   for_init_cond_inc_setup ->
@@ -91,15 +113,26 @@
   expr_no_suffix -> literal | name | paren_expr | prefix_expr | new_expr | delete_expr
   op_right_side -> False
   ternary_tail -> False
-  refinement -> # TODO
-  name -> # TODO
+  refinement -> dot_name | bracket_index
+  dot_name ->
+    '.' name
+  bracket_index ->
+    '[' name ']'
   paren_expr ->
     '(' expr ')'
   prefix_expr ->
     prefix_op expr
   new_expr -> False
   delete_expr -> False
-  prefix_op -> # TODO
+  prefix_op -> typeof_op | plus | minus | not
+  typeof_op ->
+    "typeof"
+  plus ->
+    '+'
+  minus ->
+    '-'
+  not ->
+    '!'
   integer ->
     "0|[1-9]\d*"
   fraction ->
@@ -135,118 +168,6 @@
     :
       if tokens[0][0] == mode.endchar: parse.pop_mode()
     
-# ---------------------------------------
-# stuff above here is to keep
-
-  fn_call -> deep_fn_call | one_fn_call
-  deep_fn_call ->
-    fn_call invocation
-  one_fn_call ->
-    lvalue invocation
-  assignment ->
-    
-  statement ->
-    stmnt
-    : run.run(stmnt)
-    add_code: run.add(stmnt)
-  stmnt ->
-    stmnt_no_smcln "(;)?([ \t]*\n)?"
-    add_code: run.add(stmnt_no_smcln)
-  stmnt_no_smcln -> func_def | assign | while | expr
-  func_def ->
-    'function' ident '(' params ')' '{' -block
-    add_code:
-      src_names, code_names = params.names()
-      run.add("def fn(%s):\n" % ','.join(code_names))
-      run.push_indent('  ')
-      run.add("symbols = make_locals()\n")
-      for i in range(len(src_names)):
-        run.add("symbols['%s'] = %s\n" % (src_names[i], code_names[i]))
-      for r in mode_result: run.add(r)
-      run.pop_indent()
-      run.add("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
-  assign -> direct_assign | inc_assign
-  direct_assign ->
-    "(var)?" ident '=' expr
-    add_code:
-      run.add("symbols['%s'] = " % ident.src())
-      run.add(expr, "\n")
-  inc_assign ->
-    ident inc_op
-    add_code:
-      run.add(ident, "['value'] ", inc_op, "\n")
-  while ->
-    'while' '(' cond ')' '{' -block
-    add_code:
-      run.add("while ", cond, ":\n")
-      run.push_indent('  ')
-      for r in mode_result: run.add(r)
-      run.pop_indent()
-  call ->
-    ident '(' args ')'
-    add_code:
-      run.add("symbols['%s']['value'](" % ident.src())
-      run.add(args)
-      run.add(")\n")
-  ident ->
-    "[A-Za-z_]\w*"
-    names: return [self.src()], ['param0']
-    add_code:
-      run.add("symbols['%s']" % self.src())
-  params -> multi_params | ident
-  multi_params ->
-    ident ',' params
-    src_names: return [ident.src()] + params.src_names()
-    names:
-      src = self.src_names()
-      return src, ['param%d' % i for i in range(len(src))]
-  expr -> obj_elem | call | var | js_str | num
-  inc_op ->
-    '--'
-    add_code: run.add("-= 1")
-  cond ->
-    expr cond_op expr
-    add_code:
-      run.add(expr[0], "['value']")
-      run.add(' %s ' % cond_op.src())
-      run.add(expr[1], "['value']")
-  args -> multi_args | expr
-  multi_args ->
-    expr ',' args
-  obj_elem ->
-    var '.' ident
-    add_code:
-      run.add("symbols['%s']['value']['%s']" % (var, ident.src()))
-  var ->
-    ident
-    add_code: run.add("symbols['%s']" % ident.src())
-  js_str ->
-    "['\"]" .-js_str
-    mode_params: return {'endchar': tokens[0][0]}
-    add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
-  num ->
-    "[0-9]+"
-    add_code: run.add("{'type': 'num', 'value': %s}" % self.src())
-  cond_op ->
-    '>'
-
-# So far this is for the body fo a func_def or while.
-> block
-  statement -> close_brace | stmnt
-  close_brace ->
-    '}'
-    : parse.pop_mode()
-    add_code: pass
-
-> str_lit
-  phrase -> escape_seq | char
-  escape_seq ->
-    "\\\\(.)"
-  char ->
-    "."
-    :
-      if tokens[0][0] == mode.endchar: parse.pop_mode()
-
 >: set_prefix(r'\s*') 
 
 
