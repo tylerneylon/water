@@ -51,7 +51,18 @@
   expr_list -> multi_expr_list | expr
   multi_expr_list ->
     expr ',' expr_list
-  assignment -> # TODO
+  assignment -> direct_assign | inc_assign
+  direct_assign ->
+    lvalue '=' rvalue
+  rvalue -> nondelete_expr_stmnt | expr
+  inc_assign ->
+    lvalue inc_op expr
+  lvalue -> refined_name | name
+  refined_name ->
+    name refinements
+  refinements -> multi_refinements | refinement
+  multi_refinements ->
+    refinement refinements
   literal -> num_lit | str_lit | obj_lit | arr_lit | fn | regex_lit
   num_lit -> integer
   str_lit ->
