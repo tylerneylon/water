@@ -414,7 +414,8 @@ def _src(obj):
 
 def _dbg_parse_start(name, code, pos):
   m = ' <%s>' % mode.id if len(mode.id) else ''
-  dbg.dprint('parse', '%s%s parse at """%s"""' % (name, m, `code[pos: pos + 30]`))
+  # TEMP TODO DEBUG
+  dbg.dprint('parse', '%s %s%s parse at """%s"""' % (`parse_stack`, name, m, `code[pos: pos + 30]`))
 
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
@@ -422,7 +423,7 @@ def _add_rule(rule, mode):
   return rule
 
 def _parse_exact_str(s, code, pos):
-  to_escape = list("+()|*.")
+  to_escape = list("+()|*.[]")
   for e in to_escape: s = s.replace(e, "\\" + e)
   return _parse_exact_re(s, code, pos)
 

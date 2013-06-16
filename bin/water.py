@@ -56,7 +56,7 @@ if __name__ == '__main__':
     dbg.dst = [sys.stdout]
     dbg.topics = ['tree', 'parse', 'public', 'temp']
     dbg.topics = ['run']
-    #dbg.topics = ['tree', 'parse']
+    dbg.topics = ['tree', 'parse']
   else:
     #dbg.topics = 'all'
     dbg.dst = []
