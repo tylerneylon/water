@@ -455,7 +455,7 @@ def _store_parse_attempt(pos):
   attempt.start_pos = parse_info.phrase_start_pos
   attempt.fail_pos = pos
   parse_info.attempts.append(attempt)
-  if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos < pos:
+  if 'main_attempt' not in parse_info or parse_info.main_attempt.fail_pos <= pos:
     parse_info.main_attempt = attempt
 
 def _print_parse_failure():

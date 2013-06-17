@@ -31,9 +31,12 @@
 #
 # This grammar can view 'function(x)' as a function call. How can I prevent
 # that? An easy way is to add a kind of not-prefix to rule names.
+#
+# Consider having statement automatically end in an optional newline? I mean in
+# the default grammar.
 >
   statement ->
-    stmnt
+    stmnt "\\n?"
   stmnt -> expr_stmnt_w_semicolon | for_stmnt | if_stmnt
   expr_stmnt_w_semicolon ->
     expr_stmnt ';'
@@ -71,7 +74,13 @@
   multi_refinements ->
     refinement refinements
   literal -> num_lit | str_lit | obj_lit | arr_lit | fn | regex_lit
-  num_lit -> integer
+  num_lit -> int_frac_exp | int_exp | int_frac | integer
+  int_frac_exp ->
+    integer fraction exponent
+  int_exp ->
+    integer exponent
+  int_frac ->
+    integer fraction
   str_lit ->
     "['\"]" .-str_lit
     mode_params: return {'endchar': tokens[0][0]}
@@ -90,12 +99,16 @@
     '}'
   arr_lit -> False
   fn ->
-    fn_decl_start parameters -fn_body
+    fn_decl_start parameters '{' fn_body
   fn_decl_start -> fn_named_start | fn_anon_start
   fn_anon_start ->
     'function'
   fn_named_start ->
     'function' name
+  fn_body ->
+    var_stmnts -block
+  var_stmnts ->
+    -var_block
   parameters ->
     '(' params ')'
   params -> multi_params | one_param
@@ -104,7 +117,7 @@
   one_param ->
     name
   name ->
-    "[a-zA-Z][a-zA-Z0-9_]*"
+    "(?!function)(?!typeof)[a-zA-Z][a-zA-Z0-9_]*"
   regex_lit -> False
   if_stmnt ->
     'if' '(' expr ')' '{' if_tail
@@ -137,7 +150,7 @@
   dot_name ->
     '.' name
   bracket_index ->
-    '[' name ']'
+    '[' expr ']'
   paren_expr ->
     '(' expr ')'
   prefix_expr ->
@@ -160,8 +173,8 @@
   exponent ->
     "[eE][+-]?\d+"
 
-> fn_body
-  statement -> var_stmnt |: parse.pop_mode(); parse.push_mode('block')
+> var_block
+  statement -> var_stmnt |: parse.pop_mode();
   var_stmnt ->
     'var' var_stmnt_tail ';'
   var_stmnt_tail -> multi_var_assign | one_var_assign
@@ -193,11 +206,11 @@
 
 print2nd = function (x, y) {
   console.log(y);
-}
+};
 
 print2nd(123, 456);
 
-print_twice = function (a) { print2nd(a, a); print2nd(a, a); }
+print_twice = function (a) { print2nd(a, a); print2nd(a, a); };
 
 print_twice('line 1\nline 2');
 
@@ -208,7 +221,7 @@ boolA = !0;
 strA = typeof print2nd;
 strB = typeof {};
 
-objA = {ilike: "pizza", butnot: 'eggs', '1729': true}
+objA = {ilike: "pizza", butnot: 'eggs', '1729': true};
 
 yes_or_no = function (x) {
   if (x) {
@@ -216,7 +229,7 @@ yes_or_no = function (x) {
   } else {
     console.log('no');
   }
-}
+};
 
 yes_or_no(objA['1729']);
 yes_or_no(objA.ilike);
