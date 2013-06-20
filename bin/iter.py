@@ -33,10 +33,21 @@ class Iterator (object):
     self.version = 0
 
   def replace(self, rng, new_str):
-    pass # TODO Don't forget to increment version.
+    index1, offset1 = self._index_offset_in_text(rng[0])
+    index2, offset2 = self._index_offset_in_text(rng[1])
+    new_list = []
+    new_list.append(self._str_slice(index1, 0, offset1))
+    new_str = _AttrStr(new_str)
+    new_str.is_subst = True
+    new_str.origin = tuple(map(self.orig_pos_of_text_pos, rng))
+    new_list.append(new_str)
+    new_list.append(self._str_slice(index2, offset2, None))
+    self._text[index1:index2 + 1] = new_list
 
   def tail(self):
-    pass # TODO
+    index, offset = self._index_offset_in_text(self.text_pos)
+    tail_list = [self._text[index][offset:]] + self._text[index + 1:]
+    return ''.join(tail_list)
 
   def text(self):
     return ''.join(self._text)
@@ -44,10 +55,12 @@ class Iterator (object):
   def move(self, delta):
     self.text_pos += delta
 
-  def orig_pos_from_text_pos(self, text_pos):
-    index, offset = self._index_offset_in_text(self, text_pos)
+  def orig_pos_of_text_pos(self, text_pos, use_end_pos=False):
+    index, offset = self._index_offset_in_text(text_pos)
     attrStr = self._text[index]
-    return attr.origin[0] + (0 if attrStr.is_subst else offset)
+    if attrStr.is_subst:
+      return attr.origin[1] if use_end_pos else attr.origin[0]
+    return attr.origin[0] + offset  # Exact value since attStr is orig src.
 
   # Returns index, offset so _text[index][offset] is the character at text_pos.
   def _index_offset_in_text(self, text_pos):
@@ -57,11 +70,21 @@ class Iterator (object):
     while index < len(t) and pos <= text_pos:
       pos += len(t[index])
       index += 1
-    if pos <= text_pos:
-      # We must have index == len(t) to get here.
+    if pos <= text_pos:  # We must have index == len(t) for this to be true.
       errStr = 'Request for text_pos=%d in iter of len %d' % (text_pos, pos)
       throw IndexError(errStr)
     # We must have pos > text_pos; while pos <= text_pos one index earlier.
     index -= 1
     pos -= len(t[index])
     return index, text_pos - pos
+
+  def _str_slice(self, index, start, end):
+    s = self._text[index]
+    t = _AttrStr(s[start:end])
+    t.is_subst = s.is_subst
+    if t.is_subst:
+      t.origin = s.origin
+    else
+      t_start = s.origin[0] + start
+      t.origin = (t_start, t_start + len(t))
+    return t
