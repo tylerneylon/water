@@ -39,7 +39,9 @@ class Iterator (object):
     new_list.append(self._str_slice(index1, 0, offset1))
     new_str = _AttrStr(new_str)
     new_str.is_subst = True
-    new_str.origin = tuple(map(self.orig_pos_of_text_pos, rng))
+    origin_start = self.orig_pos_of_text_pos(rng[0])
+    origin_end = self.orig_pos_of_text_pos(rng[1], use_end_pos=True)
+    new_str.origin = (origin_start, origin_end)
     new_list.append(new_str)
     new_list.append(self._str_slice(index2, offset2, None))
     self._text[index1:index2 + 1] = new_list
