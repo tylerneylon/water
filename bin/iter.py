@@ -36,15 +36,18 @@ class Iterator (object):
     index1, offset1 = self._index_offset_in_text(rng[0])
     index2, offset2 = self._index_offset_in_text(rng[1])
     new_list = []
-    new_list.append(self._str_slice(index1, 0, offset1))
+    if offset1 > 0:
+      new_list.append(self._str_slice(index1, 0, offset1))
     new_str = _AttrStr(new_str)
     new_str.is_subst = True
     origin_start = self.orig_pos_of_text_pos(rng[0])
     origin_end = self.orig_pos_of_text_pos(rng[1], use_end_pos=True)
     new_str.origin = (origin_start, origin_end)
     new_list.append(new_str)
-    new_list.append(self._str_slice(index2, offset2, None))
+    if offset2 < len(self._text[index2]):
+      new_list.append(self._str_slice(index2, offset2, None))
     self._text[index1:index2 + 1] = new_list
+    self.version += 1
 
   def tail(self):
     index, offset = self._index_offset_in_text(self.text_pos)
@@ -61,8 +64,8 @@ class Iterator (object):
     index, offset = self._index_offset_in_text(text_pos)
     attrStr = self._text[index]
     if attrStr.is_subst:
-      return attr.origin[1] if use_end_pos else attr.origin[0]
-    return attr.origin[0] + offset  # Exact value since attStr is orig src.
+      return attrStr.origin[1] if use_end_pos else attrStr.origin[0]
+    return attrStr.origin[0] + offset  # Exact value since attStr is orig src.
 
   # Returns index, offset so _text[index][offset] is the character at text_pos.
   def _index_offset_in_text(self, text_pos):
@@ -72,9 +75,9 @@ class Iterator (object):
     while index < len(t) and pos <= text_pos:
       pos += len(t[index])
       index += 1
-    if pos <= text_pos:  # We must have index == len(t) for this to be true.
+    if pos < text_pos:  # We must have index == len(t) for this to be true.
       errStr = 'Request for text_pos=%d in iter of len %d' % (text_pos, pos)
-      throw IndexError(errStr)
+      raise IndexError(errStr)
     # We must have pos > text_pos; while pos <= text_pos one index earlier.
     index -= 1
     pos -= len(t[index])
@@ -86,7 +89,7 @@ class Iterator (object):
     t.is_subst = s.is_subst
     if t.is_subst:
       t.origin = s.origin
-    else
+    else:
       t_start = s.origin[0] + start
       t.origin = (t_start, t_start + len(t))
     return t
