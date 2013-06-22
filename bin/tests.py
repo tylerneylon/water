@@ -20,7 +20,9 @@ from __future__ import print_function
 from StringIO import StringIO
 
 import dbg
+import iter
 import parse
+import run
 import sys
 import traceback
 
@@ -81,7 +83,7 @@ def test1(return_out_str=False, **kwargs):
   out.seek(0)
   out_str = out.read()
   lines = out_str.split('\n')
-  if not expect('len(lines)', '==', '283', locals()): return False
+  if not expect('len(lines)', '==', '293', locals()): return False
   first_line = "    push_mode('lang_def', {})"
   if not expect('lines[0]', '==', 'first_line', locals()): return False
   last_line = "    pop_mode(_); 'lang_def' -> ''"
@@ -96,12 +98,65 @@ def test2(**kwargs):
   out2 = test1(True)
   return expect('out1', '==', 'out2', locals())
 
-def test3():
-  parse.runfile('sample12.water')
+def test3(run_silent=False, **kwargs):
+  dbg.topics = ['tree']
+  dbg.dst = [] if run_silent else [sys.stdout] 
+  run_code = run.run_code
+  run.run_code = False
+  did_succeed = True
+  try: 
+    parse.runfile('../samples/12.water')
+  except Exception as e:
+    if not run_silent: print('Fail (test3): %s: %s' % (type(e).__name__, e))
+    did_succeed = False
+  run.run_code = run_code
+  return did_succeed
 
+def test4(**kwargs):  # Test iter.Iterator.
+  orig = 'a line 1\nb line 2\nc line 3\n'
+  it = iter.Iterator(orig)
+  expectations = [['it.text()', '==', 'orig'],
+                  ['it.tail()', '==', 'orig'],
+                  ['it.version', '==', '0'],
+                  ['it.text_pos', '==', '0']]
+  for exp in expectations:
+    if not expect(*(exp + [locals()])): return False
+  it.replace([0, 1], 'abc')
+  text = 'abc' + orig[1:]
+  expectations = [['it.text()', '==', 'text'],
+                  ['it.tail()', '==', 'text'],
+                  ['it.version', '==', '1']]
+  for exp in expectations:
+    if not expect(*(exp + [locals()])): return False
+  it.move(2)
+  expectations = [['it.text_pos', '==', '2'],
+                  ['it.orig_pos_of_text_pos(2)', '==', '0'],
+                  ['it.orig_pos_of_text_pos(3)', '==', '1'],
+                  ['it.tail()', '==', 'text[2:]']]
+  for exp in expectations:
+    if not expect(*(exp + [locals()])): return False
+  it.replace([len(text) - 1, len(text)], 'new ending')
+  text = text[:-1] + 'new ending'
+  expectations = [['it.version', '==', '2'],
+                  ['it.text()', '==', 'text'],
+                  ['it.tail()', '==', 'text[2:]'],
+                  ['it.orig_pos_of_text_pos(3)', '==', '1'],
+                  ['it.orig_pos_of_text_pos(len(text))', '==', 'len(orig)']]
+  # Now try a replacement overlapping a previous replacement.
+  it.replace([1, 3], 'X')
+  text = text[0] + 'X' + text[3:]
+  expectations = [['it.version', '==', '3'],
+                  ['it.text()', '==', 'text'],
+                  ['it.tail()', '==', 'text[2:]'],
+                  ['it.orig_pos_of_text_pos(0)', '==', '0'],
+                  ['it.orig_pos_of_text_pos(1)', '==', '0'],
+                  ['it.orig_pos_of_text_pos(2)', '==', '1']]
+  for exp in expectations:
+    if not expect(*(exp + [locals()])): return False
+  return True
 
 if __name__ == '__main__':
-  all_tests = [test0, test1, test2]
+  all_tests = [test0, test1, test2, test3, test4]
   kwargs = {'run_silent': True}
   for t in all_tests:
     print('Running %s ' % t.__name__, end='')
