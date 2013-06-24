@@ -39,6 +39,7 @@ import sys
 import types
 
 import dbg
+import iter
 import run
 
 # Globals.
@@ -134,11 +135,11 @@ class Rule(Object):
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
 
-  def parse(self, code, pos):
+  def parse(self, it):
     parse_stack.append(self.name)
-    tree, pos = self.child().inst_parse(code, pos)
+    tree = self.child().inst_parse(it)
     parse_stack.pop()
-    return tree, pos
+    return tree
 
 class SeqRule(Rule):
 
@@ -159,7 +160,7 @@ class SeqRule(Rule):
     return ''.join([_src(t) for t in self.tokens])
 
   # Expects self.mode_id to be set, and will push that mode.
-  def parse_mode(self, code, pos):
+  def parse_mode(self, it):
     dbg.dprint('parse', '%s parse_mode %s' % (self.name, self.mode_id))
     init_num_modes = len(modes)
     params = {}
@@ -170,22 +171,24 @@ class SeqRule(Rule):
     # is a special case where the returned tree is None, but it is not a parse
     # error; that case is the reason for the if clause after this while loop.
     while True:
-      tree, pos = rules['phrase'].parse(code, pos)
+      tree = rules['phrase'].parse(it)
       if len(modes) == init_num_modes: break
-      if tree is None: return None, self.startpos
+      if tree is None:
+        it.text_pos = self.start_text_pos
+        return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
     self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
-    return self, pos
+    return self
 
-  def inst_parse(self, code, pos):
+  def inst_parse(self, it):
     global prefix
-    _dbg_parse_start(self.name, code, pos)
-    self.start_pos = pos # TODO Drop either start_pos or startpos.
+    _dbg_parse_start(self.name, it)
+    self.start_text_pos = it.text_pos
+    self.start_pos = it.orig_pos()
     self.tokens = []
     self.pieces = {}
-    self.startpos = pos
     self.saved_prefix = prefix
     for rule_name in self.seq:
       dbg.dprint('temp', 'rule_name=%s' % rule_name)
@@ -197,33 +200,35 @@ class SeqRule(Rule):
       if c == '-':
         dbg.dprint('parse', '%s parse reached %s' % (self.name, rule_name))
         self.mode_id = rule_name[1:]
-        tree, pos = self.parse_mode(code, pos)
-        return self._end_parse(tree, pos)
+        tree = self.parse_mode(it)
+        return self._end_parse(tree, it)
       elif c == "'":
-        val, pos = _parse_exact_str(rule_name[1:-1], code, pos)
+        val = _parse_exact_str(rule_name[1:-1], it)
       elif c == '"':
         re = rule_name[1:-1] % mode
         #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
         dbg.dprint('temp', 're=%s' % `re`)
-        val, pos = _parse_exact_re(re, code, pos)
+        val = _parse_exact_re(re, it)
       else:
-        val, pos = rules[rule_name].parse(code, pos)
+        val = rules[rule_name].parse(it)
         if val: self.pieces.setdefault(rule_name, []).append(val)
       if val is None:
         dbg_fmt = '%s parse failed at token %s ~= code %s'
-        dbg.dprint('parse', dbg_fmt % (self.name, rule_name, code[pos:pos + 10]))
+        dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
+        dbg.dprint('parse', dbg_fmt % (self.name, rule_name, `dbg_snippet`))
         #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
-        return self._end_parse(None, self.startpos)
+        it.text_pos = self.start_text_pos
+        return self._end_parse(None, it)
       self.tokens.append(val)
       prefix = self.saved_prefix
     #for key in self.pieces:
     #  if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
-    return self._end_parse(self, pos)
+    return self._end_parse(self, it)
 
-  def _end_parse(self, tree, pos):
-    self.end_pos = pos
+  def _end_parse(self, tree, it):
+    self.end_pos = it.orig_pos()
     set_prefix(self.saved_prefix)
-    if tree is None: return tree, pos
+    if tree is None: return tree
     # TODO Think of a way to do this more cleanly. Right now run._state is
     # awkwardly set from both parse and run.
     # For examle, maybe a command could set up its code_block as the body of an
@@ -231,7 +236,7 @@ class SeqRule(Rule):
     run._state = {'start': self.start_pos, 'end': self.end_pos}
     dbg.dprint('parse', '%s parse succeeded' % self.name)
     if 'parsed' in self.__dict__: self.parsed()
-    return tree, pos
+    return tree
 
   def child(self):
     c = SeqRule(self.name, self.seq)
@@ -262,24 +267,24 @@ class OrRule(Rule):
     exec code in context
     return context['or_else']()
 
-  def inst_parse(self, code, pos):
-    _dbg_parse_start(self.name, code, pos)
-    self.start_pos = pos
+  def inst_parse(self, it):
+    _dbg_parse_start(self.name, it)
+    self.start_pos = it.orig_pos()
     for r in self.or_list:
       if r[0] == ':':
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         self.run_code(r[1:])
-        self.end_pos = pos
-        return None, pos
-      val, pos = rules[r].parse(code, pos)
+        self.end_pos = it.orig_pos()
+        return None
+      val = rules[r].parse(it)
       if val:
         self.result = val
-        self.end_pos = pos
+        self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
-        return self, pos
+        return self
     dbg.dprint('parse', '%s parse failed' % self.name)
     # TODO Factor out all these '  ' * len(parse_stack) instances.
-    return None, pos
+    return None
 
   def child(self):
     c = OrRule(self.name, self.or_list)
@@ -292,8 +297,8 @@ class FalseRule(Rule):
   def __init__(self, name):
     self.name = name
 
-  def parse(self, code, pos):
-    return None, pos
+  def parse(self, it):
+    return None
 
 class ParseError(Exception):
   pass
@@ -307,15 +312,19 @@ def command(cmd):
   exec('def _tmp(): ' + cmd)
   _tmp()
 
-def parse_phrase(code, pos):
+# The input is an Iterator that is updated to point to the next parse point
+# if the parse is successful. The return value is:
+#  * a parse tree   on success
+#  * None           if there was a parse error.
+def parse_phrase(it):
   global parse_info
-  parse_info.phrase_start_pos = pos
-  tree, pos = rules['phrase'].parse(code, pos)
+  parse_info.phrase_start_pos = it.orig_pos()
+  tree = rules['phrase'].parse(it)
   if tree:
     dbg.dprint('phrase', 'Successful phrase parse:')
     dbg.print_tree(tree)
     parse_info.attempts = []
-  return tree, pos
+  return tree
 
 def or_rule(name, or_list, mode=''):
   dbg.dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
@@ -338,12 +347,13 @@ def iterate(filename):
   f.close()
   line_nums = dbg.LineNums(code)
   parse_info.code = code
-  pos = 0
-  tree, pos = parse_phrase(code, pos)
+  it = iter.Iterator(code)
+  tree = parse_phrase(it)
   while tree:
     yield tree
-    tree, pos = parse_phrase(code, pos)
-  if pos < len(code):
+    tree = parse_phrase(it)
+  if it.text_pos < len(it.text()):
+    pos = it.orig_pos()
     if 'main_attempt' in parse_info:
       pos = parse_info.main_attempt['fail_pos']
     line_num, char_offset = line_nums.line_num_and_offset(pos)
@@ -412,44 +422,46 @@ def _src(obj):
   elif isinstance(obj, Rule): return obj.src()
   else: dbg.dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
 
-def _dbg_parse_start(name, code, pos):
+def _dbg_parse_start(name, it):
   m = ' <%s>' % mode.id if len(mode.id) else ''
-  # TEMP TODO DEBUG
-  dbg.dprint('parse', '%s %s%s parse at """%s"""' % (`parse_stack`, name, m, `code[pos: pos + 30]`))
+  text_str = it.text()[it.text_pos:it.text_pos + 30]
+  dbg.dprint('parse', '%s %s%s parse at """%s"""' % (`parse_stack`, name, m, `text_str`))
 
 def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
   return rule
 
-def _parse_exact_str(s, code, pos):
+def _parse_exact_str(s, it):
   to_escape = list("+()|*.[]")
   for e in to_escape: s = s.replace(e, "\\" + e)
-  return _parse_exact_re(s, code, pos)
+  return _parse_exact_re(s, it)
 
 # Returns val, new_pos; val is the match on success or None otherwise.
-def _direct_parse(s, code, pos):
-  m = re.match(s, code[pos:], re.MULTILINE)
-  if m is None: return None, pos
-  return m, pos + len(m.group(0))
+def _direct_parse(s, it):
+  m = re.match(s, it.tail(), re.MULTILINE)
+  if m is None: return None
+  it.move(len(m.group(0)))
+  return m
 
-def _parse_exact_re(s, code, pos):
+def _parse_exact_re(s, it):
   global prefix
-  if prefix is not None: m, pos = _direct_parse(prefix, code, pos)
+  if prefix is not None: m = _direct_parse(prefix, it)
   s = s.decode('string_escape')
-  m, pos = _direct_parse(s, code, pos)
+  m = _direct_parse(s, it)
   if m:
     num_grp = len(m.groups()) + 1
     val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-    return val, pos
+    return val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
-  _store_parse_attempt(pos)
+  _store_parse_attempt(it)
   parse_stack.pop()
-  return None, pos
+  return None
 
-def _store_parse_attempt(pos):
+def _store_parse_attempt(it):
   global parse_info
+  pos = it.orig_pos()
   attempt = Object()
   attempt.stack = parse_stack[:]
   attempt.start_pos = parse_info.phrase_start_pos

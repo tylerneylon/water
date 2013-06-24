@@ -12,9 +12,9 @@ from __future__ import print_function
 import dbg
 import os
 from os import path
-import parse
 import sys
 
+import parse
 
 _module_dir = None
 _module_names = []

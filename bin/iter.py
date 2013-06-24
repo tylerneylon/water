@@ -67,6 +67,9 @@ class Iterator (object):
       return attrStr.origin[1] if use_end_pos else attrStr.origin[0]
     return attrStr.origin[0] + offset  # Exact value since attStr is orig src.
 
+  def orig_pos(self):
+    return self.orig_pos_of_text_pos(self.text_pos)
+
   # Returns index, offset so _text[index][offset] is the character at text_pos.
   def _index_offset_in_text(self, text_pos):
     index = 0
