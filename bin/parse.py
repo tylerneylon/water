@@ -54,6 +54,8 @@ env = None
 prefix = None
 parse_stack = []
 
+substs = []  # For use by add_subst.
+
 # parse_info stores parse attempt data so we can display human-friendly error
 # information that simplifies debugging grammars and syntax errors alike.
 #
@@ -226,6 +228,7 @@ class SeqRule(Rule):
     return self._end_parse(self, it)
 
   def _end_parse(self, tree, it):
+    global substs
     self.end_pos = it.orig_pos()
     set_prefix(self.saved_prefix)
     if tree is None: return tree
@@ -235,7 +238,16 @@ class SeqRule(Rule):
     # add_code fn, and then call run.add on itself.
     run._state = {'start': self.start_pos, 'end': self.end_pos}
     dbg.dprint('parse', '%s parse succeeded' % self.name)
+    saved_substs = substs
+    substs = []
     if 'parsed' in self.__dict__: self.parsed()
+    if substs:
+      # TODO(future): When I set up caching, I can update the cache about rules
+      #               in the substs list (and add that info to the list).
+      it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
+      it.text_pos = self.start_text_pos
+      tree = self.parse(it)
+    substs = saved_substs
     return tree
 
   def child(self):
@@ -338,6 +350,9 @@ def false_rule(name, mode=''):
   dbg.dprint('public', 'false_rule(%s, %s)' % (name, `mode`))
   return _add_rule(FalseRule(name), mode)
 
+def add_subst(*args):
+  for arg in args: _add_subst(arg)
+
 def iterate(filename):
   global parse_info
   parse_info = Object()
@@ -397,6 +412,13 @@ def error(msg):
 #------------------------------------------------------------------------------
 #  Internal functions.
 #------------------------------------------------------------------------------
+
+def _add_subst(rule_or_text):
+  global substs
+  if type(rule_or_text) == str or isinstance(rule_or_text, Rule):
+    substs.append(_src(rule_or_text))
+  else:
+    error('Illegal input to parse.add_subst; type=%s' % type(rule_or_text))
 
 def _push_mode(name, params):
   global rules, mode, modes
