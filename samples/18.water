@@ -1,0 +1,18 @@
+# 18.water
+#
+# Small test for substitutions.
+#
+
+>
+  statement -> hi | there
+  hi ->
+    'hi'
+    :
+      parse.add_subst('there\nthere\n')
+      print('hi parsed')
+  there ->
+    'there'
+    : print('there parsed')
+
+
+hi
