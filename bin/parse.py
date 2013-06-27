@@ -39,7 +39,7 @@ import sys
 import types
 
 import dbg
-import iter
+import iterator
 import run
 
 # Globals.
@@ -362,7 +362,7 @@ def iterate(filename):
   f.close()
   line_nums = dbg.LineNums(code)
   parse_info.code = code
-  it = iter.Iterator(code)
+  it = iterator.Iterator(code)
   tree = parse_phrase(it)
   while tree:
     yield tree

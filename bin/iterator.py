@@ -1,4 +1,4 @@
-# iter.py
+# iterator.py
 # Project Water
 #
 # Define an iterator for use by parse.py.
@@ -79,8 +79,8 @@ class Iterator (object):
       pos += len(t[index])
       index += 1
     if pos < text_pos:  # We must have index == len(t) for this to be true.
-      errStr = 'Request for text_pos=%d in iter of len %d' % (text_pos, pos)
-      raise IndexError(errStr)
+      errStr = 'Request for text_pos=%d in iterator of len %d'
+      raise IndexError(errStrFmt % (text_pos, pos))
     # We must have pos > text_pos; while pos <= text_pos one index earlier.
     index -= 1
     pos -= len(t[index])

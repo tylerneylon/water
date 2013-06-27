@@ -24,7 +24,7 @@ import sys
 import traceback
 
 import dbg
-import iter
+import iterator
 import parse
 import run
 
@@ -114,9 +114,9 @@ def test3(run_silent=False, **kwargs):
   run.run_code = run_code
   return did_succeed
 
-def test4(**kwargs):  # Test iter.Iterator.
+def test4(**kwargs):  # Test iterator.Iterator.
   orig = 'a line 1\nb line 2\nc line 3\n'
-  it = iter.Iterator(orig)
+  it = iterator.Iterator(orig)
   expectations = [['it.text()', '==', 'orig'],
                   ['it.tail()', '==', 'orig'],
                   ['it.version', '==', '0'],
@@ -158,7 +158,7 @@ def test4(**kwargs):  # Test iter.Iterator.
   return True
 
 if __name__ == '__main__':
-  os.chdir(sys.path[0])
+  os.chdir(sys.path[0])  # Makes this script runnable in other directories.
   all_tests = [test0, test1, test2, test3, test4]
   kwargs = {'run_silent': True}
   for t in all_tests:
