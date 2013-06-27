@@ -19,12 +19,14 @@
 from __future__ import print_function
 from StringIO import StringIO
 
+import os
+import sys
+import traceback
+
 import dbg
 import iter
 import parse
 import run
-import sys
-import traceback
 
 def expect(a, cond, b, ctx):
   stack = traceback.extract_stack()
@@ -156,6 +158,7 @@ def test4(**kwargs):  # Test iter.Iterator.
   return True
 
 if __name__ == '__main__':
+  os.chdir(sys.path[0])
   all_tests = [test0, test1, test2, test3, test4]
   kwargs = {'run_silent': True}
   for t in all_tests:
