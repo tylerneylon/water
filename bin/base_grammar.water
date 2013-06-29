@@ -90,7 +90,7 @@
     "%(indent)s" rule
   rule -> prepend_to_or | false_rule | or_rule | seq_rule
   prepend_to_or ->
-    word ' =| ' word
+    word ' =| ' word "[ \t]*\n"
     : parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)
   false_rule ->
     word " ->\s+False[ \t]*\n"

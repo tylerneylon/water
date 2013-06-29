@@ -1,0 +1,34 @@
+# 20.water
+#
+# Test or prepending and substitutions.
+#
+
+>
+  statement -> a | b
+  a ->
+    'a'
+    : print('a parsed')
+  b ->
+    'b'
+    : print('b parsed')
+
+a
+b
+
+>
+  statement =| c
+  c ->
+    'c'
+    : print('c parsed')
+
+c
+
+>
+  statement =| d
+  d ->
+    'd'
+    :
+      print('d parsed; substituting ab')
+      parse.add_subst('ab')
+
+d

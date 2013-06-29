@@ -14,7 +14,7 @@
 >: or_rule('phrase', ['indented_rule', ':parse.pop_mode()\n'], mode='lang_def')
 >: seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
 >: or_rule('rule', ['prepend_to_or', 'false_rule', 'or_rule', 'seq_rule'], mode='lang_def')
->: r = seq_rule('prepend_to_or', ['word', "' =| '", 'word'], mode='lang_def');  r.add_fn('parsed', ' parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)\n')
+>: r = seq_rule('prepend_to_or', ['word', "' =| '", 'word', '"[ \\t]*\\n"'], mode='lang_def');  r.add_fn('parsed', ' parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)\n')
 >: r = seq_rule('false_rule', ['word', '" ->\\s+False[ \\t]*\\n"'], mode='lang_def');  r.add_fn('parsed', ' parse.false_rule(word.src(), mode=mode.name)\n')
 >: r = seq_rule('or_rule', ['word', "' -> '", 'or_list'], mode='lang_def');  r.add_fn('parsed', ' parse.or_rule(word.src(), or_list.list(), mode=mode.name)\n')
 >: or_rule('or_list', ['multi_or_list', 'or_list_end'], mode='lang_def')

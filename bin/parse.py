@@ -351,8 +351,8 @@ def false_rule(name, mode=''):
   return _add_rule(FalseRule(name), mode)
 
 def prepend_to_or(name, or_name, mode=''):
-  dbg.dprint('public', 'prepend_to_or(%s, %s, %s)' % (name, or_name, mode))
-  all_rules[mode][name].or_list.insert(0, name)
+  dbg.dprint('public', 'prepend_to_or(%s, %s, %s)' % (name, or_name, `mode`))
+  all_rules[mode][name].or_list.insert(0, or_name)
 
 def add_subst(*args):
   for arg in args: _add_subst(arg)
