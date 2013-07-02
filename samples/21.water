@@ -1,0 +1,12 @@
+# 21.water
+#
+# Test >! syntax.
+#
+
+>! phrase
+  'echo ' "[^\n]*" "\n"
+  '>: print("', tokens[1], '")\n'
+
+echo hello
+echo how are you?
+echo pretty good, thanks!

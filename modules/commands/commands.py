@@ -66,6 +66,14 @@ def hook_add_fn_method():
     old_method(self, fn_name, fn_code)
   parse.Rule.add_fn = new_method
 
+def hook_prepend_to_or():
+  old_method = parse.prepend_to_or
+  def new_method(name, or_name, mode=''):
+    end_last_rule()
+    print_out('prepend_to_or(%s, %s, %s)' % (`name`, `or_name`, `mode`))
+    old_method(name, or_name, mode)
+  parse.prepend_to_or = new_method
+
 def hook_parse_fn(fn_name):
   old_fn = parse.__dict__[fn_name]
   def new_fn(*args, **kwargs):
@@ -96,6 +104,7 @@ def main(args, self_dir):
     hook_parse_fn(fn_name)
   hook_command_fn()
   hook_add_fn_method()
+  hook_prepend_to_or()
 
   parse.runfile(in_filename)
   end_all_rules()

@@ -1,0 +1,41 @@
+# layer2.water
+#
+# Anything built on type of layer1. For now this is just
+# substitution syntax.
+#
+# TODO Be able to clean up the syntax that looks like this:
+#  * mode_result.tokens[1].tokens[1].src()
+#
+
+>:
+  env._next_subst_number = 0
+  def new_subst_name():
+    name = '_subst_' + str(env._next_subst_number)
+    env._next_subst_number += 1
+    return name
+  env._new_subst_name = new_subst_name
+
+>
+  substitution ->
+    '>! ' word "\n(?=(\s+))" -subst_block
+    mode_params:
+      return {'indent': tokens[2][1], 'rule_name': word}
+    :
+      subst_name = env._new_subst_name()
+      parse.add_subst('>\n  ', subst_name, ' ->\n')
+      parse.add_subst('    ', mode_result.tokens[0].tokens[1].src(), '\n')
+      parse.add_subst('    : parse.add_subst(')
+      parse.add_subst(mode_result.tokens[1].tokens[1].src(), ')\n\n')
+      parse.prepend_to_or(word.src(), subst_name)
+
+> subst_block
+  phrase ->
+    indent_line indent_line
+    : parse.pop_mode()
+  indent_line ->
+    "%(indent)s" line_body "\n"
+  line_body ->
+    "[^\n]*"
+
+>
+  phrase =| substitution
