@@ -1,0 +1,312 @@
+# 14b.water
+#
+# A sample toward js:tgp.
+#
+# I'm modifying this to be a wishful-thinking file that uses a
+# not-yet-implemented grammar that I hope will make grammar-writing
+# easier in the general case.
+#
+
+>:
+  run.run("symbols = {}\n")
+  run.run("def log_fn(str_obj): print(str_obj['value'])\n")
+  run.run("log_obj = {'type': 'fn', 'value': log_fn}\n")
+  run.run("symbols['console'] = {'type': 'obj', 'value': {'log': log_obj}}\n")
+  run.run("def make_locals():\n  lo = {}\n  lo.update(symbols)\n  return lo\n")
+
+
+>
+  array_lit -> [ expr*, ]
+
+  block -> { statements? }
+
+  break_statement -> 'break' name[label]? ;
+
+  case_clause -> (( 'case' expr : ))+ statements
+
+  disruptive_statement -> break_statement | return_statement | throw_statement
+
+  do_statement -> 'do' block 'while' ( expr ) ;
+
+  escaped_character -> \ "[\"'\\/bfnrt]|u[0-9a-fA-F]{4}"
+
+  exponent -> "[eE]" "[+-]?" digit+
+
+  expr -> literal | name | ( expr ) | prefix_op expr | expr (( infix_op expr | ? expr : expr | invocation | refinement )) | 'new' expr invocation | 'delete' expr refinement
+
+  expr_stmnt -> 'delete' expr refinement | name (( refinement | = | += | -= | invocation ))
+
+  expr_stmnt -> 'delete' expr refinement | nondelete_expr_stmnt
+
+  nondelete_expr_stmnt -> name post_name
+
+  post_name -> = (( nondelete_expr_stmnt | expr )) | (( += | -= )) expr | invoc_or_refine
+
+  invoc_or_refine -> invocation invoc_or_refine? | refinement post_name
+    
+  for_stmnt -> 'for' ( (( name[variable] 'in' expr[object] | expr_stmnt[init]? ; expr[cond]? ; expr_stmnt[incr]? )) ) block
+
+  fraction -> . digit+
+
+  fn_body -> { var_stmnts stmnts }
+
+  fn_lit -> 'function' name? params fn_body
+
+  if_stmnt -> 'if' ( expr ) block[then] (( 'else' if_stmnt? block ))?
+
+  infix_op -> "[\*/%+\-><]|>=|<=|===|!==|\|\||&&"   # How to handle precedence of operators??
+
+  integer -> '0' | "[1-9]" digit*
+
+  invocation -> ( expr*, )
+
+  literal -> num_lit | str_lit | obj_lit | array_lit | fn | regex_lit
+
+  name -> "[A-Za-z][A-Za-z0-9_]*"
+
+  num_lit -> integer fraction? exponent?
+
+  obj_lit -> { (( (( name  |  str_lit )) : expr ))*, }
+
+  params -> ( name*, )
+
+  prefix_op -> 'typeof'  |  +  |  -  |  !
+
+  refinement -> . name  |  [ expr ]
+
+  regexp_choice -> regex_seq+|
+
+  regex_class -> [ '^'? regexp_class_char (( '-'? regexp_class_char ))* ]
+
+  regex_class_char -> "[^/\\\[\]^\-]" | regex_class_escape
+
+  regex_class_escape -> \ "[/\\\[\]^\-bfnrtDSWdsw]|u[0-9a-fA-F]{4}"
+
+  regex_escape -> regex_class_escape | \ "[Bb]" | \ integer
+
+  regex_factor -> "[^/\\\[\]\(\){}?+*\|]" | regex_escape | regex_class | regex_group
+
+  regex_group -> ( (( ? "[:=!]" ))? regex_choice )
+
+  regex_lit -> / regex_choice / g? i? m?
+
+  regex_quantifier -> (( "[?*+]" | { integer (( , integer? ))? } )) '?'?
+
+  regex_seq -> regex_factor regex_quantifier? regex_seq?
+
+  return_stmnt -> 'return' expr? ;
+
+  stmnts -> (( expr_stmnt ; | disruptive_stmnt | try_stmnt | if_stmnt | (( name[label] : ))? (( switch_stmnt | while_stmnt | for_stmnt | do_stmnt )) )) stmnts?
+
+
+
+  
+
+
+
+
+>
+  statement ->
+    stmnt "\\n?"
+  stmnt -> expr_stmnt_w_semicolon | for_stmnt | if_stmnt
+  expr_stmnt_w_semicolon ->
+    expr_stmnt ';'
+  expr_stmnt -> delete_stmnt | nondelete_expr_stmnt
+  delete_stmnt -> False
+  nondelete_expr_stmnt -> fn_call | assignment
+  fn_call ->
+    lvalue invocations
+  invocations -> multi_invo | invocation
+  multi_invo ->
+    invocation invocations
+  invocation -> empty_invocation | nonempty_invocation
+  empty_invocation ->
+    '(' ')'
+  nonempty_invocation ->
+    '(' expr_list ')'
+  expr_list -> multi_expr_list | expr
+  multi_expr_list ->
+    expr ',' expr_list
+  assignment -> direct_assign | inc_assign
+  direct_assign ->
+    lvalue '=' rvalue
+  rvalue -> nondelete_expr_stmnt | expr
+  inc_assign ->
+    lvalue inc_op expr
+  inc_op -> plus_eq | minus_eq
+  plus_eq ->
+    '+='
+  minus_eq ->
+    '-='
+  lvalue -> refined_name | name
+  refined_name ->
+    name refinements
+  refinements -> multi_refinements | refinement
+  multi_refinements ->
+    refinement refinements
+  literal -> num_lit | str_lit | obj_lit | arr_lit | fn | regex_lit
+  num_lit -> int_frac_exp | int_exp | int_frac | integer
+  int_frac_exp ->
+    integer fraction exponent
+  int_exp ->
+    integer exponent
+  int_frac ->
+    integer fraction
+  str_lit ->
+    "['\"]" .-str_lit
+    mode_params: return {'endchar': tokens[0][0]}
+    add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
+  obj_lit ->
+    '{' obj_lit_tail
+  obj_lit_tail -> multi_item_obj_tail | one_item_obj_tail | close_brace
+  multi_item_obj_tail ->
+    one_obj_item ', ' obj_lit_tail
+  one_item_obj_tail ->
+    one_obj_item '}'
+  one_obj_item ->
+    obj_lit_key ':' expr
+  obj_lit_key -> name | str_lit
+  close_brace ->
+    '}'
+  arr_lit -> False
+  fn ->
+    fn_decl_start parameters '{' fn_body
+  fn_decl_start -> fn_named_start | fn_anon_start
+  fn_anon_start ->
+    'function'
+  fn_named_start ->
+    'function' name
+  fn_body ->
+    var_stmnts -block
+  var_stmnts ->
+    -var_block
+  parameters ->
+    '(' params ')'
+  params -> multi_params | one_param
+  multi_params ->
+    one_param ',' params
+  one_param ->
+    name
+  name ->
+    "(?!function)(?!typeof)[a-zA-Z][a-zA-Z0-9_]*"
+  regex_lit -> False
+  if_stmnt ->
+    'if' '(' expr ')' '{' if_tail
+  if_tail -> elseif_tail | else_tail | noelse_tail
+  elseif_tail ->
+    block_tail 'else' if_stmnt
+  else_tail ->
+    block_tail 'else' '{' -block
+  noelse_tail ->
+    -block
+  block_tail ->
+    -block
+  for_stmnt ->
+    'for' '(' for_loop_setup ')' '{' -block
+  for_loop_setup -> for_x_in_y_setup | for_init_cond_inc_setup
+  for_x_in_y_setup -> False
+  for_init_cond_inc_setup ->
+    expr_stmnt ';' expr ';' expr_stmnt
+  expr -> expr_with_suffices | expr_no_suffix
+  expr_with_suffices ->
+    expr_no_suffix suffices
+  suffices -> multi_suffices | one_suffix
+  multi_suffices ->
+    one_suffix multi_suffices
+  one_suffix -> op_right_side | ternary_tail | invocation | refinement
+  expr_no_suffix -> literal | name | paren_expr | prefix_expr | new_expr | delete_expr
+  op_right_side -> False
+  ternary_tail -> False
+  refinement -> dot_name | bracket_index
+  dot_name ->
+    '.' name
+  bracket_index ->
+    '[' expr ']'
+  paren_expr ->
+    '(' expr ')'
+  prefix_expr ->
+    prefix_op expr
+  new_expr -> False
+  delete_expr -> False
+  prefix_op -> typeof_op | plus | minus | not
+  typeof_op ->
+    "typeof"
+  plus ->
+    '+'
+  minus ->
+    '-'
+  not ->
+    '!'
+  integer ->
+    "0|[1-9]\d*"
+  fraction ->
+    "\\.\d*"
+  exponent ->
+    "[eE][+-]?\d+"
+
+> var_block
+  statement -> var_stmnt |: parse.pop_mode();
+  var_stmnt ->
+    'var' var_stmnt_tail ';'
+  var_stmnt_tail -> multi_var_assign | one_var_assign
+  multi_var_assign ->
+    one_var_assign ',' var_stmnt_tail
+  one_var_assign ->
+    name '=' expr
+
+> block
+  statement -> close_brace | stmnt
+  close_brace ->
+    '}'
+    : parse.pop_mode()
+    add_code: pass
+
+> str_lit
+  phrase -> unicode_esc | escape_seq | char
+  unicode_esc ->
+    "\\\\u[0-9A-Fa-f]{4,4}"
+  escape_seq ->
+    "\\\\([\"'\\\\/bfnrt])"
+  char ->
+    "[^\\\\]"
+    :
+      if tokens[0][0] == mode.endchar: parse.pop_mode()
+    
+>: set_prefix(r'\s*') 
+
+
+print2nd = function (x, y) {
+  console.log(y);
+};
+
+print2nd(123, 456);
+
+print_twice = function (a) { print2nd(a, a); print2nd(a, a); };
+
+print_twice('line 1\nline 2');
+
+intA = 2384;
+intB = +24;
+intC = -1923;
+boolA = !0;
+strA = typeof print2nd;
+strB = typeof {};
+
+objA = {ilike: "pizza", butnot: 'eggs', '1729': true};
+
+yes_or_no = function (x) {
+  if (x) {
+    console.log('yes');
+  } else {
+    console.log('no');
+  }
+};
+
+yes_or_no(objA['1729']);
+yes_or_no(objA.ilike);
+
+floatA = 3.141;
+floatB = 6.022e23;
+
+console.log(floatA);
+console.log(floatB);
