@@ -35,8 +35,6 @@
 
   expr -> literal | name | ( expr ) | prefix_op expr | expr (( infix_op expr | ? expr : expr | invocation | refinement )) | 'new' expr invocation | 'delete' expr refinement
 
-  expr_stmnt -> 'delete' expr refinement | name (( refinement | = | += | -= | invocation ))
-
   expr_stmnt -> 'delete' expr refinement | nondelete_expr_stmnt
 
   nondelete_expr_stmnt -> name post_name

@@ -8,8 +8,8 @@ A general statement is of the form
 
     rule_name -> seq1 | seq2 | seq3
 
-To build up each `seq` part, I'll do a bottom-up
-explanation.
+I'll give a bottom-up
+explanation for the `seq` parts.
 
 A primitive is either a rule_name, a single-quoted string,
 a double-quoted string, or non-special punctuation.
@@ -18,8 +18,9 @@ The following are special punctuation:
 
     | (( ))
 
-which are recognized only as space-surrounded pieces of
-a seq. These are also special punctuation:
+but are only recognized as special when they're surrounded
+by spaces.
+These are also special punctuation:
 
     . ! + * ?
 
@@ -35,6 +36,22 @@ items; in other words, it is a last-evaluated operator.
 Anything inside a `(( ))` pair is a subrule, allowing nested
 or-items, and more interesting constructions with the suffixes
 described below.
+
+### Example
+
+This syntax is further explained below, but a few quick JavaScript
+examples might help to show what's going on:
+
+    if_stmnt -> 'if' ( expr ) block:then (( 'else' if_stmnt? block ))?
+    obj_lit -> { (( (( name  |  str_lit )) : expr ))*, }
+
+Here's a group of rules that work together:
+
+    num_lit -> integer fraction? exponent?
+    integer -> '0' | "[1-9]" digit*
+    fraction -> . digit+
+    exponent -> "[eE]" "[+-]?" digit+
+    digit -> "[0-9]"
 
 ### Suffixes
 
@@ -100,7 +117,7 @@ makes everything parsed in mode `str` to have no prefix.
 A `!` means to give a parse failure if the rule afterwords
 succeeds, and give an empty success (like the `True` rule)
 if it fails. This is intended for use as part of a sequence where,
-for example, keywords must not be filtered out. For example,
+for example, keywords must be filtered out. For example,
 
     'var' !keyword name = expr ;
 
@@ -132,11 +149,11 @@ Variable assignment proceeds in two stages:
 Values inside `(( ))` pairs aren't named unless the pair is given a label,
 like this:
 
-   expr (( + | - )):op expr
+    expr (( + | - )):op expr
 
 in which case `op` gets the value of the anonymous rule inside the `(( ))` pair.
 
-Listed rules -- meaning rules followed by a `+` or `*` -- keep their same name.
+Listed rules — meaning rules followed by a `+` or `*` — keep their same name.
 For example, in the rule
 
     word ( arg*, )
@@ -151,4 +168,3 @@ Rules preceded by `!` will be left out of both `tokens` and the named parameters
 ## Implementation notes
 
 TODO
-
