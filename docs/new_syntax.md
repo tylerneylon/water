@@ -167,4 +167,249 @@ Rules preceded by `!` will be left out of both `tokens` and the named parameters
 
 ## Implementation notes
 
-TODO
+I'll write this section as a stream of thought, and maybe clean it up later.
+
+How little is needed in a core grammar?
+
+I hope the rules can remain simply `OrRule` and `SeqRule`, as well as
+the occasional `BoolRule` for the canonical `True` and `False` rules.
+
+I am probably overusing the word `rule`, and should distinguish between
+`items`, which are non-special strings in a grammar spec; vs `rule`s as
+in objects of type `Rule`. So an `item` could be `args*,` or `'function'`
+or `."[0-9]"?`, but not `((` or `))`, and considered as a string.
+
+### Or/Seq split
+
+How will we handle the fact that rules can combine or-parts and seq-parts?
+
+If a rule is just a seq, it becomes a `SeqRule`.
+Otherwise, it has or-parts, and those parts become internally-named
+`SeqRule`s, while the overall rule is an `OrRule`. Internal names
+start with an underscore.
+
+It seems cleaner to keep `OrRule` methods
+on the actual `OrRule` instead of duplicating them across the
+internal `SeqRule`s. The current setup assumes methods are run
+directly on the owning rule with the parsed pieces. A way to
+deal with this is to set up method calls on `OrRule`s to get
+their locals from their `self.result` value.
+
+#### `or_index`
+
+It may be useful for methods to know which of their or-list was
+successfully parsed. So I suggest that all `OrRule`s have an
+`or_index` property with the 0-based index of the successfully
+parsed piece.
+
+I also suggest that all unrecognized property lookups on an
+`OrRule` be delegated to their `result`. Are there any negative
+consequences of that approach? Since every `result` is a `SeqRule`,
+it seems that delegation will always be at most one level deep.
+At first glance, this approach seems good to me.
+
+### Grouping
+
+I feel like grouping can be left out of the core. How?
+
+For every group, replace it with an internally-named rule.
+This can even be done by substitution, I think.
+
+I think that actually covers everything for subgroups, because
+prefixes, labels, and suffixes will all continue to work fine
+with a rule name instead of a subgroup, and we do not need to
+provide explicit access to pieces of a subgroup by name.
+
+But then, how will people access the various pieces of a subgroup?
+No methods can be defined on it. It would be convenient if I could
+access variables by name like this:
+
+    a (( b | c )):grp        # Access grp.or_index
+    a (( b c )):grp          # Access grp.b
+    a (( b c | d e)):grp     # Access grp.d if grp.or_index == 1
+
+I think these will all work under the current design, with the
+caveat that I can't remember if per-name `SeqRule` pieces are
+actually properties of the object or just appear that way to
+methods. I'd like to make sure they're genuine object properties,
+with some sanity check that a name collision doesn't do anything
+too harmful (goal: prevent accidental mistakes ; not worrying
+about malicious users for now).
+
+### Prefixes
+
+I already handle `.` prefixes.
+
+The `!` prefix is straightforward to implement internally.
+Can I handle it with a substitution or non-core rule?
+I think no because it's hard to undo a successful parse
+non-internally.
+
+### Suffixes
+
+Suffixes also seem tricky to handle outside the core because of
+property naming. We could rename properties in a `parsed` method,
+but that feels a little invasive.
+
+Let's explore the option anyway.
+
+How would `x+` work? It could be
+
+    x x*
+
+with some follow-up work to make it a single list. Ok, let's explore
+`x*`. This could be
+
+    _x_star -> x _x_star | True
+
+but then how would the property lookups occur? For example, this rule:
+
+    a -> x x* x
+
+would expect to have ... what? I just realized this is an ambiguous
+case for value naming.
+
+Ok, let's try using `x_list` for all list versions of `x` and just `x` for
+non-list items. (By "list items" I mean anything using a `+` or `*` suffix.)
+
+I think we can implement `+` and `*` using non-core rules that set up
+methods on internally-made rules.
+For example, `_x_star` above could have a `_list` method which returns
+`[x] +  _x_star.list()`.
+
+A better implementation for `x+` might be as
+
+    _x_plus -> x _x_star | x
+
+and this can have a `_list` method that works similarly.
+
+One tricky part will be inserting the names as properties (eg having the value
+of `x_list` appear correctly to method calls on a rule using `x*`),
+but I think we can do that
+correctly in one of the non-core layers.
+
+#### The `?` suffix
+
+We might also be able to do this outside of the core, in a manner similar
+to the other suffixes. The only tricky part I anticipate is setting the
+value to `None` on a non-match.
+
+We can use an internal rule like this:
+
+    x_ques_ -> x | True
+
+and then replace the value of `x` with `None` if `True` is matched.
+
+### Left-recursion
+
+Some users might want to write a rule like this:
+
+    expr -> expr + expr | expr * expr | number
+
+which may be useful for operator precedence.
+
+The current implementation would loop on this, but Dan suggested
+short-circuiting such recursion, which seems like a good idea.
+Harder to use incorrectly.
+
+My suggested implementation for this is to augment the `parse_stack`
+with not only rule names, but also parse locations, which would be
+`(version, text_pos)` pairs.
+
+Since an `OrRule` may be hit multiple times in a meaningful way, but
+`SeqRule`s cannot, I think it makes sense to only notice recursion
+for `SeqRule`s.
+
+The above example would be broken down like this:
+
+    expr -> _sub_expr_1 | _sub_expr_2 | number
+    _sub_expr1 -> expr + expr
+    _sub_expr2 -> expr * expr
+
+Consider this on the input
+
+    1 * 2 + 3 * 4
+
+First we hit `_sub_expr_1` which recurses into `expr`. Then we hit
+`_sub_expr_1` again, but it notices the recursion and fails. So the
+second `expr` parse moves on to `_sub_expr_2`, which goes down into
+`expr` again, and this time (due to noticing recursion), only a
+number will be accepted.
+
+Ultimately, I believe this behavior is as desired, and the resulting
+parse tree will be:
+
+          +
+        /   \
+       /     \
+      *       *
+     / \     / \
+    1   2   3   4
+
+Hm, but what about the expression:
+
+    1 + 2 + 3
+
+? I think the above system might barf on this one. (More specifically:
+view `1 + 2` as a complete expression and not catch that `+ 3` is
+meant to be included.)
+
+Conceptually, the trouble is that we don't know how many times are
+ok for the same-seq recursion to occur.
+
+A more troubling case is:
+
+    1 + 2 * 3
+
+where we can't even conceptually "tack on" `3` to the end of the current tree.
+
+I'm going to think about this more and get back to it.
+
+### Summary
+
+Most of this work can be done outside the core grammar.
+
+The core in `parse.py` must be able to handle a `BoolRule`, and must
+be able to delegate more effectively from an `OrRule` to its `result`.
+I'd like to add an `or_index` to `OrRule`s. I'd like refactor
+the way `SeqRule` parses so that individual item parses happen in their
+own function (this is more of a refactor than a part of the new syntax).
+I think we will also need to build in support for the `!` prefix.
+
+TODO items:
+
+* Figure out details for labels
+* Figure out details for left-recursion handling
+
+## Naming convention
+
+A small set of common names can live in user space, and we expect all
+users to know about them. They are (so far):
+
+* `phrase`
+* `comment`
+* `statement`
+* `expr`
+* `parsed`
+* `mode_params`
+
+Other core names will be double-underscored (they aren't yet) like this:
+
+* `__word`
+* `__item`
+* `__str`
+
+They still live in the user namespace (everything does), but we want to
+make it harder to accidentally screw things up.
+
+There's an intermediate realm for rules created programmatically, and
+these can have single-underscore prefixes, like this:
+
+* `_subst_0`
+* `_subst_1`
+* `_x_star`
+
+
+
+
+
