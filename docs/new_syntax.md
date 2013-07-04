@@ -37,12 +37,12 @@ Anything inside a `(( ))` pair is a subrule, allowing nested
 or-items, and more interesting constructions with the suffixes
 described below.
 
-### Example
+### Examples
 
 This syntax is further explained below, but a few quick JavaScript
 examples might help to show what's going on:
 
-    if_stmnt -> 'if' ( expr ) block:then (( 'else' if_stmnt? block ))?
+    if_stmnt -> 'if' ( expr ) block:then (( 'else' (( if_stmnt | block )) ))?
     obj_lit -> { (( (( name  |  str_lit )) : expr ))*, }
 
 Here's a group of rules that work together:
