@@ -287,18 +287,40 @@ One tricky part will be inserting the names as properties (eg having the value
 of `x_list` appear correctly to method calls on a rule using `x*`),
 but I think we can do that
 correctly in one of the non-core layers.
+I think we can accomplish this with labels; for example the line
+
+    fn_decl -> name ( arg*, )
+
+could be replaced with
+
+    fn_decl -> name ( _arg_star__2c:arg_list )
+
+where I used `_2c` to represent a comma with the goal of avoiding
+internal name clashes (not guaranteed to be avoided but I think good enough).
 
 #### The `?` suffix
 
 We might also be able to do this outside of the core, in a manner similar
 to the other suffixes. The only tricky part I anticipate is setting the
-value to `None` on a non-match.
+value to `None` on a non-match. Actually, we can handle that by having
+a `True` rule always return a `None` value. But then how will we tell
+when a parse has been successful or not?
 
-We can use an internal rule like this:
+I propose we change `True` to `Empty` and see if we can get it to
+evaluate to `False` in Python. Thus the two canonical `BoolRule`
+values become `False` and `Empty`, and the no-match value of a
+`?` rule becomes `Empty` (as a `result` value).
 
-    x_ques_ -> x | True
+We can use an internal rule like the following for `x?`.
 
-and then replace the value of `x` with `None` if `True` is matched.
+    x_ques_ -> x | Empty
+
+### Labels
+
+I think labels will be easiest to implement in the core parser.
+Basically, the properties known to a rule need to be established
+by the time the main `parsed` body is called, and I don't know of
+a way to hook that method before the main body is called.
 
 ### Left-recursion
 
@@ -346,40 +368,92 @@ parse tree will be:
      / \     / \
     1   2   3   4
 
-Hm, but what about the expression:
+Hm, but what about this next expression?
 
     1 + 2 + 3
 
-? I think the above system might barf on this one. (More specifically:
-view `1 + 2` as a complete expression and not catch that `+ 3` is
-meant to be included.)
+This is interesting. If the short-circuit system ignored `text_pos`,
+then we'd get `1 + 2` as an `expr` but that would be seen as the entire
+`expr`, and we'd probably get a parse error at the next `+`.
 
-Conceptually, the trouble is that we don't know how many times are
-ok for the same-seq recursion to occur.
+Since we're taking `text_pos` into account, I think it ends up looking
+for `expr` at the location of `2`, so it gets `2 + 3` as a subexpression.
+This is *almost* right, except that for actual numerical expressions, we
+usually want the operations to be evaluated left-to-right.
 
-A more troubling case is:
+In other words, with the above setup, we'll get this parse tree for `1 - 2 - 3`:
 
-    1 + 2 * 3
+        -
+       / \
+      /   -
+     /   / \
+    1   2   3
 
-where we can't even conceptually "tack on" `3` to the end of the current tree.
+which (incorrectly) evaluates to 2. The tree we want (mathematically) is:
 
-I'm going to think about this more and get back to it.
+        -
+       / \
+      -   \
+     / \   \
+    1   2   3
+
+which correctly evaluates to -4.
+
+I have a vague idea for parsing infix operators in the correct order,
+which is a more complex parsing system. I'm not ready to formalize this yet,
+but I can hand-wavily describe the algorithm with an example.
+
+I'll consider an example for the rule:
+
+    expr -> expr - expr | number
+
+For the expression `1 - 2 - 3`, it would work like this:
+
+     1. expr on 1 - 2 - 3
+     2. expr -> "expr - expr" on 1 - 2 - 3
+     3. expr -> "expr - expr" -> expr on 1 - 2 - 3
+     4. expr -> "expr - expr" -> expr -> "expr - expr" on 1 - 2 - 3
+     5. *loop noticed, autofail and flag "expr - expr" as SC'd*
+     6. expr -> "expr - expr" -> expr -> number on 1 - 2 - 3; SUCCESS
+     7. expr -> .."- expr" on - 2 - 3; SUCCESS
+     8. expr -> .."expr" on 2 - 3
+     9. expr -> .."expr" -> "expr - expr" on 2 - 3
+    10. *loop noticed*
+    11. expr -> .."expr" -> number on 2 - 3; SUCCESS
+    12. expr almost done as 1 - 2, but we had looping under expr -> "expr - expr",
+        so try to consider the current expr as the left part of "expr - expr", continue as:
+    13. expr -> .."- expr" on - 3 (with .. set to 1 - 2)
+
+I need to think more about the general behavior of this system.
+It may be better in the end to simply consider left-recursion as an error,
+or to stick with the simpler fail-on-second-parse idea.
+
+For now, I consider the new syntax to be complete without the need to
+completely resolve how we handle infix operators and left recursion.
+I'll leave those to a future work iteration, and probably another
+design doc.
 
 ### Summary
 
-Most of this work can be done outside the core grammar.
+Much of this work can be done outside the core grammar.
+
+#### Core work
 
 The core in `parse.py` must be able to handle a `BoolRule`, and must
 be able to delegate more effectively from an `OrRule` to its `result`.
 I'd like to add an `or_index` to `OrRule`s. I'd like refactor
 the way `SeqRule` parses so that individual item parses happen in their
 own function (this is more of a refactor than a part of the new syntax).
-I think we will also need to build in support for the `!` prefix.
+We will also need to build in support for the `!` prefix, as well
+as labels.
 
-TODO items:
+#### Non-core work
 
-* Figure out details for labels
-* Figure out details for left-recursion handling
+The suffixes `+`, `*`, and `?` can be handled with a combination of special
+parsing rules and labels.
+
+Groups can be handled by special parsing rules, as can rules that combine
+or-lists and seq-lists on a single line.
 
 ## Naming convention
 
