@@ -80,6 +80,10 @@ class Object(object):
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
     self.__dict__[name] = value
+  def __getattr__(self, name):
+    if '_property_delegate' in self:
+      return self._property_delegate.__getattribute__(name)
+    raise AttributeError
   def __contains__(self, name):
     try: self.__getitem__(name)
     except AttributeError: return False
