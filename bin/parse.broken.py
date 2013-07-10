@@ -77,19 +77,35 @@ parse_info = None
 
 count = 0
 
+def dbgout(s):
+  global count
+  print("%d: %s" % (count, s))
+  # Put a breakpoint here if desired.
+  count += 1
+
 class Object(object):
   def __getitem__(self, name):
     return self.__getattribute__(name)
   def __setitem__(self, name, value):
     self.__dict__[name] = value
+  def __getattribute__(self, name):
+    dbgout("start: Object.__getattribute__(_, %s)" % name)
+    try:
+      return object.__getattribute__(self, name)
+    except AttributeError:
+      print("Object.__getattribute__ will raise an AttributeError")
+      raise
   def __getattr__(self, name):
+    dbgout("start: Object.__getattr__")
     if '_property_delegate' in self:
-      global count
-      print("%d: Object.__getattr__" % count)
-      #if count == 41:
-      #  import pdb; pdb.set_trace()
-      count += 1
-      return self._property_delegate.__getattribute__(name)
+      try:
+        val = Object.__getattribute__(self._property_delegate, name)
+      except AttributeError:
+        print("AttributeError noticed in Object.__getattr__(_, %s)" % name)
+        raise
+      #val = self._property_delegate.__getattribute__(name)
+      dbgout("end: Object.__getattr__")
+      return val
     print("About to raise AttributeError")
     raise AttributeError
   def __contains__(self, name):
@@ -101,13 +117,11 @@ class Object(object):
 class Rule(Object):
 
   #def __getattribute__(self, name):
-  #  global count
   #  selfname = object.__getattribute__(self, 'name')
-  #  print("%d: Rule.__getattribute__(<%s>, %s)" % (count, selfname, name))
-  #  if count == 9727:
-  #    import pdb; pdb.set_trace()
-  #  count += 1
-  #  return object.__getattribute__(self, name)
+  #  dbgout("start: Rule.__getattribute__(<%s>, %s)" % (selfname, name))
+  #  val = Object.__getattribute__(self, name)
+  #  dbgout("end: Rule.__getattribute__(<%s>, %s)" % (selfname, name))
+  #  return val
 
   def __init__(self):
     self._unbound_methods_ = {}
