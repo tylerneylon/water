@@ -76,12 +76,18 @@ parse_info = None
 #------------------------------------------------------------------------------
 
 count = 0
+get_stack = []
 
 def dbgout(s):
   global count
-  print("%d: %s" % (count, s))
+  global get_stack
+  print("%d: %s: %s" % (count, `get_stack`, s))
   # Put a breakpoint here if desired.
+  #if count == 2739:
+  #  import pdb; pdb.set_trace()
   count += 1
+
+dbgout('hello!')
 
 class Object(object):
   def __getitem__(self, name):
@@ -89,24 +95,36 @@ class Object(object):
   def __setitem__(self, name, value):
     self.__dict__[name] = value
   def __getattribute__(self, name):
-    dbgout("start: Object.__getattribute__(_, %s)" % name)
+    global get_stack
+    dbgout("start: Object.__getattribute__(%d, %s)" % (id(self), name))
+    get_stack.append("l(%s)" % name)
     try:
-      return object.__getattribute__(self, name)
+      val = object.__getattribute__(self, name)
+      get_stack.pop()
+      return val
     except AttributeError:
-      print("Object.__getattribute__ will raise an AttributeError")
+      dbgout("Object.__getattribute__ will raise an AttributeError")
+      get_stack.pop()
       raise
+    dbgout("ERROR 1")
+    exit()
   def __getattr__(self, name):
-    dbgout("start: Object.__getattr__")
+    global get_stack
+    dbgout("start: Object.__getattr__(%d, %s)" % (id(self), name))
+    get_stack.append("s(%s)" % name)
     if '_property_delegate' in self:
       try:
         val = Object.__getattribute__(self._property_delegate, name)
       except AttributeError:
+        get_stack.pop()
         print("AttributeError noticed in Object.__getattr__(_, %s)" % name)
         raise
       #val = self._property_delegate.__getattribute__(name)
-      dbgout("end: Object.__getattr__")
+      dbgout("end: Object.__getattr__(_, %s)" % name)
+      get_stack.pop()
       return val
-    print("About to raise AttributeError")
+    dbgout("Object.__getattr__ is about to raise AttributeError")
+    get_stack.pop()
     raise AttributeError
   def __contains__(self, name):
     try: self.__getitem__(name)
