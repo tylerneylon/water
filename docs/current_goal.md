@@ -3,7 +3,7 @@
 These are the steps I plan to take
 to implement the new grammar-specification syntax:
 
-1. Support property delegation in `Object`
+1. Support property delegation in `Object` *DONE*
 
 2. Add property delegation to `OrRule`
 
