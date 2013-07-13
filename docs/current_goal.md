@@ -5,7 +5,7 @@ to implement the new grammar-specification syntax:
 
 1. Support property delegation in `Object` *DONE*
 
-2. Add property delegation to `OrRule`
+2. Add property delegation to `OrRule` *STUCK*, working on it; debugging within CPython
 
 3. Add `or_index` to `OrRule`
 
