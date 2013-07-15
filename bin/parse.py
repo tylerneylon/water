@@ -282,7 +282,7 @@ class OrRule(Rule):
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
-    for r in self.or_list:
+    for i, r in enumerate(self.or_list):
       if r[0] == ':':
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         self.run_code(r[1:])
@@ -291,6 +291,7 @@ class OrRule(Rule):
       val = rules[r].parse(it)
       if val:
         self.result = val
+        self.or_index = i
         self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
         return self
