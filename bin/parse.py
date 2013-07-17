@@ -184,6 +184,16 @@ class SeqRule(Rule):
     self.pieces['mode_result'] = mode_result
     return self
 
+  # TODO Move this method to a better place.
+  # Returns label_free_part, label; label may be None if it's not there.
+  def find_label(self, item):
+    must_be_after = 0
+    # Don't count a : found within a string.
+    if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
+    label_start = item.rfind(':') + 1
+    if label_start <= must_be_after: return item, None
+    return item[:label_start - 1], item[label_start:]
+
   def inst_parse(self, it):
     global prefix
     _dbg_parse_start(self.name, it)
@@ -204,7 +214,9 @@ class SeqRule(Rule):
         self.mode_id = rule_name[1:]
         tree = self.parse_mode(it)
         return self._end_parse(tree, it)
-      elif c == "'":
+      rule_name, label = self.find_label(rule_name)
+      # TODO HERE Actually use the label.
+      if c == "'":
         val = _parse_exact_str(rule_name[1:-1], it)
       elif c == '"':
         re = rule_name[1:-1] % mode

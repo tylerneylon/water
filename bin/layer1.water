@@ -131,7 +131,10 @@
   item ->
     "(\.)?" item_no_dot
     list: return [self.src()]
-  item_no_dot -> str | rule_name
+  item_no_dot -> item_with_label | item_plain
+  item_with_label ->
+    item_plain ':' word
+  item_plain -> str | rule_name
   str ->
     "['\"]" -str
     mode_params:
