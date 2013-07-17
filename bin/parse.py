@@ -185,6 +185,7 @@ class SeqRule(Rule):
     return self
 
   # TODO Move this method to a better place.
+  #      (Do this when I pull parsing of items out of Rule methods.)
   # Returns label_free_part, label; label may be None if it's not there.
   def find_label(self, item):
     must_be_after = 0
@@ -234,6 +235,7 @@ class SeqRule(Rule):
         it.text_pos = self.start_text_pos
         return self._end_parse(None, it)
       self.tokens.append(val)
+      if label: self.pieces.setdefault(label, []).append(val)
       prefix = self.saved_prefix
     #for key in self.pieces:
     #  if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]

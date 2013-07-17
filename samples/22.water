@@ -28,11 +28,11 @@
       run.add("%s += %s\n" % (identifier.existing_name(), expression))
   expression -> identifier | number
   for_loop ->
-    'for (' no_nl_statement:init '; ' conditional '; ' no_nl_statement ') ' no_nl_statement
+    'for (' no_nl_statement:init '; ' conditional '; ' no_nl_statement:inc ') ' no_nl_statement:body
     add_code:
-      run.add(no_nl_statement[0], "while ", conditional, ":\n")
+      run.add(init, "while ", conditional, ":\n")
       run.push_indent("  ")
-      run.add(no_nl_statement[2], no_nl_statement[1])
+      run.add(body, inc)
       run.pop_indent()
   conditional ->
     expression ' < ' expression
