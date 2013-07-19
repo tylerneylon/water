@@ -99,7 +99,7 @@ def main(args, self_dir):
   in_filename = args[1]
   run.run_code = False
 
-  rule_fns = ['or_rule', 'seq_rule', 'false_rule']
+  rule_fns = ['or_rule', 'seq_rule', 'bool_rule']
   for fn_name in rule_fns:
     hook_parse_fn(fn_name)
   hook_command_fn()

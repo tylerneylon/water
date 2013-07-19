@@ -54,6 +54,8 @@
 #
 
 >: mode.indent = ''
+>: parse.bool_rule('False', False)
+>: parse.bool_rule('Empty', True)
 
 >
   phrase -> statement | comment | blank | grammar
@@ -88,13 +90,10 @@
   phrase -> indented_rule |: parse.pop_mode()
   indented_rule ->
     "%(indent)s" rule
-  rule -> prepend_to_or | false_rule | or_rule | seq_rule
+  rule -> prepend_to_or | or_rule | seq_rule
   prepend_to_or ->
     word ' =| ' word "[ \t]*\n"
     : parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)
-  false_rule ->
-    word " ->\s+False[ \t]*\n"
-    : parse.false_rule(word.src(), mode=mode.name)
   or_rule ->
     word ' -> ' or_list
     : parse.or_rule(word.src(), or_list.list(), mode=mode.name)

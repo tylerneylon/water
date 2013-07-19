@@ -5,13 +5,13 @@ to implement the new grammar-specification syntax:
 
 1. Support property delegation in `Object` *DONE*
 
-2. Add property delegation to `OrRule` *STUCK*, working on it; debugging within CPython
+2. Add property delegation to `OrRule` *DONE*
 
-3. Add `or_index` to `OrRule`
+3. Add `or_index` to `OrRule` *DONE*
 
-4. Add label support
+4. Add label support *DONE*
 
-5. Switch `FalseRule` to `BoolRule` with instances `False` and `Empty`
+5. Switch `FalseRule` to `BoolRule` with instances `False` and `Empty` *DONE*
 
 6. Factor out item parsing
 

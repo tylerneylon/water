@@ -14,7 +14,7 @@
 #    The next three methods add new rules to the grammar:
 #  * or_rule(name, or_list, mode='')
 #  * seq_rule(name, seq, mode='')
-#  * false_rule(name, mode='')
+#  * bool_rule(name, bool_val, mode='')
 #
 #    Any rule also accepts the useful method:
 #  * rule.add_fn(fn_name, fn_code)
@@ -319,13 +319,14 @@ class OrRule(Rule):
     c._bind_all_methods()
     return c
 
-class FalseRule(Rule):
+class BoolRule(Rule):
 
-  def __init__(self, name):
+  def __init__(self, name, bool_val):
     self.name = name
+    self.bool_val = bool_val
 
   def parse(self, it):
-    return None
+    return self if self.bool_val else None
 
 class ParseError(Exception):
   pass
@@ -361,9 +362,9 @@ def seq_rule(name, seq, mode=''):
   dbg.dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
   return _add_rule(SeqRule(name, seq), mode)
 
-def false_rule(name, mode=''):
-  dbg.dprint('public', 'false_rule(%s, %s)' % (name, `mode`))
-  return _add_rule(FalseRule(name), mode)
+def bool_rule(name, bool_val, mode=''):
+  dbg.dprint('public', 'bool_rule(%s, %s, %s)' % (name, `bool_val`, `mode`))
+  return _add_rule(BoolRule(name, bool_val), mode)
 
 def prepend_to_or(name, or_name, mode=''):
   dbg.dprint('public', 'prepend_to_or(%s, %s, %s)' % (name, or_name, `mode`))
