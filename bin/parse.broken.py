@@ -86,11 +86,13 @@ def find_label(item):
 
 # TODO Avoid dependency on rule here.
 def parse_item(rule, item, it):
+  print('parse_item(_, %s, _)' % item)
   global prefix
   #dbg.dprint('temp', 'item=%s' % item)
   saved_prefix = prefix
   c = item[0]
   def _return(tree):
+    print('parse_item will return obj of type %s' % type(tree))
     set_prefix(saved_prefix)
     return tree
   if c == '.':
@@ -100,11 +102,15 @@ def parse_item(rule, item, it):
   if c == '-':
     #dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
     rule.mode_id = item[1:]
-    _return(rule.parse_mode(it))
+    val = rule.parse_mode(it)
+    print('about to return val of type %s' % type(val))
+    _return(val)
   item, label = find_label(item)
   # TODO HERE Actually use the label.
   if c == "'":
+    print('literal item recognized')
     val = _parse_exact_str(item[1:-1], it)
+    print('val = %s' % `val`)
   elif c == '"':
     re = item[1:-1] % mode
     #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
@@ -114,7 +120,9 @@ def parse_item(rule, item, it):
     val = rules[item].parse(it)
     if val and isinstance(rule, SeqRule):
       rule.pieces.setdefault(item, []).append(val)
-  if val: _return(val)
+  if val:
+    print('about to return item of type %s' % type(val))
+    _return(val)
   dbg_fmt = '%s parse failed at token %s ~= code %s'
   dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
   dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
@@ -390,7 +398,9 @@ def iterate(filename):
   line_nums = dbg.LineNums(code)
   parse_info.code = code
   it = iterator.Iterator(code)
+  #import pdb; pdb.set_trace()  # TODO TEMP DEBUG
   tree = parse_phrase(it)
+  print('tree = %s' % `tree`)  # TODO TEMP DEBUG
   while tree:
     yield tree
     tree = parse_phrase(it)
@@ -520,6 +530,8 @@ def _store_parse_attempt(it):
     parse_info.main_attempt = attempt
 
 def _print_parse_failure():
+  # TODO TEMP
+  #import pdb; pdb.set_trace()
   dbg.print_parse_failure(parse_info)
 
 def _setup_base_rules():
@@ -534,7 +546,7 @@ def _setup_base_rules():
 
 def _setup():
   global parse_info, env, parse
-  dbg.topics = []
+  #dbg.topics = []  # TODO TEMP DEBUG
   env = Object()
   parse = sys.modules[__name__]
   _setup_base_rules()

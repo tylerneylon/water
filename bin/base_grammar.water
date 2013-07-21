@@ -1,7 +1,5 @@
 >: mode.indent = ''
->: parse.bool_rule('False', False)
 >: bool_rule('False', False)
->: parse.bool_rule('Empty', True)
 >: bool_rule('Empty', True)
 >: or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'], mode='')
 >: seq_rule('blank', ['"[ \\t]*\\n"'], mode='')
