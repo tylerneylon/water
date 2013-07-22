@@ -78,6 +78,17 @@ parse_info = None
 dbg_rule = None
 dbg_val = None
 
+# TODO Move this method to a better place.
+#      (Do this when I pull parsing of items out of Rule methods.)
+# Returns label_free_part, label; label may be None if it's not there.
+def find_label(item):
+  must_be_after = 0
+  # Don't count a : found within a string.
+  if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
+  label_start = item.rfind(':') + 1
+  if label_start <= must_be_after: return item, None
+  return item[:label_start - 1], item[label_start:]
+
 def parse_item(rule, item, it):
   global prefix
   dbg.dprint('temp', 'item=%s' % item)
@@ -90,7 +101,7 @@ def parse_item(rule, item, it):
     dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
     rule.mode_id = item[1:]
     return rule.parse_mode(it), None
-  item, label = rule.find_label(item)
+  item, label = find_label(item)
   if c == "'":
     val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
@@ -243,17 +254,6 @@ class SeqRule(Rule):
     #self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
     return mode_result
-
-  # TODO Move this method to a better place.
-  #      (Do this when I pull parsing of items out of Rule methods.)
-  # Returns label_free_part, label; label may be None if it's not there.
-  def find_label(self, item):
-    must_be_after = 0
-    # Don't count a : found within a string.
-    if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
-    label_start = item.rfind(':') + 1
-    if label_start <= must_be_after: return item, None
-    return item[:label_start - 1], item[label_start:]
 
   def inst_parse(self, it):
     return parse_items(self, it)
