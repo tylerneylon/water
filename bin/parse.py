@@ -71,72 +71,6 @@ substs = []  # For use by add_subst.
 # TODO Pull this out into a modules & class that does not depend on parse.
 parse_info = None
 
-#------------------------------------------------------------------------------
-#  TODO Put these in a good place.
-#------------------------------------------------------------------------------
-
-# This is a way to pass around a string with a way to check that it's meant to
-# be used as a mode name. Built for use within parse_item.
-class ModeName(str): pass
-
-# TODO Move this method to a better place.
-#      (Do this when I pull parsing of items out of Rule methods.)
-# Returns label_free_part, label; label may be None if it's not there.
-def find_label(item):
-  must_be_after = 0
-  # Don't count a : found within a string.
-  if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
-  label_start = item.rfind(':') + 1
-  if label_start <= must_be_after: return item, None
-  return item[:label_start - 1], item[label_start:]
-
-def parse_item(item, it):
-  global prefix
-  saved_prefix = prefix
-  def _end(val, labels):
-    global prefix
-    prefix = saved_prefix
-    return val, labels
-  dbg.dprint('temp', 'item=%s' % item)
-  c = item[0]
-  if c == '.':
-    item = item[1:]
-    c = item[0]
-    prefix = None
-  item, label = find_label(item)
-  labels = [label] if label else []
-  if c == '-': return _end(ModeName(item[1:]), labels)
-  if c == "'": val = _parse_exact_str(item[1:-1], it)
-  elif c == '"':
-    re = item[1:-1] % mode
-    dbg.dprint('temp', 're=%s' % `re`)
-    val = _parse_exact_re(re, it)
-  else:
-    val = rules[item].parse(it)
-    if val: labels.append(item)
-  return _end(val, labels)
-
-def parse_items(rule, it):
-  _dbg_parse_start(rule.name, it)
-  rule.start_text_pos = it.text_pos
-  rule.start_pos = it.orig_pos()
-  rule.tokens = []
-  rule.pieces = {}
-  for item in rule.seq:
-    val, labels = parse_item(item, it)
-    if isinstance(val, ModeName):
-      dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
-      rule.mode_id = val
-      val = rule.parse_mode(it)
-    if val is None:
-      dbg_fmt = '%s parse failed at token %s ~= code %s'
-      dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
-      dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
-      it.text_pos = rule.start_text_pos
-      return rule._end_parse(None, it)
-    rule.tokens.append(val)
-    for label in labels: rule.pieces.setdefault(label, []).append(val)
-  return rule._end_parse(rule, it)
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -249,7 +183,26 @@ class SeqRule(Rule):
     return mode_result
 
   def inst_parse(self, it):
-    return parse_items(self, it)
+    _dbg_parse_start(self.name, it)
+    self.start_text_pos = it.text_pos
+    self.start_pos = it.orig_pos()
+    self.tokens = []
+    self.pieces = {}
+    for item in self.seq:
+      val, labels = _parse_item(item, it)
+      if isinstance(val, _ModeName):
+        dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
+        self.mode_id = val
+        val = self.parse_mode(it)
+      if val is None:
+        dbg_fmt = '%s parse failed at token %s ~= code %s'
+        dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
+        dbg.dprint('parse', dbg_fmt % (self.name, item, `dbg_snippet`))
+        it.text_pos = self.start_text_pos
+        return self._end_parse(None, it)
+      self.tokens.append(val)
+      for label in labels: self.pieces.setdefault(label, []).append(val)
+    return self._end_parse(self, it)
 
   def _end_parse(self, tree, it):
     global substs
@@ -302,6 +255,7 @@ class OrRule(Rule):
     exec code in context
     return context['or_else']()
 
+  # TODO Use _parse_item here.
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
@@ -482,6 +436,48 @@ def _add_rule(rule, mode):
   if mode not in all_rules: all_rules[mode] = {}
   all_rules[mode][rule.name] = rule
   return rule
+
+# This is a way to pass around a string with a way to check that it's meant to
+# be used as a mode name. Built for use within _parse_item.
+class _ModeName(str): pass
+
+# Returns label_free_part, label; label may be None if it's not there.
+def _find_label(item):
+  must_be_after = 0
+  # Don't count a : found within a string.
+  if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
+  label_start = item.rfind(':') + 1
+  if label_start <= must_be_after: return item, None
+  return item[:label_start - 1], item[label_start:]
+
+# Returns val, labels; val is the parsed value, labels are the labels to be used
+# in the calling rule's pieces list. val is None on parse failure, and is a
+# _ModeName string when a mode name is found -- in that case, the actual parsing
+# of the mode is not performed, and is up to the caller to complete.
+def _parse_item(item, it):
+  global prefix
+  saved_prefix = prefix
+  def _end(val, labels):
+    set_prefix(saved_prefix)
+    return val, labels
+  dbg.dprint('temp', 'item=%s' % item)
+  c = item[0]
+  if c == '.':
+    item = item[1:]
+    c = item[0]
+    prefix = None
+  item, label = _find_label(item)
+  labels = [label] if label else []
+  if c == '-': return _end(_ModeName(item[1:]), labels)
+  if c == "'": val = _parse_exact_str(item[1:-1], it)
+  elif c == '"':
+    re = item[1:-1] % mode
+    dbg.dprint('temp', 're=%s' % `re`)
+    val = _parse_exact_re(re, it)
+  else:
+    val = rules[item].parse(it)
+    if val: labels.append(item)
+  return _end(val, labels)
 
 def _parse_exact_str(s, it):
   to_escape = list("+()|*.[]")
