@@ -75,6 +75,9 @@ parse_info = None
 #  TODO Put these in a good place.
 #------------------------------------------------------------------------------
 
+dbg_rule = None
+dbg_val = None
+
 def parse_item(rule, item, it):
   global prefix
   dbg.dprint('temp', 'item=%s' % item)
@@ -86,24 +89,22 @@ def parse_item(rule, item, it):
   if c == '-':
     dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
     rule.mode_id = item[1:]
-    return rule.parse_mode(it)
+    return rule.parse_mode(it), None
   item, label = rule.find_label(item)
-  # TODO HERE Actually use the label.
   if c == "'":
     val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
-    #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
     dbg.dprint('temp', 're=%s' % `re`)
     val = _parse_exact_re(re, it)
   else:
     val = rules[item].parse(it)
     if val: rule.pieces.setdefault(item, []).append(val)
-  if val is None: return None
-  rule.tokens.append(val)
-  if label: rule.pieces.setdefault(label, []).append(val)
-  prefix = rule.saved_prefix
-  return val
+  if val is None: return None, None
+  global dbg_rule, dbg_val
+  dbg_rule = rule
+  dbg_val = val
+  return val, label
 
 def parse_items(rule, it):
   global prefix
@@ -114,16 +115,20 @@ def parse_items(rule, it):
   rule.pieces = {}
   rule.saved_prefix = prefix
   for item in rule.seq:
-    val = parse_item(rule, item, it)
+    val, label = parse_item(rule, item, it)
     if val is None:
       dbg_fmt = '%s parse failed at token %s ~= code %s'
       dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
       dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
-      #cprint('%s parse failed at %s' % (rule.name, item), 'magenta')
       it.text_pos = rule.start_text_pos
-      return rule._end_parse(None, it)      
-  #for key in rule.pieces:
-  #  if len(rule.pieces[key]) == 1: rule.pieces[key] = rule.pieces[key][0]
+      return rule._end_parse(None, it)
+    global dbg_rule, dbg_val
+    #if dbg_rule != rule or dbg_val != val:
+    #  print('unexpected inequality!')
+    #  import pdb; pdb.set_trace()
+    rule.tokens.append(val)
+    if label: rule.pieces.setdefault(label, []).append(val)  
+    prefix = rule.saved_prefix
   return rule._end_parse(rule, it)
 
 #------------------------------------------------------------------------------
@@ -235,9 +240,9 @@ class SeqRule(Rule):
         return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
-    self.tokens.append(mode_result)
+    #self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
-    return self
+    return mode_result
 
   # TODO Move this method to a better place.
   #      (Do this when I pull parsing of items out of Rule methods.)
