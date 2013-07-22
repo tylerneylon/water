@@ -72,6 +72,61 @@ substs = []  # For use by add_subst.
 parse_info = None
 
 #------------------------------------------------------------------------------
+#  TODO Put these in a good place.
+#------------------------------------------------------------------------------
+
+def parse_item(rule, item, it):
+  global prefix
+  dbg.dprint('temp', 'item=%s' % item)
+  c = item[0]
+  if c == '.':
+    item = item[1:]
+    c = item[0]
+    prefix = None
+  if c == '-':
+    dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
+    rule.mode_id = item[1:]
+    return rule.parse_mode(it)
+  item, label = rule.find_label(item)
+  # TODO HERE Actually use the label.
+  if c == "'":
+    val = _parse_exact_str(item[1:-1], it)
+  elif c == '"':
+    re = item[1:-1] % mode
+    #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
+    dbg.dprint('temp', 're=%s' % `re`)
+    val = _parse_exact_re(re, it)
+  else:
+    val = rules[item].parse(it)
+    if val: rule.pieces.setdefault(item, []).append(val)
+  if val is None: return None
+  rule.tokens.append(val)
+  if label: rule.pieces.setdefault(label, []).append(val)
+  prefix = rule.saved_prefix
+  return val
+
+def parse_items(rule, it):
+  global prefix
+  _dbg_parse_start(rule.name, it)
+  rule.start_text_pos = it.text_pos
+  rule.start_pos = it.orig_pos()
+  rule.tokens = []
+  rule.pieces = {}
+  rule.saved_prefix = prefix
+  for item in rule.seq:
+    val = parse_item(rule, item, it)
+    if val is None:
+      dbg_fmt = '%s parse failed at token %s ~= code %s'
+      dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
+      dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
+      #cprint('%s parse failed at %s' % (rule.name, item), 'magenta')
+      it.text_pos = rule.start_text_pos
+      return rule._end_parse(None, it)      
+  #for key in rule.pieces:
+  #  if len(rule.pieces[key]) == 1: rule.pieces[key] = rule.pieces[key][0]
+  return rule._end_parse(rule, it)
+
+#------------------------------------------------------------------------------
 #  Define classes.
 #------------------------------------------------------------------------------
 
@@ -196,6 +251,9 @@ class SeqRule(Rule):
     return item[:label_start - 1], item[label_start:]
 
   def inst_parse(self, it):
+    return parse_items(self, it)
+
+  def old_inst_parse(self, it):
     global prefix
     _dbg_parse_start(self.name, it)
     self.start_text_pos = it.text_pos
