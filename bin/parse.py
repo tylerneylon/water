@@ -92,6 +92,11 @@ def find_label(item):
 
 def parse_item(item, it):
   global prefix
+  saved_prefix = prefix
+  def _end(val, labels):
+    global prefix
+    prefix = saved_prefix
+    return val, labels
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
   if c == '.':
@@ -100,7 +105,7 @@ def parse_item(item, it):
     prefix = None
   item, label = find_label(item)
   labels = [label] if label else []
-  if c == '-': return ModeName(item[1:]), labels
+  if c == '-': return _end(ModeName(item[1:]), labels)
   if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
@@ -109,21 +114,19 @@ def parse_item(item, it):
   else:
     val = rules[item].parse(it)
     if val: labels.append(item)
-  return val, labels
+  return _end(val, labels)
 
 def parse_items(rule, it):
-  global prefix
   _dbg_parse_start(rule.name, it)
   rule.start_text_pos = it.text_pos
   rule.start_pos = it.orig_pos()
   rule.tokens = []
   rule.pieces = {}
-  rule.saved_prefix = prefix
   for item in rule.seq:
     val, labels = parse_item(item, it)
     if isinstance(val, ModeName):
       dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
-      rule.mode_id = item[1:]
+      rule.mode_id = val
       val = rule.parse_mode(it)
     if val is None:
       dbg_fmt = '%s parse failed at token %s ~= code %s'
@@ -133,7 +136,6 @@ def parse_items(rule, it):
       return rule._end_parse(None, it)
     rule.tokens.append(val)
     for label in labels: rule.pieces.setdefault(label, []).append(val)
-    prefix = rule.saved_prefix
   return rule._end_parse(rule, it)
 
 #------------------------------------------------------------------------------
@@ -249,56 +251,9 @@ class SeqRule(Rule):
   def inst_parse(self, it):
     return parse_items(self, it)
 
-  def old_inst_parse(self, it):
-    global prefix
-    _dbg_parse_start(self.name, it)
-    self.start_text_pos = it.text_pos
-    self.start_pos = it.orig_pos()
-    self.tokens = []
-    self.pieces = {}
-    self.saved_prefix = prefix
-    for rule_name in self.seq:
-      dbg.dprint('temp', 'rule_name=%s' % rule_name)
-      c = rule_name[0]
-      if c == '.':
-        rule_name = rule_name[1:]
-        c = rule_name[0]
-        prefix = None
-      if c == '-':
-        dbg.dprint('parse', '%s parse reached %s' % (self.name, rule_name))
-        self.mode_id = rule_name[1:]
-        tree = self.parse_mode(it)
-        return self._end_parse(tree, it)
-      rule_name, label = self.find_label(rule_name)
-      # TODO HERE Actually use the label.
-      if c == "'":
-        val = _parse_exact_str(rule_name[1:-1], it)
-      elif c == '"':
-        re = rule_name[1:-1] % mode
-        #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
-        dbg.dprint('temp', 're=%s' % `re`)
-        val = _parse_exact_re(re, it)
-      else:
-        val = rules[rule_name].parse(it)
-        if val: self.pieces.setdefault(rule_name, []).append(val)
-      if val is None:
-        dbg_fmt = '%s parse failed at token %s ~= code %s'
-        dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
-        dbg.dprint('parse', dbg_fmt % (self.name, rule_name, `dbg_snippet`))
-        #cprint('%s parse failed at %s' % (self.name, rule_name), 'magenta')
-        it.text_pos = self.start_text_pos
-        return self._end_parse(None, it)
-      self.tokens.append(val)
-      if label: self.pieces.setdefault(label, []).append(val)
-      prefix = self.saved_prefix
-    #for key in self.pieces:
-    #  if len(self.pieces[key]) == 1: self.pieces[key] = self.pieces[key][0]
-    return self._end_parse(self, it)
-
   def _end_parse(self, tree, it):
     global substs
     self.end_pos = it.orig_pos()
-    set_prefix(self.saved_prefix)
     if tree is None: return tree
     # TODO Think of a way to do this more cleanly. Right now run._state is
     # awkwardly set from both parse and run.
