@@ -91,10 +91,12 @@ def parse_item(rule, item, it):
   #dbg.dprint('temp', 'item=%s' % item)
   saved_prefix = prefix
   c = item[0]
-  def _return(tree):
-    print('parse_item will return obj of type %s' % type(tree))
+  def _end(val, label=None):
+    #if val is None:
+    #  import pdb; pdb.set_trace()
+    print('parse_item will return obj of type %s' % type(val))
     set_prefix(saved_prefix)
-    return tree
+    return val, label
   if c == '.':
     item = item[1:]
     c = item[0]
@@ -104,7 +106,7 @@ def parse_item(rule, item, it):
     rule.mode_id = item[1:]
     val = rule.parse_mode(it)
     print('about to return val of type %s' % type(val))
-    _return(val)
+    return _end(val)
   item, label = find_label(item)
   # TODO HERE Actually use the label.
   if c == "'":
@@ -122,13 +124,13 @@ def parse_item(rule, item, it):
       rule.pieces.setdefault(item, []).append(val)
   if val:
     print('about to return item of type %s' % type(val))
-    _return(val)
+    return _end(val, label)
   dbg_fmt = '%s parse failed at token %s ~= code %s'
   dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
   dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
   #cprint('%s parse failed at %s' % (self.name, item), 'magenta')
   it.text_pos = rule.start_text_pos
-  _return(None)
+  return _end(None)
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -250,8 +252,8 @@ class SeqRule(Rule):
     self.tokens = []
     self.pieces = {}
     for item in self.seq:
-      tree = parse_item(self, item, it)
-      if tree is None: return self._end_parse(None, it)
+      val, label = parse_item(self, item, it)
+      if val is None: return self._end_parse(None, it)
       self.tokens.append(val)
       if label: self.pieces.setdefault(label, []).append(val)
     return self._end_parse(self, it)
@@ -475,7 +477,13 @@ def _set_mode_params(params):
   mode.__dict__.update(params)
 
 def _src(obj):
-  if type(obj) == str: return obj
+  _short_print(obj)
+  print('_src(%d type %s)' % (id(obj), type(obj)))
+  if isinstance(obj, Rule):
+    print('name=%s' % obj.name)
+  if type(obj) == str:
+    print('str is %s' % obj)
+    return obj
   elif type(obj) == tuple: return _src(obj[0])
   elif type(obj) == list: return ''.join([_src(elm) for elm in obj])
   elif isinstance(obj, Rule): return obj.src()
@@ -539,6 +547,38 @@ def _setup_base_rules():
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
   push_mode('')
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
+
+#------------------------------------------------------------------------------
+#  Temporary debug functions.
+#------------------------------------------------------------------------------
+
+def _short_type(obj):
+  return re.match(r"<\w+ '(\w+\.)?(\w+)'>", str(type(obj))).group(2)
+
+# For printing out rules succinctly.
+def _short_print(obj):
+  def _really_short_print(obj):
+    sys.stdout.write('%-19s %-10d ' % (_short_type(obj), id(obj)))
+  if not isinstance(obj, Rule): return
+  print('%s name=%s id=%d' % (_short_type(obj), obj.name, id(obj)))
+  if isinstance(obj, SeqRule):
+    sys.stdout.write('  seq: ')
+    for item in obj.seq: sys.stdout.write('%-30s ' % item)
+    sys.stdout.write('\n       ')
+    for token in obj.tokens: _really_short_print(token)
+    sys.stdout.write('\n')
+  elif isinstance(obj, OrRule):
+    sys.stdout.write('  or_list: ')
+    for item in obj.or_list: sys.stdout.write('%-30s ' % item)
+    sys.stdout.write('\n           ')
+    for i in range(len(obj.or_list)):
+      if i == obj.or_index:
+        _really_short_print(obj.result)
+      else:
+        sys.stdout.write(' ' * 31)
+    sys.stdout.write('\n')
+  else:
+    print('WARNING: Confused by object type %s' % type(obj))
 
 #------------------------------------------------------------------------------
 #  Set up initial state.
