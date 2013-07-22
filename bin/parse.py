@@ -75,8 +75,9 @@ parse_info = None
 #  TODO Put these in a good place.
 #------------------------------------------------------------------------------
 
-dbg_rule = None
-dbg_val = None
+# This is a way to pass around a string with a way to check that it's meant to
+# be used as a mode name. Built for use within parse_item.
+class ModeName(str): pass
 
 # TODO Move this method to a better place.
 #      (Do this when I pull parsing of items out of Rule methods.)
@@ -97,11 +98,8 @@ def parse_item(rule, item, it):
     item = item[1:]
     c = item[0]
     prefix = None
-  if c == '-':
-    dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
-    rule.mode_id = item[1:]
-    return rule.parse_mode(it), None
   item, label = find_label(item)
+  if c == '-': return ModeName(item[1:]), label
   if c == "'":
     val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
@@ -111,10 +109,6 @@ def parse_item(rule, item, it):
   else:
     val = rules[item].parse(it)
     if val: rule.pieces.setdefault(item, []).append(val)
-  if val is None: return None, None
-  global dbg_rule, dbg_val
-  dbg_rule = rule
-  dbg_val = val
   return val, label
 
 def parse_items(rule, it):
@@ -127,16 +121,16 @@ def parse_items(rule, it):
   rule.saved_prefix = prefix
   for item in rule.seq:
     val, label = parse_item(rule, item, it)
+    if isinstance(val, ModeName):
+      dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
+      rule.mode_id = item[1:]
+      val = rule.parse_mode(it)
     if val is None:
       dbg_fmt = '%s parse failed at token %s ~= code %s'
       dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
       dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
       it.text_pos = rule.start_text_pos
       return rule._end_parse(None, it)
-    global dbg_rule, dbg_val
-    #if dbg_rule != rule or dbg_val != val:
-    #  print('unexpected inequality!')
-    #  import pdb; pdb.set_trace()
     rule.tokens.append(val)
     if label: rule.pieces.setdefault(label, []).append(val)  
     prefix = rule.saved_prefix
@@ -246,12 +240,9 @@ class SeqRule(Rule):
     while True:
       tree = rules['phrase'].parse(it)
       if len(modes) == init_num_modes: break
-      if tree is None:
-        it.text_pos = self.start_text_pos
-        return None
+      if tree is None: return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
-    #self.tokens.append(mode_result)
     self.pieces['mode_result'] = mode_result
     return mode_result
 
