@@ -90,7 +90,7 @@ def find_label(item):
   if label_start <= must_be_after: return item, None
   return item[:label_start - 1], item[label_start:]
 
-def parse_item(rule, item, it):
+def parse_item(item, it):
   global prefix
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
@@ -99,17 +99,17 @@ def parse_item(rule, item, it):
     c = item[0]
     prefix = None
   item, label = find_label(item)
-  if c == '-': return ModeName(item[1:]), label
-  if c == "'":
-    val = _parse_exact_str(item[1:-1], it)
+  labels = [label] if label else []
+  if c == '-': return ModeName(item[1:]), labels
+  if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
     dbg.dprint('temp', 're=%s' % `re`)
     val = _parse_exact_re(re, it)
   else:
     val = rules[item].parse(it)
-    if val: rule.pieces.setdefault(item, []).append(val)
-  return val, label
+    if val: labels.append(item)
+  return val, labels
 
 def parse_items(rule, it):
   global prefix
@@ -120,7 +120,7 @@ def parse_items(rule, it):
   rule.pieces = {}
   rule.saved_prefix = prefix
   for item in rule.seq:
-    val, label = parse_item(rule, item, it)
+    val, labels = parse_item(item, it)
     if isinstance(val, ModeName):
       dbg.dprint('parse', '%s parse reached %s' % (rule.name, item))
       rule.mode_id = item[1:]
@@ -132,7 +132,7 @@ def parse_items(rule, it):
       it.text_pos = rule.start_text_pos
       return rule._end_parse(None, it)
     rule.tokens.append(val)
-    if label: rule.pieces.setdefault(label, []).append(val)  
+    for label in labels: rule.pieces.setdefault(label, []).append(val)
     prefix = rule.saved_prefix
   return rule._end_parse(rule, it)
 
