@@ -52,6 +52,7 @@ parse = None
 env = None
 
 prefix = None
+user_prefix = False
 parse_stack = []
 
 substs = []  # For use by add_subst.
@@ -255,25 +256,23 @@ class OrRule(Rule):
     exec code in context
     return context['or_else']()
 
-  # TODO Use _parse_item here.
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
-    for i, r in enumerate(self.or_list):
-      if r[0] == ':':
+    for index, item in enumerate(self.or_list):
+      val, labels = _parse_item(item, it)
+      if isinstance(val, _CommandStr):
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
-        self.run_code(r[1:])
+        self.run_code(val)
         self.end_pos = it.orig_pos()
         return None
-      val = rules[r].parse(it)
       if val:
         self.result = val
-        self.or_index = i
+        self.or_index = index
         self.end_pos = it.orig_pos()
-        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
+        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))
         return self
     dbg.dprint('parse', '%s parse failed' % self.name)
-    # TODO Factor out all these '  ' * len(parse_stack) instances.
     return None
 
   def child(self):
@@ -308,7 +307,8 @@ def command(cmd):
 #  * a parse tree   on success
 #  * None           if there was a parse error.
 def parse_phrase(it):
-  global parse_info
+  global parse_info, user_prefix
+  user_prefix = False
   parse_info.phrase_start_pos = it.orig_pos()
   tree = rules['phrase'].parse(it)
   if tree:
@@ -384,9 +384,11 @@ def pop_mode():
   rules = mode.rules
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
 
-def set_prefix(new_prefix):
-  global prefix
+def set_prefix(new_prefix, from_user=True):
+  global prefix, user_prefix
+  if user_prefix and not from_user: return
   prefix = new_prefix
+  if from_user: user_prefix = True
 
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
@@ -441,6 +443,9 @@ def _add_rule(rule, mode):
 # be used as a mode name. Built for use within _parse_item.
 class _ModeName(str): pass
 
+# This is a way to indicate a command found in an item.
+class _CommandStr(str): pass
+
 # Returns label_free_part, label; label may be None if it's not there.
 def _find_label(item):
   must_be_after = 0
@@ -458,10 +463,11 @@ def _parse_item(item, it):
   global prefix
   saved_prefix = prefix
   def _end(val, labels):
-    set_prefix(saved_prefix)
+    set_prefix(saved_prefix, from_user=False)
     return val, labels
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
+  if c == ':': return _end(_CommandStr(item[1:]), None)
   if c == '.':
     item = item[1:]
     c = item[0]
