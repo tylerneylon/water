@@ -1,0 +1,23 @@
+# 24.water
+#
+# From 23.water; adding use of ! for negation in items.
+#
+# TODO
+#  * Consider being able to optionally define methods
+#    on or rules. Not sure yet that it's the right thing to do.
+#
+
+>
+  statement -> random_identifier | keyword
+  random_identifier ->
+    !keyword "[A-Za-z_]+ "
+    : print("Found non-keyword %s" % tokens[1])
+  keyword -> def | for | function
+  def ->
+    "def "
+  for ->
+    "for "
+  function ->
+    "function "
+
+hello def for there 

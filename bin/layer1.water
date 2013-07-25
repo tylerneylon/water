@@ -128,7 +128,7 @@
     item ' ' seq
     list: return item.list() + seq.list()
   item ->
-    "(\.)?" item_no_dot
+    "!?(\.)?" item_no_dot
     list: return [self.src()]
   item_no_dot -> item_with_label | item_plain
   item_with_label ->

@@ -462,12 +462,18 @@ def _find_label(item):
 def _parse_item(item, it):
   global prefix
   saved_prefix = prefix
+  is_negated = False
   def _end(val, labels):
+    if is_negated: val = None if val else rules['Empty']
     set_prefix(saved_prefix, from_user=False)
     return val, labels
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
   if c == ':': return _end(_CommandStr(item[1:]), None)
+  if c == '!':
+    is_negated = True
+    item = item[1:]
+    c = item[0]
   if c == '.':
     item = item[1:]
     c = item[0]
