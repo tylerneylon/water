@@ -99,15 +99,15 @@
     : parse.or_rule(word.src(), or_list.list(), mode=mode.name)
   or_list -> multi_or_list | or_list_end
   or_list_end ->
-    rule_name "[ \t]*\n"
-    list: return rule_name.list()
+    item "[ \t]*\n"
+    list: return item.list()
   multi_or_list -> std_multi_or_list | else_multi_or_list
   std_multi_or_list ->
-    rule_name ' | ' or_list
-    list: return rule_name.list() + or_list.list()
+    item ' | ' or_list
+    list: return item.list() + or_list.list()
   else_multi_or_list ->
-    rule_name ' |: ' rest_of_line
-    list: return rule_name.list() + [':' + rest_of_line.src()]
+    item ' |: ' rest_of_line
+    list: return item.list() + [':' + rest_of_line.src()]
   rule_name ->
     word
     list: return [word.src()]

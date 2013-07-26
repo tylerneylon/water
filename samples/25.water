@@ -1,0 +1,9 @@
+# 25.water
+#
+# Test having string liteerals in or-rules.
+#
+
+>
+  statement -> "abc" | "def"
+
+abcdef
