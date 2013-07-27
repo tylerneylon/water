@@ -6,62 +6,62 @@
 #
 
 >
-  s ->
+  s -->
     "\s*"
-  statement ->
+  statement -->
     s stmnt
-  stmnt -> reg_stmnt
-  reg_stmnt ->
+  stmnt --> reg_stmnt
+  reg_stmnt -->
     stmnt_no_smcln s "(;)?"
-  stmnt_no_smcln -> func_def | assign | while | expr
-  func_def ->
+  stmnt_no_smcln --> func_def | assign | while | expr
+  func_def -->
     'function' s ident s '(' s params s ')' s '{' s -block
-  assign -> direct_assign | inc_assign
-  direct_assign ->
+  assign --> direct_assign | inc_assign
+  direct_assign -->
     "(var)?" s ident s '=' s expr
-  inc_assign ->
+  inc_assign -->
     ident s inc_op
-  while ->
+  while -->
     'while' s '(' s cond s ')' s '{' -block
-  call ->
+  call -->
     ident s '(' s args s ')'
-  ident ->
+  ident -->
     "[A-Za-z_]\w*"
-  params -> multi_params | ident
-  multi_params ->
+  params --> multi_params | ident
+  multi_params -->
     ident s ',' s params
-  expr -> obj_elem | call | var | js_str | num
-  inc_op ->
+  expr --> obj_elem | call | var | js_str | num
+  inc_op -->
     '--'
-  cond ->
+  cond -->
     expr s cond_op s expr
-  args -> multi_args | expr
-  multi_args ->
+  args --> multi_args | expr
+  multi_args -->
     expr s ',' s args
-  obj_elem ->
+  obj_elem -->
     var '.' ident
-  var ->
+  var -->
     ident
-  js_str ->
+  js_str -->
     "['\"]" -js_str
     mode_params: return {'endchar': tokens[0][0]}
-  num ->
+  num -->
     "[0-9]+"
-  cond_op ->
+  cond_op -->
     '>'
 
 # So far this is for the body of a func_def or while.
 > block
-  stmnt -> close_brace | reg_stmnt
-  close_brace ->
+  stmnt --> close_brace | reg_stmnt
+  close_brace -->
     '}'
     : parse.pop_mode()
 
 > js_str
-  phrase -> escape_seq | char
-  escape_seq ->
+  phrase --> escape_seq | char
+  escape_seq -->
     "\\\\(.)"
-  char ->
+  char -->
     "."
     :
       if tokens[0][0] == mode.endchar: parse.pop_mode()

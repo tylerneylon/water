@@ -5,7 +5,7 @@
 #
 
 >
-  statement ->
+  statement -->
     "hello" "\n\n" "there\n"
 hello
 

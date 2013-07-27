@@ -4,7 +4,7 @@
 # to help test out the new BoolRule.
 #
 # TODO
-#  * If I replace statement with statement -> Empty,
+#  * If I replace statement with statement --> Empty,
 #    we get stuck in a loop. Could we notice this and
 #    warn the user about it?
 #
@@ -18,38 +18,38 @@
   env.new_sym = new_sym
     
 >
-  statement ->
+  statement -->
     no_nl_statement "[ \t]*\n"
     : run.run(no_nl_statement)
-  no_nl_statement -> false | assignment | for_loop | print_statement
-  false -> False
-  assignment -> direct_assignment | incremental_assignment
-  direct_assignment ->
+  no_nl_statement --> false | assignment | for_loop | print_statement
+  false --> False
+  assignment --> direct_assignment | incremental_assignment
+  direct_assignment -->
     identifier ' = ' expression
     add_code:
       run.add("%s = %s\n" % (identifier.left_name(), expression))
-  incremental_assignment ->
+  incremental_assignment -->
     identifier ' += ' expression
     add_code:
       run.add("%s += %s\n" % (identifier.existing_name(), expression))
-  expression -> identifier | number
-  for_loop ->
+  expression --> identifier | number
+  for_loop -->
     'for (' empty no_nl_statement:init '; ' conditional '; ' no_nl_statement:inc ') ' no_nl_statement:body
     add_code:
       run.add(init, "while ", conditional, ":\n")
       run.push_indent("  ")
       run.add(body, inc)
       run.pop_indent()
-  empty -> Empty
-  conditional ->
+  empty --> Empty
+  conditional -->
     expression ' < ' expression
     add_code:
       run.add("%s < %s" % (expression[0], expression[1]))
-  print_statement ->
+  print_statement -->
     'print ' identifier
     add_code:
       run.add("print(%s)\n" % identifier.existing_name())
-  identifier ->
+  identifier -->
     "[A-Za-z_]\w*"
     = env.symbols.setdefault(self.src(), env.new_sym())
     left_name: return self.str()
@@ -57,7 +57,7 @@
       if self.src() not in env.symbols:
         return parse.error('Undefined identifier: ' + self.src())
       return env.symbols[self.src()]
-  number ->
+  number -->
     "[0-9]+"
 
 s = 0

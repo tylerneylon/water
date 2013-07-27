@@ -11,15 +11,15 @@
 # can set a prefix just while parsing a given rule.
 
 >
-  statement ->
+  statement -->
     stmnt
     : run.run(stmnt)
     add_code: run.add(stmnt)
-  stmnt ->
+  stmnt -->
     stmnt_no_smcln "(;)?([ \t]*\n)?"
     add_code: run.add(stmnt_no_smcln)
-  stmnt_no_smcln -> func_def | assign | while | expr
-  func_def ->
+  stmnt_no_smcln --> func_def | assign | while | expr
+  func_def -->
     'function' ident '(' params ')' '{' -block
     add_code:
       src_names, code_names = params.names()
@@ -31,84 +31,84 @@
       for r in mode_result: run.add(r)
       run.pop_indent()
       run.add("symbols['%s'] = {'type': 'fn', 'value': fn}\n" % ident.src())
-  assign -> direct_assign | inc_assign
-  direct_assign ->
+  assign --> direct_assign | inc_assign
+  direct_assign -->
     "(var)?" ident '=' expr
     add_code:
       run.add("symbols['%s'] = " % ident.src())
       run.add(expr, "\n")
-  inc_assign ->
+  inc_assign -->
     ident inc_op
     add_code:
       run.add(ident, "['value'] ", inc_op, "\n")
-  while ->
+  while -->
     'while' '(' cond ')' '{' -block
     add_code:
       run.add("while ", cond, ":\n")
       run.push_indent('  ')
       for r in mode_result: run.add(r)
       run.pop_indent()
-  call ->
+  call -->
     ident '(' args ')'
     add_code:
       run.add("symbols['%s']['value'](" % ident.src())
       run.add(args)
       run.add(")\n")
-  ident ->
+  ident -->
     "[A-Za-z_]\w*"
     names: return [self.src()], ['param0']
     add_code:
       run.add("symbols['%s']" % self.src())
-  params -> multi_params | ident
-  multi_params ->
+  params --> multi_params | ident
+  multi_params -->
     ident ',' params
     src_names: return [ident.src()] + params.src_names()
     names:
       src = self.src_names()
       return src, ['param%d' % i for i in range(len(src))]
-  expr -> obj_elem | call | var | js_str | num
-  inc_op ->
+  expr --> obj_elem | call | var | js_str | num
+  inc_op -->
     '--'
     add_code: run.add("-= 1")
-  cond ->
+  cond -->
     expr cond_op expr
     add_code:
       run.add(expr[0], "['value']")
       run.add(' %s ' % cond_op.src())
       run.add(expr[1], "['value']")
-  args -> multi_args | expr
-  multi_args ->
+  args --> multi_args | expr
+  multi_args -->
     expr ',' args
-  obj_elem ->
+  obj_elem -->
     var '.' ident
     add_code:
       run.add("symbols['%s']['value']['%s']" % (var, ident.src()))
-  var ->
+  var -->
     ident
     add_code: run.add("symbols['%s']" % ident.src())
-  js_str ->
+  js_str -->
     "['\"]" .-js_str
     mode_params: return {'endchar': tokens[0][0]}
     add_code: run.add("{'type': 'str', 'value': %s}" % self.src())
-  num ->
+  num -->
     "[0-9]+"
     add_code: run.add("{'type': 'num', 'value': %s}" % self.src())
-  cond_op ->
+  cond_op -->
     '>'
 
 # So far this is for the body fo a func_def or while.
 > block
-  statement -> close_brace | stmnt
-  close_brace ->
+  statement --> close_brace | stmnt
+  close_brace -->
     '}'
     : parse.pop_mode()
     add_code: pass
 
 > js_str
-  phrase -> escape_seq | char
-  escape_seq ->
+  phrase --> escape_seq | char
+  escape_seq -->
     "\\\\(.)"
-  char ->
+  char -->
     "."
     :
       if tokens[0][0] == mode.endchar: parse.pop_mode()

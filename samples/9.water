@@ -7,8 +7,8 @@
 #
 
 > dummy_mode
-  blank ->
+  blank -->
     "[ \t]*\n"
     blah
-  comment ->
+  comment -->
     "#[^\n]*\n"

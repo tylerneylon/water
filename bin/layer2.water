@@ -16,25 +16,25 @@
   env._new_subst_name = new_subst_name
 
 >
-  substitution ->
+  substitution -->
     '>! ' word "\n(?=(\s+))" -subst_block
     mode_params:
       return {'indent': tokens[2][1], 'rule_name': word}
     :
       subst_name = env._new_subst_name()
-      parse.add_subst('>\n  ', subst_name, ' ->\n')
+      parse.add_subst('>\n  ', subst_name, ' -->\n')
       parse.add_subst('    ', mode_result.tokens[0].tokens[1].src(), '\n')
       parse.add_subst('    : parse.add_subst(')
       parse.add_subst(mode_result.tokens[1].tokens[1].src(), ')\n\n')
       parse.prepend_to_or(word.src(), subst_name)
 
 > subst_block
-  phrase ->
+  phrase -->
     indent_line indent_line
     : parse.pop_mode()
-  indent_line ->
+  indent_line -->
     "%(indent)s" line_body "\n"
-  line_body ->
+  line_body -->
     "[^\n]*"
 
 >

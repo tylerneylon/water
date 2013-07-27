@@ -8,16 +8,16 @@
 #
 
 >
-  statement -> random_identifier | keyword
-  random_identifier ->
+  statement --> random_identifier | keyword
+  random_identifier -->
     !keyword "[A-Za-z_]+ "
     : print("Found non-keyword %s" % tokens[1])
-  keyword -> def | for | function
-  def ->
+  keyword --> def | for | function
+  def -->
     "def "
-  for ->
+  for -->
     "for "
-  function ->
+  function -->
     "function "
 
 hello def for there 

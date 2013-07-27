@@ -4,6 +4,6 @@
 #
 
 >
-  statement -> "abc" | "def"
+  statement --> "abc" | "def"
 
 abcdef

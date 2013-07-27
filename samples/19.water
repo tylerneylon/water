@@ -12,39 +12,39 @@
   env.new_sym = new_sym
     
 >
-  statement ->
+  statement -->
     no_nl_statement "[ \t]*\n"
     : run.run(no_nl_statement)
-  no_nl_statement -> assignment | ha_loop | for_loop | print_statement
-  assignment -> direct_assignment | incremental_assignment
-  direct_assignment ->
+  no_nl_statement --> assignment | ha_loop | for_loop | print_statement
+  assignment --> direct_assignment | incremental_assignment
+  direct_assignment -->
     identifier ' = ' expression
     add_code:
       run.add("%s = %s\n" % (identifier.left_name(), expression))
-  incremental_assignment ->
+  incremental_assignment -->
     identifier ' += ' expression
     add_code:
       run.add("%s += %s\n" % (identifier.existing_name(), expression))
-  expression -> identifier | number
-  ha_loop ->
+  expression --> identifier | number
+  ha_loop -->
     'ha (' "[^)]*" ')'
     : parse.add_subst('for (', tokens[1], ')')
-  for_loop ->
+  for_loop -->
     'for (' no_nl_statement '; ' conditional '; ' no_nl_statement ') ' no_nl_statement
     add_code:
       run.add(no_nl_statement[0], "while ", conditional, ":\n")
       run.push_indent("  ")
       run.add(no_nl_statement[2], no_nl_statement[1])
       run.pop_indent()
-  conditional ->
+  conditional -->
     expression ' < ' expression
     add_code:
       run.add("%s < %s" % (expression[0], expression[1]))
-  print_statement ->
+  print_statement -->
     'print ' identifier
     add_code:
       run.add("print(%s)\n" % identifier.existing_name())
-  identifier ->
+  identifier -->
     "[A-Za-z_]\w*"
     = env.symbols.setdefault(self.src(), env.new_sym())
     left_name: return self.str()
@@ -52,7 +52,7 @@
       if self.src() not in env.symbols:
         return parse.error('Undefined identifier: ' + self.src())
       return env.symbols[self.src()]
-  number ->
+  number -->
     "[0-9]+"
 
 s = 0

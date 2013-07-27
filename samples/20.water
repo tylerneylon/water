@@ -4,11 +4,11 @@
 #
 
 >
-  statement -> a | b
-  a ->
+  statement --> a | b
+  a -->
     'a'
     : print('a parsed')
-  b ->
+  b -->
     'b'
     : print('b parsed')
 
@@ -17,7 +17,7 @@ b
 
 >
   statement =| c
-  c ->
+  c -->
     'c'
     : print('c parsed')
 
@@ -25,7 +25,7 @@ c
 
 >
   statement =| d
-  d ->
+  d -->
     'd'
     :
       print('d parsed; substituting ab')

@@ -58,116 +58,116 @@
 >: parse.bool_rule('Empty', True)
 
 >
-  phrase -> statement | comment | blank | grammar
-  blank ->
+  phrase --> statement | comment | blank | grammar
+  blank -->
     "[ \t]*\n"
-  comment ->
+  comment -->
     "#[^\n]*\n"
-  statement -> False
-  grammar -> command | global_grammar | mode_grammar
-  command ->
+  statement --> False
+  grammar --> command | global_grammar | mode_grammar
+  command -->
     '>:' code_block
     : parse.command(code_block.src())
-  global_grammar ->
+  global_grammar -->
     ">\n(?=(\s+))" -lang_def
     mode_params:
       return {'indent': tokens[0][1], 'name': ''}
-  mode_grammar ->
+  mode_grammar -->
     '> ' word "\n(?=(\s+))" -lang_def
     mode_params:
       return {'name': word.src(), 'indent': tokens[2][1]}
-  word ->
+  word -->
     "[A-Za-z_]\w*"
-  code_block -> indented_code_block | rest_of_line 
-  rest_of_line ->
+  code_block --> indented_code_block | rest_of_line 
+  rest_of_line -->
     "[^\n]*\n"
-  indented_code_block ->
+  indented_code_block -->
     "\s*\n(?=(%(indent)s\s+))" -nested_code_block
     mode_params:
       return {'indent': tokens[0][1]}
 
 > lang_def
-  phrase -> indented_rule |: parse.pop_mode()
-  indented_rule ->
+  phrase --> indented_rule |: parse.pop_mode()
+  indented_rule -->
     "%(indent)s" rule
-  rule -> prepend_to_or | or_rule | seq_rule
-  prepend_to_or ->
+  rule --> prepend_to_or | or_rule | seq_rule
+  prepend_to_or -->
     word ' =| ' word "[ \t]*\n"
     : parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)
-  or_rule ->
-    word ' -> ' or_list
+  or_rule -->
+    word ' --> ' or_list
     : parse.or_rule(word.src(), or_list.list(), mode=mode.name)
-  or_list -> multi_or_list | or_list_end
-  or_list_end ->
+  or_list --> multi_or_list | or_list_end
+  or_list_end -->
     item "[ \t]*\n"
     list: return item.list()
-  multi_or_list -> std_multi_or_list | else_multi_or_list
-  std_multi_or_list ->
+  multi_or_list --> std_multi_or_list | else_multi_or_list
+  std_multi_or_list -->
     item ' | ' or_list
     list: return item.list() + or_list.list()
-  else_multi_or_list ->
+  else_multi_or_list -->
     item ' |: ' rest_of_line
     list: return item.list() + [':' + rest_of_line.src()]
-  rule_name ->
+  rule_name -->
     word
     list: return [word.src()]
-  seq_rule ->
-    word " ->\n%(indent)s(\s+)" seq -rule_block
+  seq_rule -->
+    word " -->\n%(indent)s(\s+)" seq -rule_block
     mode_params:
       params = {'indent': mode.indent + tokens[1][1]}
       params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
       return params
-  seq -> item_end | mode_result_end | item_list
-  item_end ->
+  seq --> item_end | mode_result_end | item_list
+  item_end -->
     item "[ \t]*\n"
     list: return item.list()
-  mode_result_end ->
+  mode_result_end -->
     "\.?-" word "[ \t]*\n"
     list: return [tokens[0] + word.src()]
-  item_list ->
+  item_list -->
     item ' ' seq
     list: return item.list() + seq.list()
-  item ->
+  item -->
     "!?(\.)?" item_no_dot
     list: return [self.src()]
-  item_no_dot -> item_with_label | item_plain
-  item_with_label ->
+  item_no_dot --> item_with_label | item_plain
+  item_with_label -->
     item_plain ':' word
-  item_plain -> str | rule_name
-  str ->
+  item_plain --> str | rule_name
+  str -->
     "['\"]" -str
     mode_params:
       return {'endchar': tokens[0][0]}
     list: return [self.src()]
 
 > rule_block
-  phrase -> indented_rule_item |: parse.pop_mode()
-  indented_rule_item ->
+  phrase --> indented_rule_item |: parse.pop_mode()
+  indented_rule_item -->
     "%(indent)s" rule_item
-  rule_item -> str_item | parsed_item | method_item
-  str_item ->
+  rule_item --> str_item | parsed_item | method_item
+  str_item -->
     '=' rest_of_line
     : mode.rule.add_fn('str', 'return ' + rest_of_line.src())
-  parsed_item ->
+  parsed_item -->
     ':' code_block
     : mode.rule.add_fn('parsed', code_block.src())
-  method_item ->
+  method_item -->
     word ':' code_block
     : mode.rule.add_fn(word.src(), code_block.src())
  
 > str
-  phrase -> escape_seq | char
-  escape_seq ->
+  phrase --> escape_seq | char
+  escape_seq -->
     "\\\\(.)"
-  char ->
+  char -->
     "."
     :
       if tokens[0][0] == mode.endchar: parse.pop_mode()
 
 > nested_code_block
-  phrase -> indented_code_line |: parse.pop_mode()
-  indented_code_line ->
+  phrase --> indented_code_line |: parse.pop_mode()
+  indented_code_line -->
     "%(indent)s" code_line
-  code_line ->
+  code_line -->
     "[^\n]*\n"
 

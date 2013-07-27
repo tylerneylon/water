@@ -4,13 +4,13 @@
 #
 
 >
-  statement -> hi | there
-  hi ->
+  statement --> hi | there
+  hi -->
     'hi'
     :
       parse.add_subst('there\nthere\n')
       print('hi parsed')
-  there ->
+  there -->
     'there'
     : print('there parsed')
 
