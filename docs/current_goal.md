@@ -19,9 +19,7 @@ to implement the new grammar-specification syntax:
 
 8. Switch `->` to `-->` in current grammar *DONE*
 
-9. Add support for methods on `OrRule`s *In progress*
-   Next up: be able to refer to tokens, then pieces by name, then or_index.
-   Could combine or_index with pieces by name, I imagine.
+9. Add support for methods on `OrRule`s *DONE*
 
 10. Add grammar for mixed or/seq rules
 
