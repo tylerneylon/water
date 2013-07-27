@@ -101,6 +101,7 @@ class Rule(Object):
     # http://stackoverflow.com/a/2906198
     lo = {}
     if 'tokens' in self: lo['tokens'] = self.tokens
+    if 'or_index' in self: lo['or_index'] = self.or_index
     if 'pieces' in self:
       p = self.pieces
       lo.update({k: p[k][0] if len(p[k]) == 1 else p[k] for k in p})
@@ -268,7 +269,8 @@ class OrRule(Rule):
         return None
       if val:
         self.result = val
-        self.tokens = [val]
+        # We want to delegate the tokens property to val iff val is a Rule.
+        if not isinstance(val, Rule): self.tokens = [val]
         self.or_index = index
         self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))

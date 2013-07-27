@@ -1,0 +1,41 @@
+# 28.water
+#
+# Test adding fns to an OrRule.
+# Builds on 27.water by adding references to named pieces from an OrRule method
+# into its result object.
+#
+
+# Here's the expected output of this file:
+#
+# type(tokens[0])=<type 'str'>
+# greeting=hello
+# tokens[1]=there
+# type(tokens[0])=<type 'str'>
+# space=" "
+# type(tokens[0])=<type 'str'>
+# type(tokens[0])=<type 'str'>
+# greeting=hi
+# tokens[1]=there
+# type(tokens[0])=<type 'str'>
+
+
+>
+  seq1 -->
+    "hello|hi":greeting "there":followup
+    : print('type(tokens[0])=%s' % type(tokens[0]))
+  seq2 -->
+    " +":space
+
+>:
+  r = or_rule('statement', ["seq1", "seq2"])
+  r.add_fn('parsed', '\n'
+           '  if or_index == 0:\n'
+           '    print("greeting=%s" % greeting)\n'
+           '    print("tokens[1]=%s" % tokens[1])\n'
+           '  else:\n'
+           '    print("space=\\\"%s\\\"" % space)\n'
+           '  print("type(tokens[0])=%s" % type(tokens[0]))\n')
+  push_mode('')
+  pop_mode()
+
+hellothere hithere
