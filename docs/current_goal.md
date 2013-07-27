@@ -13,13 +13,15 @@ to implement the new grammar-specification syntax:
 
 5. Switch `FalseRule` to `BoolRule` with instances `False` and `Empty` *DONE*
 
-6. Factor out item parsing
+6. Factor out item parsing *DONE*
 
-7. Add `!` prefix
+7. Add `!` prefix *DONE*
 
-8. Switch `->` to `-->` in current grammar
+8. Switch `->` to `-->` in current grammar *DONE*
 
-9. Add support for methods on `OrRule`s
+9. Add support for methods on `OrRule`s *In progress*
+   Next up: be able to refer to tokens, then pieces by name, then or_index.
+   Could combine or_index with pieces by name, I imagine.
 
 10. Add grammar for mixed or/seq rules
 

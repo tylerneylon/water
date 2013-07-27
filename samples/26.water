@@ -1,0 +1,20 @@
+# 26.water
+#
+# Test adding fns to an OrRule
+#
+
+>
+  statement --> 'hello' | ' ' | 'there'
+
+# This next section should completely overwrite the statement rule above.
+>:
+  r = or_rule('statement', ["'hello'", "' '", "'there'"], mode='')
+  r.add_fn('parsed', 'print("w00t")\n')
+  push_mode('')
+  pop_mode()
+
+# FUTURE It would be good if I can do things like these:
+#  r.add_fn('parsed', 'print("w00t tokens[0]=%s" % tokens[0])\n')
+#  r.add_fn('parsed', 'print("w00t tokens[0]=%s" % tokens[0])\n')
+
+hello there

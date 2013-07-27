@@ -271,6 +271,7 @@ class OrRule(Rule):
         self.or_index = index
         self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))
+        if 'parsed' in self.__dict__: self.parsed()
         return self
     dbg.dprint('parse', '%s parse failed' % self.name)
     return None
