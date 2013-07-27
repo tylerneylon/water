@@ -100,8 +100,8 @@ class Rule(Object):
     # http://stackoverflow.com/a/1463370
     # http://stackoverflow.com/a/2906198
     lo = {}
-    if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
-    if 'pieces' in self.__dict__:
+    if 'tokens' in self: lo['tokens'] = self.tokens
+    if 'pieces' in self:
       p = self.pieces
       lo.update({k: p[k][0] if len(p[k]) == 1 else p[k] for k in p})
     if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
@@ -268,6 +268,7 @@ class OrRule(Rule):
         return None
       if val:
         self.result = val
+        self.tokens = [val]
         self.or_index = index
         self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))

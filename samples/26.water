@@ -15,6 +15,6 @@
 
 # FUTURE It would be good if I can do things like these:
 #  r.add_fn('parsed', 'print("w00t tokens[0]=%s" % tokens[0])\n')
-#  r.add_fn('parsed', 'print("w00t tokens[0]=%s" % tokens[0])\n')
+#  Or letting a method refer to named pieces of a result.
 
 hello there

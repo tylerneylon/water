@@ -1,0 +1,17 @@
+# 27.water
+#
+# Test adding fns to an OrRule.
+# Builds on 26.water by integrating parsed components.
+#
+
+>
+  statement --> 'hello' | ' ' | 'there'
+
+# This next section should completely overwrite the statement rule above.
+>:
+  r = or_rule('statement', ["'hello'", "' '", "'there'"], mode='')
+  r.add_fn('parsed', 'print("w00t tokens[0]=%s" % tokens[0])\n')
+  push_mode('')
+  pop_mode()
+
+hello there
