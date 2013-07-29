@@ -7,6 +7,10 @@
 #  * mode_result.tokens[1].tokens[1].src()
 #
 
+##############################################################
+# Add >! syntax for substitutions.
+##############################################################
+
 >:
   env._next_subst_number = 0
   def new_subst_name():
@@ -39,3 +43,34 @@
 
 >
   phrase =| substitution
+
+##############################################################
+# Add -> syntax for combined or/seq rules.
+##############################################################
+
+>:
+  env._next_inner_rule_number = 0
+  def new_inner_rule_name():
+    name = '_inner_' + str(env._next_inner_rule_number)
+    env._next_inner_rule_number += 1
+    return name
+  env._new_inner_rule_name = new_inner_rule_name
+
+>
+  combined_rule -->
+    word ' -> ' combined_rule_list
+    :
+      seqs = combined_rule_list.list()
+      for i, s in enumerate(seqs):
+        print('seq %d = %s' % (i, s.src()))
+  combined_rule_list --> comb_multi_seqs | comb_one_seq
+  comb_multi_seq -->
+    seq ' | ' combined_rule_list
+    list: return [seq] + combined_rule_list.list()
+  comb_one_seq -->
+    seq
+    list: return [seq]
+
+>
+  phrase =| combined_rule
+
