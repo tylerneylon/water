@@ -61,15 +61,18 @@
     word ' -> ' combined_rule_list
     :
       seqs = combined_rule_list.list()
+      names = [env._new_inner_rule_name() for i in range(len(seqs))]
+      name_list_str = ' | '.join(names)
+      print('%s --> %s' % (word, name_list_str))
       for i, s in enumerate(seqs):
-        print('seq %d = %s' % (i, s.src()))
+        print('%s -->\n  %s' % (names[i], seqs[i]))
   combined_rule_list --> comb_multi_seqs | comb_one_seq
-  comb_multi_seq -->
-    seq ' | ' combined_rule_list
-    list: return [seq] + combined_rule_list.list()
+  comb_multi_seqs -->
+    comb_one_seq ' | ' combined_rule_list
+    list: return [comb_one_seq] + combined_rule_list.list()
   comb_one_seq -->
-    seq
-    list: return [seq]
+    "[^ |]+( [^ |]+)*"
+    list: return [tokens[0][0]]
 
 >
   phrase =| combined_rule

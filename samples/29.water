@@ -1,0 +1,6 @@
+# 29.water
+#
+# Early test of combined rules.
+#
+
+a -> b c | d e
