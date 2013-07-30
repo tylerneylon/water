@@ -1,0 +1,19 @@
+# 30.water
+#
+# Early test of combined rules.
+#
+
+>
+  a -> b c | d e
+  b -->
+    'b'
+    : print('b parsed')
+  c -->
+    'c'
+    : print('c parsed')
+  d -->
+    'd'
+    : print('d parsed')
+  e -->
+    'e'
+    : print('e parsed')

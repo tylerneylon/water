@@ -56,7 +56,7 @@
     return name
   env._new_inner_rule_name = new_inner_rule_name
 
->
+> lang_def
   combined_rule -->
     word ' -> ' combined_rule_list
     :
@@ -74,6 +74,6 @@
     "[^ |]+( [^ |]+)*"
     list: return [tokens[0][0]]
 
->
-  phrase =| combined_rule
+> lang_def
+  rule =| combined_rule
 

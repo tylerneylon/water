@@ -2,5 +2,9 @@
 #
 # Early test of combined rules.
 #
+# The proper behavior for this now is to fail. I initially forgot that
+# combined rules also belong within grammar blocks! (Meaning they are
+# started with a > and a newline, and indented from there.)
+#
 
 a -> b c | d e

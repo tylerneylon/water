@@ -74,16 +74,16 @@
     return name
   env._new_inner_rule_name = new_inner_rule_name
 >: 
-  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list'], mode='')
+  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list'], mode='lang_def')
   r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      print('%s --> %s' % (word, name_list_str))\n      for i, s in enumerate(seqs):\n        print('%s -->\\n  %s' % (names[i], seqs[i]))\n")
->: or_rule('combined_rule_list', ['comb_multi_seqs', 'comb_one_seq'], mode='')
+>: or_rule('combined_rule_list', ['comb_multi_seqs', 'comb_one_seq'], mode='lang_def')
 >: 
-  r = seq_rule('comb_multi_seqs', ['comb_one_seq', "' | '", 'combined_rule_list'], mode='')
+  r = seq_rule('comb_multi_seqs', ['comb_one_seq', "' | '", 'combined_rule_list'], mode='lang_def')
   r.add_fn('list', ' return [comb_one_seq] + combined_rule_list.list()\n')
 >: 
-  r = seq_rule('comb_one_seq', ['"[^ |]+( [^ |]+)*"'], mode='')
+  r = seq_rule('comb_one_seq', ['"[^ |]+( [^ |]+)*"'], mode='lang_def')
   r.add_fn('list', ' return [tokens[0][0]]\n')
->: prepend_to_or('phrase', 'combined_rule', '')
+>: prepend_to_or('rule', 'combined_rule', 'lang_def')
 >: 
   push_mode('')
   pop_mode()
