@@ -95,8 +95,11 @@
     word ' =| ' word "[ \t]*\n"
     : parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)
   or_rule -->
-    word ' --> ' or_list
-    : parse.or_rule(word.src(), or_list.list(), mode=mode.name)
+    word ' --> ' or_list -opt_rule_block
+    mode_params:
+      params = {}
+      params['rule'] = parse.or_rule(word.src(), or_list.list(), mode=mode.name)
+      return params
   or_list --> multi_or_list | or_list_end
   or_list_end -->
     item "[ \t]*\n"
@@ -139,6 +142,14 @@
     mode_params:
       return {'endchar': tokens[0][0]}
     list: return [self.src()]
+
+> opt_rule_block
+  phrase --> indented_block |: parse.pop_mode()
+  indented_block -->
+    "%s(indent)s(\s+)" -rule_block
+    mode_params:
+      params = {'indent': mode.indent + tokens[0][1]}
+      return params
 
 > rule_block
   phrase --> indented_rule_item |: parse.pop_mode()
