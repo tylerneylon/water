@@ -1,0 +1,17 @@
+# 31.water
+#
+# Test of methods on or rules.
+#
+
+>
+  statement --> a
+  a --> b | c
+    : print('or_index=%d' % or_index)
+  b -->
+    'b'
+    : print('b parsed')
+  c -->
+    'c'
+    : print('c parsed')
+
+c

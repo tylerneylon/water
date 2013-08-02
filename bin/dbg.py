@@ -53,6 +53,8 @@ def cprint(text, color=None, end='\n'):
   _num += 1
   if showNums and end == '\n': s = str(_num) + ' ' + s
   for d in dst:
+    # It's occasionally nice to disable the tty check here in order to
+    # pipe the output through less -R to still get color.
     if d.isatty(): s = colored(s, color)
     if d is sys.stdout and color == 'red':
       # red output is redirected to stderr from stdout.

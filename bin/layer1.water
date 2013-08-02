@@ -86,6 +86,17 @@
     mode_params:
       return {'indent': tokens[0][1]}
 
+> opt_rule_block
+  phrase --> indented_block |: parse.pop_mode()
+  indented_block -->
+    "(?=(%(indent)s\s+))" -rule_block
+    mode_params:
+      print('in opt_rule_block/indented_block mode_params')
+      print('tokens=%s' % `tokens`)
+      params = {'indent': tokens[0][1]}
+      return params
+    : parse.pop_mode()
+
 > lang_def
   phrase --> indented_rule |: parse.pop_mode()
   indented_rule -->
@@ -142,14 +153,6 @@
     mode_params:
       return {'endchar': tokens[0][0]}
     list: return [self.src()]
-
-> opt_rule_block
-  phrase --> indented_block |: parse.pop_mode()
-  indented_block -->
-    "%s(indent)s(\s+)" -rule_block
-    mode_params:
-      params = {'indent': mode.indent + tokens[0][1]}
-      return params
 
 > rule_block
   phrase --> indented_rule_item |: parse.pop_mode()
