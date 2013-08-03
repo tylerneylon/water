@@ -28,11 +28,11 @@
 >: r = seq_rule('std_multi_or_list', ['item', "' | '", 'or_list'], mode='lang_def');  r.add_fn('list', ' return item.list() + or_list.list()\n')
 >: r = seq_rule('else_multi_or_list', ['item', "' |: '", 'rest_of_line'], mode='lang_def');  r.add_fn('list', " return item.list() + [':' + rest_of_line.src()]\n")
 >: r = seq_rule('rule_name', ['word'], mode='lang_def');  r.add_fn('list', ' return [word.src()]\n')
->: r = seq_rule('seq_rule', ['word', '" -->\\n%(indent)s(\\s+)"', 'seq', '-rule_block'], mode='lang_def');  r.add_fn('mode_params', "\n      params = {'indent': mode.indent + tokens[1][1]}\n      params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)\n      return params\n")
->: or_rule('seq', ['item_end', 'mode_result_end', 'item_list'], mode='lang_def')
->: r = seq_rule('item_end', ['item', '"[ \\t]*\\n"'], mode='lang_def');  r.add_fn('list', ' return item.list()\n')
->: r = seq_rule('mode_result_end', ['"\\.?-"', 'word', '"[ \\t]*\\n"'], mode='lang_def');  r.add_fn('list', ' return [tokens[0] + word.src()]\n')
->: r = seq_rule('item_list', ['item', "' '", 'seq'], mode='lang_def');  r.add_fn('list', ' return item.list() + seq.list()\n')
+>: r = seq_rule('seq_rule', ['word', '" -->\\n%(indent)s(\\s+)"', 'seq', '"[ \\t]*\\n"', '-rule_block'], mode='lang_def');  r.add_fn('mode_params', "\n      params = {'indent': mode.indent + tokens[1][1]}\n      params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)\n      return params\n")
+>: or_rule('seq', ['mode_result', 'item_list'], mode='lang_def')
+>: or_rule('item_list', ['item_seq', 'item'], mode='lang_def')
+>: r = seq_rule('item_seq', ['item', "' '", 'seq'], mode='lang_def');  r.add_fn('list', ' return item.list() + seq.list()\n')
+>: r = seq_rule('mode_result', ['"\\.?-"', 'word'], mode='lang_def');  r.add_fn('list', ' return [tokens[0] + word.src()]\n')
 >: r = seq_rule('item', ['"!?(\\.)?"', 'item_no_dot'], mode='lang_def');  r.add_fn('list', ' return [self.src()]\n')
 >: or_rule('item_no_dot', ['item_with_label', 'item_plain'], mode='lang_def')
 >: seq_rule('item_with_label', ['item_plain', "':'", 'word'], mode='lang_def')
@@ -76,15 +76,15 @@
     return name
   env._new_inner_rule_name = new_inner_rule_name
 >: 
-  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list'], mode='lang_def')
-  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      print('%s --> %s' % (word, name_list_str))\n      for i, s in enumerate(seqs):\n        print('%s -->\\n  %s' % (names[i], seqs[i]))\n")
->: or_rule('combined_rule_list', ['comb_multi_seqs', 'comb_one_seq'], mode='lang_def')
+  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list', '"[ \\t]*\\n"'], mode='lang_def')
+  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      add_subst('%s --> %s\\n' % (word, name_list_str))\n      ind = mode.indent\n      for i, s in enumerate(seqs):\n        add_subst('%s%s -->\\n%s  %s\\n' % (ind, names[i], ind, seqs[i]))\n")
+>: or_rule('combined_rule_list', ['or_of_seqs', 'one_seq'], mode='lang_def')
 >: 
-  r = seq_rule('comb_multi_seqs', ['comb_one_seq', "' | '", 'combined_rule_list'], mode='lang_def')
-  r.add_fn('list', ' return [comb_one_seq] + combined_rule_list.list()\n')
+  r = seq_rule('or_of_seqs', ['seq', "' | '", 'combined_rule_list'], mode='lang_def')
+  r.add_fn('list', ' return [seq] + combined_rule_list.list()\n')
 >: 
-  r = seq_rule('comb_one_seq', ['"[^ |]+( [^ |]+)*"'], mode='lang_def')
-  r.add_fn('list', ' return [tokens[0][0]]\n')
+  r = seq_rule('one_seq', ['seq'], mode='lang_def')
+  r.add_fn('list', ' return [seq]\n')
 >: prepend_to_or('rule', 'combined_rule', 'lang_def')
 >: 
   push_mode('')

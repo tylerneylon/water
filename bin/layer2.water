@@ -58,22 +58,23 @@
 
 > lang_def
   combined_rule -->
-    word ' -> ' combined_rule_list
+    word ' -> ' combined_rule_list "[ \t]*\n"
     :
       seqs = combined_rule_list.list()
       names = [env._new_inner_rule_name() for i in range(len(seqs))]
       name_list_str = ' | '.join(names)
-      print('%s --> %s' % (word, name_list_str))
+      add_subst('%s --> %s\n' % (word, name_list_str))
+      ind = mode.indent
       for i, s in enumerate(seqs):
-        print('%s -->\n  %s' % (names[i], seqs[i]))
-  combined_rule_list --> comb_multi_seqs | comb_one_seq
-  comb_multi_seqs -->
-    comb_one_seq ' | ' combined_rule_list
-    list: return [comb_one_seq] + combined_rule_list.list()
-  comb_one_seq -->
-    "[^ |]+( [^ |]+)*"
-    list: return [tokens[0][0]]
-
+        add_subst('%s%s -->\n%s  %s\n' % (ind, names[i], ind, seqs[i]))
+  combined_rule_list --> or_of_seqs | one_seq
+  or_of_seqs -->
+    seq ' | ' combined_rule_list
+    list: return [seq] + combined_rule_list.list()
+  one_seq -->
+    seq
+    list: return [seq]
+  
 > lang_def
   rule =| combined_rule
 

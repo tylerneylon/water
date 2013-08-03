@@ -126,21 +126,19 @@
     word
     list: return [word.src()]
   seq_rule -->
-    word " -->\n%(indent)s(\s+)" seq -rule_block
+    word " -->\n%(indent)s(\s+)" seq "[ \t]*\n" -rule_block
     mode_params:
       params = {'indent': mode.indent + tokens[1][1]}
       params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
       return params
-  seq --> item_end | mode_result_end | item_list
-  item_end -->
-    item "[ \t]*\n"
-    list: return item.list()
-  mode_result_end -->
-    "\.?-" word "[ \t]*\n"
-    list: return [tokens[0] + word.src()]
-  item_list -->
+  seq --> mode_result | item_list
+  item_list --> item_seq | item
+  item_seq -->
     item ' ' seq
     list: return item.list() + seq.list()
+  mode_result -->
+    "\.?-" word
+    list: return [tokens[0] + word.src()]
   item -->
     "!?(\.)?" item_no_dot
     list: return [self.src()]
