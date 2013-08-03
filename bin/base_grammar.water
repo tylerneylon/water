@@ -16,7 +16,7 @@
 >: seq_rule('rest_of_line', ['"[^\\n]*\\n"'], mode='')
 >: r = seq_rule('indented_code_block', ['"\\s*\\n(?=(%(indent)s\\s+))"', '-nested_code_block'], mode='');  r.add_fn('mode_params', "\n      return {'indent': tokens[0][1]}\n")
 >: or_rule('phrase', ['indented_block', ':parse.pop_mode()\n'], mode='opt_rule_block')
->: r = seq_rule('indented_block', ['"(?=(%(indent)s\\s+))"', '-rule_block'], mode='opt_rule_block');  r.add_fn('mode_params', "\n      print('in opt_rule_block/indented_block mode_params')\n      print('tokens=%s' % `tokens`)\n      params = {'indent': tokens[0][1]}\n      return params\n");  r.add_fn('parsed', ' parse.pop_mode()\n')
+>: r = seq_rule('indented_block', ['"(?=(%(indent)s\\s+))"', '-rule_block'], mode='opt_rule_block');  r.add_fn('mode_params', "\n      params = {'indent': tokens[0][1]}\n      return params\n");  r.add_fn('parsed', ' parse.pop_mode()\n')
 >: or_rule('phrase', ['indented_rule', ':parse.pop_mode()\n'], mode='lang_def')
 >: seq_rule('indented_rule', ['"%(indent)s"', 'rule'], mode='lang_def')
 >: or_rule('rule', ['prepend_to_or', 'or_rule', 'seq_rule'], mode='lang_def')
@@ -61,7 +61,7 @@
 >: 
   r = seq_rule('substitution', ["'>! '", 'word', '"\\n(?=(\\s+))"', '-subst_block'], mode='')
   r.add_fn('mode_params', "\n      return {'indent': tokens[2][1], 'rule_name': word}\n")
-  r.add_fn('parsed', "\n      subst_name = env._new_subst_name()\n      parse.add_subst('>\\n  ', subst_name, ' -->\\n')\n      parse.add_subst('    ', mode_result.tokens[0].tokens[1].src(), '\\n')\n      parse.add_subst('    : parse.add_subst(')\n      parse.add_subst(mode_result.tokens[1].tokens[1].src(), ')\\n\\n')\n      parse.prepend_to_or(word.src(), subst_name)\n")
+  r.add_fn('parsed', "\n      subst_name = env._new_subst_name()\n      parse.add_subst('>\\n  ', subst_name, ' -->\\n')\n      parse.add_subst('    ', mode_result[0].tokens[0].tokens[1].src(), '\\n')\n      parse.add_subst('    : parse.add_subst(')\n      parse.add_subst(mode_result[0].tokens[1].tokens[1].src(), ')\\n\\n')\n      parse.prepend_to_or(word.src(), subst_name)\n")
 >: 
   r = seq_rule('phrase', ['indent_line', 'indent_line'], mode='subst_block')
   r.add_fn('parsed', ' parse.pop_mode()\n')
@@ -75,9 +75,16 @@
     env._next_inner_rule_number += 1
     return name
   env._new_inner_rule_name = new_inner_rule_name
+>: or_rule('phrase', ['indented_line', ':parse.pop_mode()\n'], mode='indented_block')
+>: seq_rule('indented_line', ['"%(indent)s[^\\n]*\\n"'], mode='indented_block')
+>: or_rule('phrase', ['indented_block', ':parse.pop_mode()\n'], mode='opt_indented_block')
 >: 
-  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list', '"[ \\t]*\\n"'], mode='lang_def')
-  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      add_subst('%s --> %s\\n' % (word, name_list_str))\n      ind = mode.indent\n      for i, s in enumerate(seqs):\n        add_subst('%s%s -->\\n%s  %s\\n' % (ind, names[i], ind, seqs[i]))\n")
+  r = seq_rule('indented_block', ['"(?=(%(indent)s\\s+))"', '-indented_block'], mode='opt_indented_block')
+  r.add_fn('mode_params', "\n      params = {'indent': tokens[0][1]}\n      return params\n")
+  r.add_fn('parsed', ' parse.pop_mode()  \n')
+>: 
+  r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list', '"[ \\t]*\\n"', '-opt_indented_block'], mode='lang_def')
+  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      add_subst('%s --> %s\\n' % (word, name_list_str))\n      add_subst(src(mode_result))\n      ind = mode.indent\n      for i, s in enumerate(seqs):\n        add_subst('%s%s -->\\n%s  %s\\n' % (ind, names[i], ind, seqs[i]))\n")
 >: or_rule('combined_rule_list', ['or_of_seqs', 'one_seq'], mode='lang_def')
 >: 
   r = seq_rule('or_of_seqs', ['seq', "' | '", 'combined_rule_list'], mode='lang_def')

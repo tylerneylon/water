@@ -16,12 +16,12 @@
     :
       print('or_index=%d' % or_index)
       if or_index == 1:
-        print('c=%s' % `c`)
+        print('c=%s' % src(c))
   b -->
     'b'
     : print('b parsed')
   c -->
-    'c'
+    "[cC]+"
     : print('c parsed')
 
-c
+CccC

@@ -91,8 +91,6 @@
   indented_block -->
     "(?=(%(indent)s\s+))" -rule_block
     mode_params:
-      print('in opt_rule_block/indented_block mode_params')
-      print('tokens=%s' % `tokens`)
       params = {'indent': tokens[0][1]}
       return params
     : parse.pop_mode()

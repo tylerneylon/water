@@ -27,9 +27,9 @@
     :
       subst_name = env._new_subst_name()
       parse.add_subst('>\n  ', subst_name, ' -->\n')
-      parse.add_subst('    ', mode_result.tokens[0].tokens[1].src(), '\n')
+      parse.add_subst('    ', mode_result[0].tokens[0].tokens[1].src(), '\n')
       parse.add_subst('    : parse.add_subst(')
-      parse.add_subst(mode_result.tokens[1].tokens[1].src(), ')\n\n')
+      parse.add_subst(mode_result[0].tokens[1].tokens[1].src(), ')\n\n')
       parse.prepend_to_or(word.src(), subst_name)
 
 > subst_block
@@ -56,14 +56,29 @@
     return name
   env._new_inner_rule_name = new_inner_rule_name
 
+> indented_block
+  phrase --> indented_line |: parse.pop_mode()
+  indented_line -->
+    "%(indent)s[^\n]*\n"
+
+> opt_indented_block
+  phrase --> indented_block |: parse.pop_mode()
+  indented_block -->
+    "(?=(%(indent)s\s+))" -indented_block
+    mode_params:
+      params = {'indent': tokens[0][1]}
+      return params
+    : parse.pop_mode()  
+
 > lang_def
   combined_rule -->
-    word ' -> ' combined_rule_list "[ \t]*\n"
+    word ' -> ' combined_rule_list "[ \t]*\n" -opt_indented_block
     :
       seqs = combined_rule_list.list()
       names = [env._new_inner_rule_name() for i in range(len(seqs))]
       name_list_str = ' | '.join(names)
       add_subst('%s --> %s\n' % (word, name_list_str))
+      add_subst(src(mode_result))
       ind = mode.indent
       for i, s in enumerate(seqs):
         add_subst('%s%s -->\n%s  %s\n' % (ind, names[i], ind, seqs[i]))

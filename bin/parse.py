@@ -105,7 +105,8 @@ class Rule(Object):
     if 'pieces' in self:
       p = self.pieces
       lo.update({k: p[k][0] if len(p[k]) == 1 else p[k] for k in p})
-    if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
+      # Keep mode result as a list, even if it has 1 element.
+      if 'mode_result' in p: lo['mode_result'] = p['mode_result']
     lo['self'] = self
 
     arglist = ', '.join(k + '=None' for k in lo.keys())
@@ -162,7 +163,7 @@ class SeqRule(Rule):
       raise AttributeError(desc)
 
   def src(self):
-    return ''.join([_src(t) for t in self.tokens])
+    return ''.join([src(t) for t in self.tokens])
 
   # Expects self.mode_id to be set, and will push that mode.
   def parse_mode(self, it):
@@ -394,6 +395,13 @@ def set_prefix(new_prefix, from_user=True):
   prefix = new_prefix
   if from_user: user_prefix = True
 
+def src(obj):
+  if type(obj) == str: return obj
+  elif type(obj) == tuple: return src(obj[0])
+  elif type(obj) == list: return ''.join([src(elm) for elm in obj])
+  elif isinstance(obj, Rule): return obj.src()
+  else: dbg.dprint('error', "Error: unexpected obj type '%s' in src" % type(obj))
+
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)
@@ -405,7 +413,7 @@ def error(msg):
 def _add_subst(rule_or_text):
   global substs
   if type(rule_or_text) == str or isinstance(rule_or_text, Rule):
-    substs.append(_src(rule_or_text))
+    substs.append(src(rule_or_text))
   else:
     error('Illegal input to parse.add_subst; type=%s' % type(rule_or_text))
 
@@ -425,13 +433,6 @@ def _set_mode_params(params):
   protected_keys = ['id', 'rules']
   params = {k: params[k] for k in params if k not in protected_keys}
   mode.__dict__.update(params)
-
-def _src(obj):
-  if type(obj) == str: return obj
-  elif type(obj) == tuple: return _src(obj[0])
-  elif type(obj) == list: return ''.join([_src(elm) for elm in obj])
-  elif isinstance(obj, Rule): return obj.src()
-  else: dbg.dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
 
 def _dbg_parse_start(name, it):
   m = ' <%s>' % mode.id if len(mode.id) else ''
