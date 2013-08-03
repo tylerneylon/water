@@ -21,13 +21,7 @@ to implement the new grammar-specification syntax:
 
 9. Add support for methods on `OrRule`s *DONE*
 
-10. Add grammar for mixed or/seq rules *IN PROGRESS*
-    samples/30.water has been added
-    I decided that methods on a combined rule will end up on the OrRule;
-    this is tricky because we'll want to allow access to pieces on the
-    resulting SeqRule.
-
-    **NEXT**: Support methods defined on OrRules.
+10. Add grammar for mixed or/seq rules *DONE*
 
 11. Add grammar for grouping
 
