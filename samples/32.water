@@ -1,17 +1,11 @@
 # 32.water
 #
-# Test of methods on or rules.
-# Building on 31, this adds access to parsed OrRule pieces
-# by name (specifically "c" in the rule for "a").
+# Test of combined rules.
 #
 
 >
   statement --> a
-  a --> b | c
-    :
-      print('or_index=%d' % or_index)
-      if or_index == 1:
-        print('c=%s' % `c`)
+  a -> b | c
   b -->
     'b'
     : print('b parsed')

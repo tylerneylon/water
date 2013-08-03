@@ -1,0 +1,27 @@
+# 33.water
+#
+# Test of combined rules.
+# Building on 32, this adds access to pieces by name in methods
+# on combined rules.
+#
+# In writing this test, I realized that some users may expect a
+# method on a standard OrRule to have access by name to whatever
+# rule matched. I could consider adding this. My goal is to balance
+# simple code (for me) with ease of use.
+#
+
+>
+  statement --> a
+  a -> b | c
+    :
+      print('or_index=%d' % or_index)
+      if or_index == 1:
+        print('c=%s' % `c`)
+  b -->
+    'b'
+    : print('b parsed')
+  c -->
+    'c'
+    : print('c parsed')
+
+c
