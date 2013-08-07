@@ -55,6 +55,16 @@
     env._next_inner_rule_number += 1
     return name
   env._new_inner_rule_name = new_inner_rule_name
+  env._groups = []
+  def str_of_groups(indent):
+    i = indent
+    s = ""
+    for grp in env._groups:
+      name = grp.keys()[0]
+      s += "%s%s -> %s\n" % (i, name, grp[name])
+    env._groups = []
+    return s
+  env._str_of_groups = str_of_groups
 
 > indented_block
   phrase --> indented_line |: parse.pop_mode()
@@ -82,6 +92,7 @@
       ind = mode.indent
       for i, s in enumerate(seqs):
         add_subst('%s%s -->\n%s  %s\n' % (ind, names[i], ind, seqs[i]))
+      add_subst(env._str_of_groups(ind))
   combined_rule_list --> or_of_seqs | one_seq
   or_of_seqs -->
     seq ' | ' combined_rule_list
@@ -116,4 +127,5 @@
     :
       name = env._new_inner_rule_name()
       add_subst(name)
+      env._groups.append({name: src(combined_rule_list)})
   item_no_dot =| group_item

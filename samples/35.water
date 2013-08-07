@@ -1,0 +1,15 @@
+# 35.water
+#
+# Test of groups.
+# This builds on 34.water, adding deeper-nested labels.
+#
+
+>
+  statement --> a
+  a -> (( 'a' | 'b':who )):hi (( 'c' | 'd' )):there
+    :
+      print('hi=' + src(hi))
+      print('there=' + src(there))
+      print('who=' + src(who))
+
+bc

@@ -1,0 +1,13 @@
+# 34.water
+#
+# Test of groups.
+#
+
+>
+  statement --> a
+  a -> (( 'a' | 'b':who )):hi (( 'c' | 'd' )):there
+    :
+      print('hi=' + src(hi))
+      print('there=' + src(there))
+
+bc

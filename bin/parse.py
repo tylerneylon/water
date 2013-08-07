@@ -269,6 +269,9 @@ class SeqRule(Rule):
       #               in the substs list (and add that info to the list).
       it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
       it.text_pos = self.start_text_pos
+      # The next two lines are very useful for debugging substitutions.
+      #print('After subst, text is:')
+      #print(it.text())
       tree = self.parse(it)
     substs = saved_substs
     return tree
