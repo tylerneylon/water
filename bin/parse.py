@@ -199,13 +199,6 @@ class SeqRule(Rule):
     Rule.__init__(self)
     self._add_fn('str', ' return self.src()')
 
-  def __getattribute__(self, name):
-    try:
-      return Rule.__getattribute__(self, name)
-    except AttributeError:
-      desc = "SeqRule '%s' has no '%s' attribute" % (self.name, name)
-      raise AttributeError(desc)
-
   def src(self):
     return ''.join([src(t) for t in self.tokens])
 

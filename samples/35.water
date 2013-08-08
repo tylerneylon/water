@@ -3,6 +3,11 @@
 # Test of groups.
 # This builds on 34.water, adding deeper-nested labels.
 #
+# I thought about this, and decided not to support nested labels right now.
+# The reasoning is that at some point they may be accessed via dot
+# notation. I'm not sure if that works yet, so I may have to come back
+# and implement it once other parts of the current goal are implemented.
+#
 
 >
   statement --> a
