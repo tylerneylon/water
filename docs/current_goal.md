@@ -23,9 +23,13 @@ to implement the new grammar-specification syntax:
 
 10. Add grammar for mixed or/seq rules *DONE*
 
-11. Add grammar for grouping
+11. Add grammar for grouping *DONE*
 
 12. Add `?` grammar
 
 13. Add `*`, `+` grammar
 
+## Notes
+
+* Later, I may want to come back and make sure dot notation works for
+  referencing nested labels and pieces.
