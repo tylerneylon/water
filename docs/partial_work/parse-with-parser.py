@@ -88,6 +88,50 @@ class Object(object):
     return True
   def __repr__(self): return repr(self.__dict__)
 
+# TODO NEXT
+# Plan ahead: For every major class here, figure out which globals it
+# uses, and think carefully about how to refactor data dependencies nicely.
+class Parser(object):
+  def __init__(self, filename):
+    # TODO This is not done yet.
+    #      We probably need many more self.variables.
+    self.all_rules = {'': {}}
+    self.rules = None
+    self.modes = []
+    self.mode = None
+    self.env = None
+    self.prefix = None
+    self.user_prefix = None  # TODO Rename to is_user_prefix.
+    self.parse_stack = []
+    self.substs = []
+    self.parse_info = Object()
+    self.parse_info.attempts = []
+    f = open(filename)
+    code = f.read()
+    f.close()
+    line_nums = dbg.LineNums(code)
+    parse_info.code = code
+    self.it = iterator.Iterator(code)
+
+  def parse_phrase(self):
+    self.user_prefix = False
+    self.parse_info.phrase_start_pos = self.it.orig_pos()
+    tree = self.rules['phrase'].parse(self.it)
+    if tree:
+      dbg.dprint('phrase', 'Successful phrase parse:')
+      dbg.print_tree(tree)
+      parse_info.attempts = []
+    return tree
+
+  def run(self):
+    while True:
+      try:
+        tree = self.parse_phrase()
+        if tree is None: return
+      except ParseError:
+        _print_parse_failure()
+        raise
+
 class Rule(Object):
 
   def __init__(self):
