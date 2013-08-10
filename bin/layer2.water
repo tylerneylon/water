@@ -128,4 +128,17 @@
       name = env._new_inner_rule_name()
       add_subst(name)
       env._groups.append({name: src(combined_rule_list)})
-  item_no_dot =| group_item
+  item_plain =| group_item
+
+##############################################################
+# Add ? syntax for items.
+##############################################################
+
+> lang_def
+  question_item -->
+    item_plain '?'
+    :
+      name = env._new_inner_rule_name()
+      add_subst(name)
+      env._groups.append({name: src(item_plain) + ' | Empty'})
+  item_no_dot =| question_item

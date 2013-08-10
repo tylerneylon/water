@@ -291,6 +291,8 @@ class BoolRule(Rule):
   def parse(self, it):
     return self if self.bool_val else None
 
+  def src(self): return ''
+
 class ParseError(Exception):
   pass
 
@@ -493,7 +495,7 @@ def _parse_item(item, it):
   return _end(val, labels)
 
 def _parse_exact_str(s, it):
-  to_escape = list("+()|*.[]")
+  to_escape = list("+()|*.[]?")
   for e in to_escape: s = s.replace(e, "\\" + e)
   return _parse_exact_re(s, it)
 

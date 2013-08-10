@@ -1,0 +1,13 @@
+# 36.water
+#
+# Test of question mark syntax.
+#
+
+>
+  statement --> a
+  a -> 'a' 'b'? 'c'
+    :
+      print("rule a parsed as %s" % src(self))
+
+abc
+ac

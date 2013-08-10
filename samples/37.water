@@ -1,0 +1,13 @@
+# 37.water
+#
+# Test of question mark syntax.
+# Part deux.
+#
+
+>
+  statement --> a
+  a -> (( 'chicken' | 'pizza' )):thing ' is' ' really'? ' amazingly'? ' ' (( 'tasty' | "go+d" )):adj
+    : print("thing=%s adj=%s" % (src(thing), src(adj)))
+
+chicken is tasty
+pizza is amazingly goooood

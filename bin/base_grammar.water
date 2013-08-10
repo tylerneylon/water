@@ -106,7 +106,11 @@
 >: 
   r = seq_rule('group_item', ["'(( '", 'combined_rule_list', "' ))'"], mode='lang_def')
   r.add_fn('parsed', '\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      env._groups.append({name: src(combined_rule_list)})\n')
->: prepend_to_or('item_no_dot', 'group_item', 'lang_def')
+>: prepend_to_or('item_plain', 'group_item', 'lang_def')
+>: 
+  r = seq_rule('question_item', ['item_plain', "'?'"], mode='lang_def')
+  r.add_fn('parsed', "\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      env._groups.append({name: src(item_plain) + ' | Empty'})\n")
+>: prepend_to_or('item_no_dot', 'question_item', 'lang_def')
 >: 
   push_mode('')
   pop_mode()

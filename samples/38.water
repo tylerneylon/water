@@ -1,0 +1,16 @@
+# 38.water
+#
+# Similar to 37, but a very different purpose.
+#
+# This is a purposefully-broken example. In this case, the single quote right before (( needs
+# a space after it, and the lack thereof is an error. I'd like water to provide some useful
+# feedback to help find that error more easily - the current output is not so good.
+#
+
+>
+  statement --> a
+  a -> (( 'chicken' | 'pizza' )):thing ' is' ' really'? ' amazingly'? ' '(( 'tasty' | "go+d" )):adj
+    : print("thing=%s adj=%s" % (src(thing), src(adj)))
+
+chicken is tasty
+pizza is amazingly goooood
