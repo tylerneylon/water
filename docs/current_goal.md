@@ -27,7 +27,7 @@ to implement the new grammar-specification syntax:
 
 12. Add `?` grammar *DONE*
 
-13. Add `*`, `+` grammar
+13. Add `*`, `+` grammar *IN PROGRESS*
 
 ## Notes
 
