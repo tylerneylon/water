@@ -25,7 +25,7 @@ to implement the new grammar-specification syntax:
 
 11. Add grammar for grouping *DONE*
 
-12. Add `?` grammar
+12. Add `?` grammar *DONE*
 
 13. Add `*`, `+` grammar
 
