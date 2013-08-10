@@ -55,16 +55,16 @@
     env._next_inner_rule_number += 1
     return name
   env._new_inner_rule_name = new_inner_rule_name
-  env._groups = []
-  def str_of_groups(indent):
+  env._rules_to_add = []
+  def str_of_rules_to_add(indent):
     i = indent
     s = ""
-    for grp in env._groups:
+    for grp in env._rules_to_add:
       name = grp.keys()[0]
       s += "%s%s -> %s\n" % (i, name, grp[name])
-    env._groups = []
+    env._rules_to_add = []
     return s
-  env._str_of_groups = str_of_groups
+  env._str_of_rules_to_add = str_of_rules_to_add
 
 > indented_block
   phrase --> indented_line |: parse.pop_mode()
@@ -92,7 +92,7 @@
       ind = mode.indent
       for i, s in enumerate(seqs):
         add_subst('%s%s -->\n%s  %s\n' % (ind, names[i], ind, seqs[i]))
-      add_subst(env._str_of_groups(ind))
+      add_subst(env._str_of_rules_to_add(ind))
   combined_rule_list --> or_of_seqs | one_seq
   or_of_seqs -->
     seq ' | ' combined_rule_list
@@ -127,7 +127,7 @@
     :
       name = env._new_inner_rule_name()
       add_subst(name)
-      env._groups.append({name: src(combined_rule_list)})
+      env._rules_to_add.append({name: src(combined_rule_list)})
   item_plain =| group_item
 
 ##############################################################
@@ -140,5 +140,6 @@
     :
       name = env._new_inner_rule_name()
       add_subst(name)
-      env._groups.append({name: src(item_plain) + ' | Empty'})
+      env._rules_to_add.append({name: src(item_plain) + ' | Empty'})
   item_no_dot =| question_item
+
