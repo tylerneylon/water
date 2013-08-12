@@ -1,0 +1,13 @@
+# 40.water
+#
+# Test of star syntax.
+#
+
+>
+  statement --> a
+  a -> 'b' 'a'* 'c'
+    : print('rule a parsed')
+
+baac
+baaac
+bc

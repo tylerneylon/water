@@ -1,0 +1,16 @@
+# 39.water
+#
+# Broken example - infinite loop since we keep
+# parsing empty a rules. Would be good if we
+# could recognize or prevent that instead of infinite looping.
+# Test of star syntax.
+#
+
+>
+  statement --> a
+  a -> 'a'*
+    : print('rule a parsed')
+
+aa
+aaa
+a

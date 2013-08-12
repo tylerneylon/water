@@ -33,3 +33,10 @@ to implement the new grammar-specification syntax:
 
 * Later, I may want to come back and make sure dot notation works for
   referencing nested labels and pieces.
+
+* Looking at substitution steps, I see lots of inefficiencies, such
+  as many one-rule rules. I could try to reduce those in automated
+  expansion. Optimizing them away later seems tricky as users may
+  change the grammar later and have reasonable behavior expectations
+  that are destroyed by an optimizer.
+

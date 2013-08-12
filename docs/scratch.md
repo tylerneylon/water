@@ -14,6 +14,12 @@ should become
 
 I might want to be able to handle labels already on the item.
 
+The above is dangerous because we could loop by continuously paring
+nothing (Empty) as rule a.
+
+I think the right way to think about that is that any potentially-empty
+rules, including *-rules, should not be looped.
+
 ----
 
 How about handling naming a `rulename` to `rulename_list`?

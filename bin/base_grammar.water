@@ -112,5 +112,9 @@
   r.add_fn('parsed', "\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      env._rules_to_add.append({name: src(item_plain) + ' | Empty'})\n")
 >: prepend_to_or('item_no_dot', 'question_item', 'lang_def')
 >: 
+  r = seq_rule('star_item', ['item_plain', "'*'"], mode='lang_def')
+  r.add_fn('parsed', "\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      star_rule = '(( %s )) %s | Empty' % (src(item_plain), name)\n      env._rules_to_add.append({name: star_rule})\n")
+>: prepend_to_or('item_no_dot', 'star_item', 'lang_def')
+>: 
   push_mode('')
   pop_mode()

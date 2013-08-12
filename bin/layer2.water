@@ -155,5 +155,6 @@
     :
       name = env._new_inner_rule_name()
       add_subst(name)
-      env._rules_to_add.append({name: src(item_plain) })
-  item_no_dot =| plus_or_star_item
+      star_rule = '(( %s )) %s | Empty' % (src(item_plain), name)
+      env._rules_to_add.append({name: star_rule})
+  item_no_dot =| star_item
