@@ -1,0 +1,18 @@
+# 42.water
+#
+# Test of added names for star syntax.
+#
+
+>
+  statement --> a
+  a -> 'b' d* 'c'
+    :
+      print('rule a parsed')
+      print('type(d_list)=%s' % type(d_list))
+      print('d_list=%s' % d_list)
+  d -->
+    'd'
+
+bddc
+bdddc
+bc
