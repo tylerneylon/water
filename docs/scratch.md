@@ -42,3 +42,22 @@ Or, for `+` and `*`, I could just use the last-provided
 name as the official name. Eg, if there's a label, use that.
 No label, but it's a rule name, use that. Otherwise you have
 to access it through tokens.
+
+---
+
+Toward a good user experience with +, * suffixes -- it would
+be nice to support lists as the returned type for these.
+
+Currently mode rules return lists, but they also always call
+mode_params, so they would interfere with any pre-existing
+mode rules (or be interfered with by them).
+
+So I suggest having an alternate mode rule syntax which does
+not call any methods to enter it. Something like =mode_name
+instead of -mode_name. Or perhaps --mode_name.
+
+Now, for application with * and + suffixes, the challenge
+becomes how to add rules in a new custom mode. For this, I
+propose that we use parse-level commands instead of a
+substitution. The rules would be relatively simple, so this
+approach seems feasible to me.

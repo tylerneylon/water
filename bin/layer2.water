@@ -108,19 +108,6 @@
 # Add (( )) syntax for groups.
 ##############################################################
 
-# TODO
-# I'm realizing that there's no awesome way to do this yet.
-# The solution I currently like best is to add something like
-# Lua's loadstring function, and use that to inject higher-level
-# substitutions without altering the current parse stack.
-# This will probably involve some refactoring as the current
-# code setup is full of side effects in globals :(
-# At first glance, the only side effects that really need to
-# stay as such are:
-#   all_rules, rules, parse, and env
-# Everything else is sort of "per-stack" meaning we need another
-# copy to handle nested parsing.
-
 > lang_def
   group_item -->
     '(( ' combined_rule_list ' ))'
@@ -146,8 +133,6 @@
 ##############################################################
 # Add + and * syntax for items.
 ##############################################################
-
-# TODO This section is incomplete for now.
 
 > lang_def
   star_item -->
