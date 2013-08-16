@@ -158,13 +158,13 @@ class SeqRule(Rule):
   def src(self):
     return ''.join([src(t) for t in self.tokens])
 
-  # Expects self.mode_id to be set, and will push that mode.
-  def parse_mode(self, it):
-    dbg.dprint('parse', '%s parse_mode %s' % (self.name, self.mode_id))
+  def parse_mode(self, mode_name, it):
+    dbg.dprint('parse', '%s parse_mode %s' % (self.name, mode_name))
     init_num_modes = len(modes)
     params = {}
-    push_mode(self.mode_id)
-    if 'mode_params' in self.__dict__: _set_mode_params(self.mode_params())
+    push_mode(mode_name)
+    if mode_name.may_have_params and 'mode_params' in self.__dict__:
+      _set_mode_params(self.mode_params())
     mode_result = []
     # A mode is popped from either a successful parse or a |: clause. The |:
     # is a special case where the returned tree is None, but it is not a parse
@@ -188,8 +188,7 @@ class SeqRule(Rule):
       val, labels = _parse_item(item, it)
       if isinstance(val, _ModeName):
         dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
-        self.mode_id = val
-        val = self.parse_mode(it)
+        val = self.parse_mode(val, it)
       if val is None:
         dbg_fmt = '%s parse failed at token %s ~= code %s'
         dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
@@ -483,7 +482,10 @@ def _parse_item(item, it):
     prefix = None
   item, label = _find_label(item)
   labels = [label] if label else []
-  if c == '-': return _end(_ModeName(item[1:]), labels)
+  if c in ['-', '=']:
+    mode_name = _ModeName(item[1:])
+    mode_name.may_have_params = (c == '-')
+    return _end(mode_name, labels)
   if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
