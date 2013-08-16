@@ -1,0 +1,24 @@
+# 43.water
+#
+# Test of = syntax for modes.
+#
+
+> mode1
+  phrase --> a | False
+  a -> 'a' 'a'*
+    : parse.pop_mode()
+
+> mode2
+  phrase --> b |: parse.pop_mode()
+  b -->
+    'b'
+
+>
+  statement --> ab
+  ab -->
+    =mode1 -mode2
+    mode_params:
+      print('mode_params called')
+      return {}
+
+aaab

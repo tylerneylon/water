@@ -172,7 +172,9 @@ class SeqRule(Rule):
     while True:
       tree = rules['phrase'].parse(it)
       if len(modes) == init_num_modes: break
-      if tree is None: return None
+      if tree is None:
+        pop_mode()
+        return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
     self.pieces['mode_result'] = mode_result
