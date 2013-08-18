@@ -307,6 +307,7 @@ def command(cmd):
   _tmp()
 
 def parse_string(s):
+  push_mode('')
   line_nums = dbg.LineNums(s)
   it = iterator.Iterator(s)
   result = []
@@ -314,6 +315,7 @@ def parse_string(s):
     tree = rules['phrase'].parse(it)
     if not tree: break
     result.append(tree)
+  pop_mode('')
   if it.text_pos < len(it.text()):
     pos = it.orig_pos()
     line_num, char_offset = line_nums.line_num_and_offset(pos)
@@ -390,13 +392,16 @@ def push_mode(name, params={}):
   dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `params`))
   _push_mode(name, params)
 
-def pop_mode():
+def pop_mode(outgoing_mode=None):
   global rules, mode, modes
   if len(modes) == 1:
     dbg.dprint('error',
            "Grammar error: pop_mode() when only global mode on the stack")
     exit(1)
   old_mode = modes.pop()
+  if outgoing_mode is not None and old_mode.id != outgoing_mode:
+    dbg.dprint('error', 'pop_mode(%s) called from mode %s' %
+               (outgoing_mode, `old_mode.id`))
   # Refresh rules if we're at the global context.
   if len(modes) == 1: _push_mode('', modes.pop().__dict__)
   mode = modes[-1]

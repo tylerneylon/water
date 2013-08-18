@@ -4,11 +4,11 @@
 #
 
 >
-  statement --> a | b
   a -> 'b' 'a'+ 'c'
     : print('rule a parsed')
   b -> 'b' 'a'* 'c'
     : print('rule b parsed')
+  statement --> a | b
 
 baac
 baaac

@@ -138,12 +138,16 @@
   star_item -->
     item_plain '*'
     :
-      name = env._new_inner_rule_name()
-      add_subst(name)
+      mode_name = env._new_inner_rule_name()
+      add_subst('=' + mode_name)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
-      star_rule = '(( %s )) %s | Empty' % (src(item_plain), name)
-      env._rules_to_add.append({name: star_rule})
+      seq_name = env._new_inner_rule_name()
+      fmt = ('> %s\n'
+             '  phrase --> %s |: parse.pop_mode()\n'
+             '  %s -> %s\n')
+      src_str = fmt % (mode_name, seq_name, seq_name, src(item_plain))
+      parse_string(src_str)
   item_no_dot =| star_item
   plus_item -->
     item_plain '+'

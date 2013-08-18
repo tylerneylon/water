@@ -4,7 +4,6 @@
 #
 
 >
-  statement --> a
   a -> 'b' d* 'c'
     :
       print('rule a parsed')
@@ -12,6 +11,7 @@
       print('d_list=%s' % d_list)
   d -->
     'd'
+  statement --> a
 
 bddc
 bdddc

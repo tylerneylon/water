@@ -114,7 +114,7 @@
 >: prepend_to_or('item_no_dot', 'question_item', 'lang_def')
 >: 
   r = seq_rule('star_item', ['item_plain', "'*'"], mode='lang_def')
-  r.add_fn('parsed', "\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n      star_rule = '(( %s )) %s | Empty' % (src(item_plain), name)\n      env._rules_to_add.append({name: star_rule})\n")
+  r.add_fn('parsed', "\n      mode_name = env._new_inner_rule_name()\n      add_subst('=' + mode_name)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n      seq_name = env._new_inner_rule_name()\n      fmt = ('> %s\\n'\n             '  phrase --> %s |: parse.pop_mode()\\n'\n             '  %s -> %s\\n')\n      src_str = fmt % (mode_name, seq_name, seq_name, src(item_plain))\n      parse_string(src_str)\n")
 >: prepend_to_or('item_no_dot', 'star_item', 'lang_def')
 >: 
   r = seq_rule('plus_item', ['item_plain', "'+'"], mode='lang_def')

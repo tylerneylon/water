@@ -4,9 +4,9 @@
 #
 
 >
-  statement --> a
   a -> 'b' 'a'* 'c'
     : print('rule a parsed')
+  statement --> a
 
 baac
 baaac
