@@ -61,3 +61,21 @@ becomes how to add rules in a new custom mode. For this, I
 propose that we use parse-level commands instead of a
 substitution. The rules would be relatively simple, so this
 approach seems feasible to me.
+
+---
+
+Including files.
+
+I think this can be a pipeline of a file loader and a nestable
+parser. The trouble is the debugging info. For now, every rule
+has just a start_pos and an end_pos. I think in the end that we'll
+want more data with each rule, such as a list (stack) of points
+within a nest of files, including both orig_pos and text_pos with
+version number. We would also like a filename/source field that
+could include either the file name (the obvious case) or something
+indicating where it came from as a string in code (the less obvious
+case).
+
+Current plan: Get an exec-like function working that breaks
+debugging info, and then fix debugging info on top of that.
+

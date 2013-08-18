@@ -306,6 +306,21 @@ def command(cmd):
   exec('def _tmp(): ' + cmd)
   _tmp()
 
+def parse_string(s):
+  line_nums = dbg.LineNums(s)
+  it = iterator.Iterator(s)
+  result = []
+  while True:
+    tree = rules['phrase'].parse(it)
+    if not tree: break
+    result.append(tree)
+  if it.text_pos < len(it.text()):
+    pos = it.orig_pos()
+    line_num, char_offset = line_nums.line_num_and_offset(pos)
+    error_fmt = 'Parsing failed on line %d, character %d'
+    raise ParseError(error_fmt % (line_num, char_offset))
+  return result
+
 # The input is an Iterator that is updated to point to the next parse point
 # if the parse is successful. The return value is:
 #  * a parse tree   on success

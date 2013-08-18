@@ -1,0 +1,7 @@
+# 44.water
+#
+# Test 1 of parse_string.
+#
+
+>: parse_string('>: print("hi!") \n')
+
