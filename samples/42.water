@@ -8,7 +8,7 @@
     :
       print('rule a parsed')
       print('type(d_list)=%s' % type(d_list))
-      print('d_list=%s' % d_list)
+      print('src(d_list)=%s' % src(d_list))
   d -->
     'd'
   statement --> a

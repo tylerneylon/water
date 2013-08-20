@@ -72,6 +72,9 @@ substs = []  # For use by add_subst.
 # TODO Pull this out into a modules & class that does not depend on parse.
 parse_info = None
 
+# Temp debug stuff.
+# TODO Make these available via command-line args.
+show_substs = False
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -219,9 +222,9 @@ class SeqRule(Rule):
       #               in the substs list (and add that info to the list).
       it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
       it.text_pos = self.start_text_pos
-      # The next two lines are very useful for debugging substitutions.
-      #print('After subst, text is:')
-      #print(it.text())
+      if show_substs:
+        print('After subst, text is:')
+        print(it.text())
       tree = self.parse(it)
     substs = saved_substs
     return tree

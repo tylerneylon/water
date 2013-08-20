@@ -1,0 +1,14 @@
+# 45.water
+#
+# A more elaborate test of star syntax.
+#
+
+>
+  name -> "[A-Za-z_]+"
+  arg -> name "(, )?"
+  params -> '(' arg* ')'
+  fn_proto -> name ' ' params
+  statement -> fn_proto
+    : print('fn_proto parsed')
+
+printf (fmt, var_arg)

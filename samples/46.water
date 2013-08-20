@@ -1,0 +1,20 @@
+# 46.water
+#
+# A more elaborate test of star syntax.
+#
+
+>
+  identifier -> "[A-Za-z_]+"
+  statement -> identifier ' (' (( identifier "(, )?" ))* ')'
+    :
+      print('proto parsed; tokens:')
+      for i, token in enumerate(tokens):
+        print('%d: "%s"' % (i, src(token)))
+      print('args are:')
+      for a in tokens[2]:
+        # It would be cool if we could do this:
+        # print(a.identifier)
+        # but right now that doesn't work.
+        print(src(a))
+
+printf (fmt, var_arg)
