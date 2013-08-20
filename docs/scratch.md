@@ -79,3 +79,83 @@ case).
 Current plan: Get an exec-like function working that breaks
 debugging info, and then fix debugging info on top of that.
 
+---
+
+## How rules are updated
+
+Currently, rules are stored in two places: a universal rule set, and in a mode
+stack. This allows for easy shadowing that changes with the mode, and fast
+lookups.
+
+Most of the time, it also allows for single-chunk language definition blocks to
+not have to worry about setting up partial rules that break as they're being
+parsed. However, if a new mode is pushed (under the current system) in the
+middle of such a block, the new mode could contain broken rules.
+
+I'd like to provide stronger guarantees that order doesn't matter within a
+rule definition block. Here is a plan to do so:
+
+* Rule lookups happen as if they are always pulled out of the universal rule
+  set. Effectively, the universal rule set is always definitive, and never
+  deferred (as it is now). In practice, a cache can be set up that is as fast as
+  a single dictionary (with possible work between mode pushes/pops) but is
+  invalidated whenever the universal rule set changes.
+* Rules defined within a mode only exist in the current mode object until that
+  mode is popped, at which point, they're added to the universal rule set.
+
+That's it.
+
+---
+
+## How parse_string can work
+
+Currently parse_string pushes a new global mode onto the mode stack and parses
+phrases within that.
+
+I suggest instead that the default be to parse within the current mode, and that
+options may be made to parse in either the base global mode or in the highest-
+existing mode of a certain name. Which one corresponds with the expected
+behavior of a function like exec? This isn't clear to me. I'll be in a better
+position to decide once I have more working experience.
+
+---
+
+## A principle to add to my list of principles
+
+The parse tree should correspond to the source in the sense that:
+
+* Each parsed phrase corresponds to a nonempty section of the source text, and
+* all phrase objects together partition the source text on a full successful
+  parse.
+
+In addition, src(rule) for any full level of the parse tree should reproduce the
+entire parsed source in order. A "full level" I haven't defined carefully, but
+intuitively it's a set of nodes that could act as all the leaves of a tree with
+the same root as the original tree.
+
+Also: where did I write down my development principles?
+
+---
+
+## How +,* suffixes can work
+
+Ok, this is the umpteenth time I've changed my mind about this, but this one is
+the most recent, and afer more experience with things.
+
+I propose a new syntax that supports turning a rule's output into a certain kind
+of list. Something like this:
+
+>
+  a -->
+    'A'
+  a_star[a] --> a_plus | Empty
+  a_plus[a] -->
+    a a_star
+
+The new part is the [a] notation, which means to reduce the output to a list of
+rules of type a. If not possible, the rule is a parse failure.
+
+This can be achieved by recursively calling it on all tokens or list elements,
+unless (i) the item is already type a, in which case return [a] or (ii) the item
+fits none of the previous criteria, in which case we consider the operation a
+parse failure.
