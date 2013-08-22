@@ -158,6 +158,15 @@ class SeqRule(Rule):
     Rule.__init__(self)
     self._add_fn('str', ' return self.src()')
 
+  def __getattribute__(self, name):
+    try:
+      return Rule.__getattribute__(self, name)
+    except AttributeError:
+      d = Rule.__getattribute__(self, '__dict__')
+      if name in d['pieces']: return d['pieces'][name]
+      if d['name'] == name: return self
+      raise
+
   def src(self):
     return ''.join([src(t) for t in self.tokens])
 
@@ -341,11 +350,13 @@ def parse_phrase(it):
     parse_info.attempts = []
   return tree
 
-def or_rule(name, or_list, mode=''):
+def or_rule(name, or_list, mode='', list_of=None):
+  # TODO add list_of to the next two lines
   dbg.dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
   return _add_rule(OrRule(name, or_list), mode)
 
-def seq_rule(name, seq, mode=''):
+def seq_rule(name, seq, mode='', list_of=None):
+  # TODO add list_of to the next two lines
   dbg.dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
   return _add_rule(SeqRule(name, seq), mode)
 

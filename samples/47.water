@@ -1,0 +1,13 @@
+# 47.water
+#
+# Work on rule tags.
+#
+
+>
+  a[b] --> c | d
+  c -->
+    'c'
+  d -->
+    'd'
+  statement --> a
+

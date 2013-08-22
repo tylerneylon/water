@@ -100,14 +100,19 @@
   indented_rule -->
     "%(indent)s" rule
   rule --> prepend_to_or | or_rule | seq_rule
+  rule_tag --> rule_with_tag | rule_name
+  rule_with_tag -->
+    rule_name '[' word ']'
   prepend_to_or -->
     word ' =| ' word "[ \t]*\n"
     : parse.prepend_to_or(word[0].src(), word[1].src(), mode=mode.name)
   or_rule -->
-    word ' --> ' or_list -opt_rule_block
+    rule_tag ' --> ' or_list -opt_rule_block
     mode_params:
       params = {}
-      params['rule'] = parse.or_rule(word.src(), or_list.list(), mode=mode.name)
+      list_of = None if len(rule_tag.tokens) == 1 else src(rule_tag.word)
+      params['rule'] = parse.or_rule(src(rule_tag.rule_name), or_list.list(),
+                                     mode=mode.name, list_of=list_of)
       return params
   or_list --> multi_or_list | or_list_end
   or_list_end -->
