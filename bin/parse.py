@@ -152,9 +152,10 @@ class Rule(Object):
 
 class SeqRule(Rule):
 
-  def __init__(self, name, seq):
+  def __init__(self, name, seq, list_of=None):
     self.name = name
     self.seq = seq
+    self.list_of = list_of
     Rule.__init__(self)
     self._add_fn('str', ' return self.src()')
 
@@ -236,7 +237,7 @@ class SeqRule(Rule):
         print(it.text())
       tree = self.parse(it)
     substs = saved_substs
-    return tree
+    return tree if self.list_of is None else _list_of(self)
 
   def child(self):
     c = SeqRule(self.name, self.seq)
@@ -246,9 +247,10 @@ class SeqRule(Rule):
 
 class OrRule(Rule):
 
-  def __init__(self, name, or_list):
+  def __init__(self, name, or_list, list_of=None):
     self.name = name
     self.or_list = or_list
+    self.list_of = list_of
     Rule.__init__(self)
 
   def __getattribute__(self, name):
@@ -285,7 +287,7 @@ class OrRule(Rule):
         self.end_pos = it.orig_pos()
         dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))
         if 'parsed' in self.__dict__: self.parsed()
-        return self
+        return self if self.list_of is None else _list_of(self)
     dbg.dprint('parse', '%s parse failed' % self.name)
     return None
 
@@ -351,14 +353,14 @@ def parse_phrase(it):
   return tree
 
 def or_rule(name, or_list, mode='', list_of=None):
-  # TODO add list_of to the next two lines
-  dbg.dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
-  return _add_rule(OrRule(name, or_list), mode)
+  dbg.dprint('public', 'or_rule(%s, %s, %s, %s)' %
+             (name, `or_list`, `mode`, `list_of`))
+  return _add_rule(OrRule(name, or_list, list_of), mode)
 
 def seq_rule(name, seq, mode='', list_of=None):
-  # TODO add list_of to the next two lines
-  dbg.dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
-  return _add_rule(SeqRule(name, seq), mode)
+  dbg.dprint('public', 'seq_rule(%s, %s, %s, %s)' %
+             (name, `seq`, `mode`, `list_of`))
+  return _add_rule(SeqRule(name, seq, list_of), mode)
 
 def bool_rule(name, bool_val, mode=''):
   dbg.dprint('public', 'bool_rule(%s, %s, %s)' % (name, `bool_val`, `mode`))
@@ -578,6 +580,15 @@ def _setup_base_rules():
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
   push_mode('')
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
+
+# Returns a list of rules of type elt_type, or None if rule_or_str cannot be
+# built of such a list. If elt_type is None, then rule_or_str.list_of is used
+# as the elt_type.
+def _list_of(rule_or_str, elt_type=None):
+  if elt_type is None: elt_type = rule_or_str.list_of
+  # TODO TEMP DEBUG
+  #print('list_of called on instance of rule %s' % rule_or_str.name)
+  return rule_or_str
 
 #------------------------------------------------------------------------------
 #  Set up initial state.

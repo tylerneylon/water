@@ -5,9 +5,13 @@
 
 >
   a[b] --> c | d
+    : print('a parsed as %s' % `src(self)`)
   c -->
     'c'
   d -->
     'd'
   statement --> a
 
+cd
+
+d
