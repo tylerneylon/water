@@ -7,10 +7,14 @@
   a[b] --> c | d
     : print('a parsed as %s' % `src(self)`)
   c -->
-    'c'
+    b b
   d -->
-    'd'
+    b
+  b -->
+    "[cd]"
   statement --> a
+    :
+      print('type(a)=%s' % type(self.result))
 
 cd
 

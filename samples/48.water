@@ -1,0 +1,24 @@
+# 47.water
+#
+# Broken example.
+# I would sort of expect to be able to refer to a from the parsed
+# method of statement, as written below, but it doesn't work.
+# What is the right design for this?
+#
+
+>
+  a[b] --> c | d
+    : print('a parsed as %s' % `src(self)`)
+  c -->
+    b b
+  d -->
+    b
+  b -->
+    "[cd]"
+  statement --> a
+    :
+      print('type(a)=%s' % type(a))
+
+cd
+
+d

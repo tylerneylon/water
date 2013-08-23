@@ -581,14 +581,17 @@ def _setup_base_rules():
   push_mode('')
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
 
-# Returns a list of rules of type elt_type, or None if rule_or_str cannot be
-# built of such a list. If elt_type is None, then rule_or_str.list_of is used
+# Returns a list of rules of type elt_type, or None if obj cannot be
+# built of such a list. If elt_type is None, then obj.list_of is used
 # as the elt_type.
-def _list_of(rule_or_str, elt_type=None):
-  if elt_type is None: elt_type = rule_or_str.list_of
-  # TODO TEMP DEBUG
-  #print('list_of called on instance of rule %s' % rule_or_str.name)
-  return rule_or_str
+def _list_of(obj, elt_type=None):
+  if elt_type is None: elt_type = obj.list_of
+  if obj.name == elt_type: return [obj]
+  if isinstance(obj, OrRule): return _list_of(obj.result, elt_type)
+  if isinstance(obj, SeqRule):
+    from_tokens = [_list_of(t, elt_type) for t in obj.tokens]
+    return from_tokens if all(from_tokens) else None
+  return None
 
 #------------------------------------------------------------------------------
 #  Set up initial state.
