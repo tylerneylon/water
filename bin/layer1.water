@@ -129,10 +129,12 @@
     word
     list: return [word.src()]
   seq_rule -->
-    word " -->\n%(indent)s(\s+)" seq "[ \t]*\n" -rule_block
+    rule_tag " -->\n%(indent)s(\s+)" seq "[ \t]*\n" -rule_block
     mode_params:
       params = {'indent': mode.indent + tokens[1][1]}
-      params['rule'] = parse.seq_rule(word.src(), seq.list(), mode=mode.name)
+      list_of = None if len(rule_tag.tokens) == 1 else src(rule_tag.word)
+      params['rule'] = parse.seq_rule(src(rule_tag.rule_name), seq.list(),
+                                      mode=mode.name, list_of=list_of)
       return params
   seq --> mode_result | item_list
   item_list --> item_seq | item
