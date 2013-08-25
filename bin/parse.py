@@ -74,7 +74,7 @@ parse_info = None
 
 # Temp debug stuff.
 # TODO Make these available via command-line args.
-show_substs = False
+show_extra_dbg = False
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -232,7 +232,7 @@ class SeqRule(Rule):
       #               in the substs list (and add that info to the list).
       it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
       it.text_pos = self.start_text_pos
-      if show_substs:
+      if show_extra_dbg:
         print('After subst, text is:')
         print(it.text())
       tree = self.parse(it)
@@ -321,15 +321,20 @@ def command(cmd):
   _tmp()
 
 def parse_string(s):
-  push_mode('')
+  # I'm leaving in a {push,pop}_mode pair to show where we can
+  # alter the mode if we wanted to.
+  if show_extra_dbg:
+    print('parse_string:')
+    print(s)
+  if False: push_mode('')
   line_nums = dbg.LineNums(s)
   it = iterator.Iterator(s)
   result = []
   while True:
     tree = rules['phrase'].parse(it)
-    if not tree: break
+    if not tree or it.text_pos == len(it.text()): break
     result.append(tree)
-  pop_mode('')
+  if False: pop_mode('')
   if it.text_pos < len(it.text()):
     pos = it.orig_pos()
     line_num, char_offset = line_nums.line_num_and_offset(pos)
@@ -586,11 +591,14 @@ def _setup_base_rules():
 # as the elt_type.
 def _list_of(obj, elt_type=None):
   if elt_type is None: elt_type = obj.list_of
+  def _apply_to_items(items):
+    mapped_items = [_list_of(i, elt_type) for i in items]
+    return sum(mapped_items, []) if all(mapped_items) else None
+  if type(obj) is list: return _apply_to_items(obj)
   if obj.name == elt_type: return [obj]
+  if obj.name == 'Empty': return []
   if isinstance(obj, OrRule): return _list_of(obj.result, elt_type)
-  if isinstance(obj, SeqRule):
-    from_tokens = [_list_of(t, elt_type) for t in obj.tokens]
-    return from_tokens if all(from_tokens) else None
+  if isinstance(obj, SeqRule): return _apply_to_items(obj.tokens)
   return None
 
 #------------------------------------------------------------------------------

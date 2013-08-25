@@ -134,20 +134,33 @@
 # Add + and * syntax for items.
 ##############################################################
 
+>:
+  def add_indents(s, mode):
+    ind = mode.indent
+    indented_lines = [ind + line for line in s.split('\n')]
+    indented_lines[-1] = ""
+    return '\n'.join(indented_lines)
+  env._add_indents = add_indents
+
 > lang_def
   star_item -->
     item_plain '*'
     :
-      mode_name = env._new_inner_rule_name()
-      add_subst('=' + mode_name)
+      star_rule = env._new_inner_rule_name()
+      add_subst(star_rule)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
-      seq_name = env._new_inner_rule_name()
-      fmt = ('> %s\n'
-             '  phrase --> %s |: parse.pop_mode()\n'
-             '  %s -> %s\n')
-      src_str = fmt % (mode_name, seq_name, seq_name, src(item_plain))
-      parse_string(src_str)
+      body_rule = env._new_inner_rule_name()
+      plus_rule = env._new_inner_rule_name()
+      fmt = ('%(body_rule)s -> %(body)s\n'
+             '%(star_rule)s[%(body_rule)s] --> %(plus_rule)s | Empty\n'
+             '%(plus_rule)s[%(body_rule)s] -->\n'
+             '  %(body_rule)s %(star_rule)s\n')
+      src_elts = {"star_rule": star_rule,
+                  "body_rule": env._new_inner_rule_name(),
+                  "plus_rule": env._new_inner_rule_name(),
+                  "body": src(item_plain)}
+      parse_string(env._add_indents(fmt % src_elts, mode))
   item_no_dot =| star_item
   plus_item -->
     item_plain '+'
