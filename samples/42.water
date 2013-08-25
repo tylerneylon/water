@@ -6,9 +6,11 @@
 >
   a -> 'b' d* 'c'
     :
-      print('rule a parsed')
+      print('-------\nrule a parsed')
       print('type(d_list)=%s' % type(d_list))
       print('src(d_list)=%s' % src(d_list))
+      print('src per d_list item=%s' % `[src(i) for i in d_list]`)
+      print('name per d_list item=%s' % `[i.name for i in d_list]`)
   d -->
     'd'
   statement --> a

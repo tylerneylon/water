@@ -261,6 +261,9 @@ class OrRule(Rule):
       if 'result' in d: return d['result'].__getattribute__(name)
       raise
 
+  # We need this because result could be a non-Rule without its own src method.
+  def src(self): return src(self.result)
+
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
     #dbg.dprint('temp', 'mode.__dict__=%s' % `mode.__dict__`)
@@ -593,7 +596,9 @@ def _list_of(obj, elt_type=None):
   if elt_type is None: elt_type = obj.list_of
   def _apply_to_items(items):
     mapped_items = [_list_of(i, elt_type) for i in items]
-    return sum(mapped_items, []) if all(mapped_items) else None
+    # Propagate up any None values indicating failure.
+    if any(map(lambda x: x is None, mapped_items)): return None
+    return sum(mapped_items, [])
   if type(obj) is list: return _apply_to_items(obj)
   if obj.name == elt_type: return [obj]
   if obj.name == 'Empty': return []
