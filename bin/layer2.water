@@ -187,9 +187,9 @@
   plus_item -->
     item_plain '+'
     :
-      name = env._new_inner_rule_name()
-      add_subst(name)
-      item_src = src(item_plain)
-      env._rules_to_add.append({name: '%s %s*' % (item_src, item_src)})
+      plus_rule = env._get_plus_rule(src(item_plain))
+      add_subst(plus_rule)
+      if (item_plain.result.name == 'rule_name'):
+        add_subst(':' + src(item_plain) + '_list')
   item_no_dot =| plus_item
 
