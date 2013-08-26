@@ -121,9 +121,39 @@
     indented_lines[-1] = ""
     return '\n'.join(indented_lines)
   env._add_indents = add_indents
+  #
+  env._star_plus_rules = {}
+  #
+  def add_star_plus_rules(items_str):
+    star_rule = env._new_inner_rule_name()
+    body_rule = env._new_inner_rule_name()
+    plus_rule = env._new_inner_rule_name()
+    fmt = ('%(body_rule)s -> %(body)s\n'
+           '%(star_rule)s[%(body_rule)s] --> %(plus_rule)s | Empty\n'
+           '%(plus_rule)s[%(body_rule)s] -->\n'
+           '  %(body_rule)s %(star_rule)s\n')
+    src_elts = {"star_rule": star_rule,
+                "body_rule": body_rule,
+                "plus_rule": plus_rule,
+                "body": items_str}
+    parse_string(env._add_indents(fmt % src_elts, mode))
+    env._star_plus_rules[items_str] = (star_rule, plus_rule)
+  env._add_star_plus_rules = add_star_plus_rules
+  #
+  def get_star_rule(items_str):
+    if items_str not in env._star_plus_rules:
+      env._add_star_plus_rules(items_str)
+    return env._star_plus_rules[items_str][0]
+  env._get_star_rule = get_star_rule
+  #
+  def get_plus_rule(items_str):
+    if items_str not in env._star_plus_rules:
+      env._add_star_plus_rules(items_str)
+    return env._star_plus_rules[items_str][1]
+  env._get_plus_rule = get_plus_rule
 >: 
   r = seq_rule('star_item', ['item_plain', "'*'"], mode='lang_def', list_of=None)
-  r.add_fn('parsed', '\n      star_rule = env._new_inner_rule_name()\n      add_subst(star_rule)\n      if (item_plain.result.name == \'rule_name\'):\n        add_subst(\':\' + src(item_plain) + \'_list\')\n      body_rule = env._new_inner_rule_name()\n      plus_rule = env._new_inner_rule_name()\n      fmt = (\'%(body_rule)s -> %(body)s\\n\'\n             \'%(star_rule)s[%(body_rule)s] --> %(plus_rule)s | Empty\\n\'\n             \'%(plus_rule)s[%(body_rule)s] -->\\n\'\n             \'  %(body_rule)s %(star_rule)s\\n\')\n      src_elts = {"star_rule": star_rule,\n                  "body_rule": env._new_inner_rule_name(),\n                  "plus_rule": env._new_inner_rule_name(),\n                  "body": src(item_plain)}\n      parse_string(env._add_indents(fmt % src_elts, mode))\n')
+  r.add_fn('parsed', "\n      star_rule = env._get_star_rule(src(item_plain))\n      add_subst(star_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
 >: prepend_to_or('item_no_dot', 'star_item', 'lang_def')
 >: 
   r = seq_rule('plus_item', ['item_plain', "'+'"], mode='lang_def', list_of=None)
