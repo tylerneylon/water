@@ -1,0 +1,39 @@
+# 51.water
+#
+# A subset of JavaScript -> Python
+#
+# Let's call the subset jss for javascriptscript.
+#
+# The plan is to ultimately turn jss into C, but
+# first I'd like to use Python as a way to know
+# how to do a decent job of it.
+#
+# For now I'll keep it introspective, and maybe
+# later think about making things faster.
+#
+
+#
+# The file so far has good and bad points:
+#
+# Good: I like that I can effectively put my jss grammar in its own
+#       language block.
+#
+# Bad:  It's difficult to cleanly handle infix operators.
+#       Prefixes are also messy. Maybe I can clean those up together.
+#
+
+> jss
+  integer -> '0' | "[1-9]\d*"
+    : print('integer parsed as %s' % src(self))
+  endline -> "[ \t]*\n"
+  s -> "[ \t]*"
+  sum -> integer (( s '+' s integer ))*
+  statement -> sum endline
+  phrase --> statement |: parse.pop_mode()
+
+>
+  statement -->
+    =jss
+
+23 + 11
+42

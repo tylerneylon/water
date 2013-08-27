@@ -1,0 +1,27 @@
+# 50.water
+#
+# Broken
+# I think the error for this should be easier to see to users.
+#
+# A subset of JavaScript -> Python
+#
+# Let's call the subset jss for javascriptscript.
+#
+# The plan is to ultimately turn jss into C, but
+# first I'd like to use Python as a way to know
+# how to do a decent job of it.
+#
+# For now I'll keep it introspective, and maybe
+# later think about making things faster.
+#
+
+> jss
+  integer -> '0' | "[1-9]\d*"
+    : print('integer parsed as %s' % src(self))
+  phrase -> integer
+
+>
+  statement -->
+    =jss
+
+23

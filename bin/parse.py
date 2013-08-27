@@ -190,6 +190,7 @@ class SeqRule(Rule):
         return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
+    if not mode_name.may_have_params and len(mode_result) == 0: return None
     self.pieces['mode_result'] = mode_result
     return mode_result
 
