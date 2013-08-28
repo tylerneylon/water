@@ -159,3 +159,76 @@ This can be achieved by recursively calling it on all tokens or list elements,
 unless (i) the item is already type a, in which case return [a] or (ii) the item
 fits none of the previous criteria, in which case we consider the operation a
 parse failure.
+
+---
+
+## Infix operators
+
+>
+  sum -> number+'+'
+  product -> number+'*'
+
+The values after + or * are separators.
+
+>
+  a -->
+    'A'
+  a_star[a] --> a_plus | Empty
+  a_plus[a] -->
+    a ('+')a_star
+
+The tricky part is making a separator work well with prefixes.
+They feel conceptually different to me.
+Basically, a prefix is what counts as whitespace, and occasionally we want
+to turn that off within a mode.
+
+My hunch is that prefixes should be stack-based (they somewhat are already).
+
+Every rule can have a `.prefix` field which complements its `tokens` to give
+the full `src`. (Well, every `SeqRule`, that is.)
+
+Two operations are possible when adding to the prefix stack:
+1. Add a new item to be sandwiched by the last item; or
+2. Add a blank slate.
+
+We want to use 1 for separators like infix operators.
+We want to use 2 for things like strings.
+
+Maybe the notation can be like this:
+
+>
+  number_plus[number] -->
+    number ('+')number_star
+  str -->
+    "['\"]" (='')-str
+
+For the last part, I could also consider a notation that alters the prefix on
+entry to a mode, such as this:
+
+> str (prefix='')
+  phrase --> # etc
+
+Actually, I do prefer that.
+
+So, for now, my decision is:
+
+* An item can be (<prefix_change>)<item>
+* Start of a lang def block can be > <mode_name> (<prefix_change>)
+
+and a `prefix_change` can be:
+
+* (<item>)
+
+meaning we sandwich the item between the old prefix, or
+
+* (prefix=<item>)
+
+meaning the prefix is replaced as a new stack prefix.
+
+As before, prefix changes are always temporary and popped for the user.
+I may consider old explicitly stack setting (through the api) to be bad
+practice after this, and think about how to discourage its use.
+
+For starters, I'll implement the prefix_change on rule names. I hope this
+can be a slight modification to the code that handles . prefixes (not sure).
+
