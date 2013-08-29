@@ -1,0 +1,17 @@
+# 52.water
+#
+# Test of prefix syntax.
+#
+
+>
+  statement --> with_dots | no_dots
+  with_dots -->
+    ("\.+")a
+  no_dots -->
+    a
+  a -->
+    'a' 'b' 'c'
+    : print('a parsed from %s' % src(self))
+
+a.b...c
+abc

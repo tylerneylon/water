@@ -148,8 +148,13 @@
     '=' word
     list: return [tokens[0] + word.src()]
   item -->
-    "!?(\.)?" item_no_dot
+    pre_item_modifiers item_no_dot
     list: return [self.src()]
+  pre_item_modifiers -->
+    "!?" maybe_prefix_change "\.?"
+  maybe_prefix_change --> prefix_change | Empty
+  prefix_change -->
+    '(' item ')'
   item_no_dot --> item_with_label | item_plain
   item_with_label -->
     item_plain ':' word
