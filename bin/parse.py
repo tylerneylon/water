@@ -51,8 +51,9 @@ mode = None
 parse = None
 env = None
 
-prefix = None
-user_prefix = False
+# Each entry is a list of prefixes to parse as a sequence.
+prefixes = [[]]
+
 parse_stack = []
 
 substs = []  # For use by add_subst.
@@ -351,8 +352,7 @@ def parse_string(s):
 #  * a parse tree   on success
 #  * None           if there was a parse error.
 def parse_phrase(it):
-  global parse_info, user_prefix
-  user_prefix = False
+  global parse_info
   parse_info.phrase_start_pos = it.orig_pos()
   tree = rules['phrase'].parse(it)
   if tree:
@@ -433,11 +433,15 @@ def pop_mode(outgoing_mode=None):
   rules = mode.rules
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
 
-def set_prefix(new_prefix, from_user=True):
-  global prefix, user_prefix
-  if user_prefix and not from_user: return
-  prefix = new_prefix
-  if from_user: user_prefix = True
+def push_prefix(prefix, overwrite=False):
+  global prefixes
+  prefix = [] if prefix is None else [prefix]
+  if not overwrite: prefix = prefixes[-1] + prefix + prefixes[-1]
+  prefixes.append(prefix)
+
+def pop_prefix():
+  global prefixes
+  prefixes.pop()
 
 def src(obj):
   if type(obj) == str: return obj
@@ -509,12 +513,11 @@ def _find_label(item):
 # _ModeName string when a mode name is found -- in that case, the actual parsing
 # of the mode is not performed, and is up to the caller to complete.
 def _parse_item(item, it):
-  global prefix
-  saved_prefix = prefix
+  should_pop_prefix = False
   is_negated = False
   def _end(val, labels):
     if is_negated: val = None if val else rules['Empty']
-    set_prefix(saved_prefix, from_user=False)
+    if should_pop_prefix: pop_prefix()
     return val, labels
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
@@ -526,7 +529,8 @@ def _parse_item(item, it):
   if c == '.':
     item = item[1:]
     c = item[0]
-    prefix = None
+    push_prefix(None, overwrite=True)
+    should_pop_prefix = True
   item, label = _find_label(item)
   labels = [label] if label else []
   if c in ['-', '=']:
@@ -555,9 +559,16 @@ def _direct_parse(s, it):
   it.move(len(m.group(0)))
   return m
 
+def _parse_prefix(it):
+  global prefixes
+  prefix_list = prefixes[-1]
+  push_prefix(None, overwrite=True)
+  for prefix_item in prefix_list:
+    val, labels = _parse_item(prefix_item, it)
+  pop_prefix()
+ 
 def _parse_exact_re(s, it):
-  global prefix
-  if prefix is not None: m = _direct_parse(prefix, it)
+  _parse_prefix(it)
   s = s.decode('string_escape')
   m = _direct_parse(s, it)
   if m:

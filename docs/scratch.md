@@ -232,3 +232,22 @@ practice after this, and think about how to discourage its use.
 For starters, I'll implement the prefix_change on rule names. I hope this
 can be a slight modification to the code that handles . prefixes (not sure).
 
+---
+
+## Some steps for prefixes
+
+* Add a `prefix` field to `SeqRule` so `src` can get correct data, and
+  test that.
+* Notice and react to a parse failure on a prefix.
+* Understand a push-prefix-change on items / get 52.water working.
+* Understand a set-prefix-change on items, with a test.
+* Understand prefix changes on lang def blocks, and test.
+
+---
+
+## General next steps, after the infix sutff
+
+* Add a unit test system which is easy to run comprehensively.
+* Split out samples into working, test-error-msgs, and pending.
+* Code cleanup and list out in-code todo items.
+* Try to clean up grammars: core (mainly) and layers (secondarily).

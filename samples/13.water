@@ -113,7 +113,7 @@
     :
       if tokens[0][0] == mode.endchar: parse.pop_mode()
 
->: set_prefix(r'\s*') 
+>: push_prefix(r'"\s*"')
 
 function f(n) {
   var p = console.log;
