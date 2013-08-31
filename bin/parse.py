@@ -170,7 +170,8 @@ class SeqRule(Rule):
       raise
 
   def src(self):
-    return ''.join([src(t) for t in self.tokens])
+    parts = zip(self.prefixes, self.tokens)
+    return ''.join([src(p[0]) + src(p[1]) for p in parts])
 
   def parse_mode(self, mode_name, it):
     dbg.dprint('parse', '%s parse_mode %s' % (self.name, mode_name))
@@ -200,9 +201,10 @@ class SeqRule(Rule):
     self.start_text_pos = it.text_pos
     self.start_pos = it.orig_pos()
     self.tokens = []
+    self.prefixes = []
     self.pieces = {}
     for item in self.seq:
-      val, labels = _parse_item(item, it)
+      prefix, val, labels = _parse_item(item, it)
       if isinstance(val, _ModeName):
         dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
         val = self.parse_mode(val, it)
@@ -212,6 +214,7 @@ class SeqRule(Rule):
         dbg.dprint('parse', dbg_fmt % (self.name, item, `dbg_snippet`))
         it.text_pos = self.start_text_pos
         return self._end_parse(None, it)
+      self.prefixes.append(prefix)
       self.tokens.append(val)
       for label in labels: self.pieces.setdefault(label, []).append(val)
     return self._end_parse(self, it)
@@ -264,7 +267,7 @@ class OrRule(Rule):
       raise
 
   # We need this because result could be a non-Rule without its own src method.
-  def src(self): return src(self.result)
+  def src(self): return src(self.prefix) + src(self.result)
 
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
@@ -278,13 +281,14 @@ class OrRule(Rule):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
     for index, item in enumerate(self.or_list):
-      val, labels = _parse_item(item, it)
+      prefix, val, labels = _parse_item(item, it)
       if isinstance(val, _CommandStr):
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         self.run_code(val)
         self.end_pos = it.orig_pos()
         return None
       if val:
+        self.prefix = prefix
         self.result = val
         # We want to delegate the tokens property to val iff val is a Rule.
         if not isinstance(val, Rule): self.tokens = [val]
@@ -515,13 +519,14 @@ def _find_label(item):
 def _parse_item(item, it):
   should_pop_prefix = False
   is_negated = False
-  def _end(val, labels):
+  prefix = ''
+  def _end(prefix, val, labels):
     if is_negated: val = None if val else rules['Empty']
     if should_pop_prefix: pop_prefix()
-    return val, labels
+    return prefix, val, labels
   dbg.dprint('temp', 'item=%s' % item)
   c = item[0]
-  if c == ':': return _end(_CommandStr(item[1:]), None)
+  if c == ':': return _end(prefix, _CommandStr(item[1:]), None)
   if c == '!':
     is_negated = True
     item = item[1:]
@@ -536,16 +541,16 @@ def _parse_item(item, it):
   if c in ['-', '=']:
     mode_name = _ModeName(item[1:])
     mode_name.may_have_params = (c == '-')
-    return _end(mode_name, labels)
-  if c == "'": val = _parse_exact_str(item[1:-1], it)
+    return _end(prefix, mode_name, labels)
+  if c == "'": prefix, val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
     dbg.dprint('temp', 're=%s' % `re`)
-    val = _parse_exact_re(re, it)
+    prefix, val = _parse_exact_re(re, it)
   else:
     val = rules[item].parse(it)
     if val: labels.append(item)
-  return _end(val, labels)
+  return _end(prefix, val, labels)
 
 def _parse_exact_str(s, it):
   to_escape = list("+()|*.[]?")
@@ -563,23 +568,27 @@ def _parse_prefix(it):
   global prefixes
   prefix_list = prefixes[-1]
   push_prefix(None, overwrite=True)
+  parsed = ''
   for prefix_item in prefix_list:
-    val, labels = _parse_item(prefix_item, it)
+    ignored, val, labels = _parse_item(prefix_item, it)
+    parsed += val
   pop_prefix()
+  return parsed
  
 def _parse_exact_re(s, it):
-  _parse_prefix(it)
+  prefix = _parse_prefix(it)
+  # TODO Account for a possible prefix parse failure.
   s = s.decode('string_escape')
   m = _direct_parse(s, it)
   if m:
     num_grp = len(m.groups()) + 1
     val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-    return val
+    return prefix, val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
   _store_parse_attempt(it)
   parse_stack.pop()
-  return None
+  return None, None
 
 def _store_parse_attempt(it):
   global parse_info

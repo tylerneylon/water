@@ -1,0 +1,21 @@
+# 53.water
+#
+# Test the prefix stack and that src works on it.
+#
+
+>
+  statement -->
+    'a' 'b' 'c'
+    :
+      print('a-b-c read with src=%s' % src(self))
+
+abc
+
+>: push_prefix('" *"')
+
+a  bc
+
+>: push_prefix('"\+?"')
+
+a + b+c
+

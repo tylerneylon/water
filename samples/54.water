@@ -1,4 +1,14 @@
-# A subset of JavaScript
+# 54.water
+#
+# Broken.
+# This is hard to debug right now.
+# The error is that the value recieved from the var rule within obj_elem
+# includes the prefix. This can be fixed by chaning line 94 to:
+#    name: return ident.name()
+# instead, which excludes the prefix.
+#
+# I'd like to improve error messages around this.
+#
 
 >:
   run.run("symbols = {}\n")
@@ -86,7 +96,7 @@
       run.add("symbols['%s']['value']['%s']" % (var.name(), ident.name()))
   var -->
     ident
-    name: return ident.name()
+    name: return tokens[0]
     add_code: run.add("symbols['%s']" % ident.name())
   js_str -->
     "['\"]" .-js_str
