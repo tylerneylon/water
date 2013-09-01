@@ -571,19 +571,22 @@ def _parse_prefix(it):
   parsed = ''
   for prefix_item in prefix_list:
     ignored, val, labels = _parse_item(prefix_item, it)
+    if val is None:
+      pop_prefix()
+      return None
     parsed += val
   pop_prefix()
   return parsed
  
 def _parse_exact_re(s, it):
   prefix = _parse_prefix(it)
-  # TODO Account for a possible prefix parse failure.
-  s = s.decode('string_escape')
-  m = _direct_parse(s, it)
-  if m:
-    num_grp = len(m.groups()) + 1
-    val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-    return prefix, val
+  if prefix is not None:
+    s = s.decode('string_escape')
+    m = _direct_parse(s, it)
+    if m:
+      num_grp = len(m.groups()) + 1
+      val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
+      return prefix, val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
   _store_parse_attempt(it)

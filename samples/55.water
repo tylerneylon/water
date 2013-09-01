@@ -1,0 +1,25 @@
+# 55.water
+#
+# Test that parses fail if the prefix parse fails.
+#
+
+>
+  statement --> abc | .abc_minus
+  abc -->
+    'a' 'b' "c\n"
+    :
+      print('abc read with src=%s' % src(self), end='')
+  abc_minus -->
+    'a' "\-?" 'b' "\-?" "c\n"
+    :
+      print('abc_minus read with src=%s' % src(self), end='')
+
+abc
+
+>: push_prefix('" *"')
+
+a  bc
+
+>: push_prefix("'+'")
++a+b+c
+a-b-c
