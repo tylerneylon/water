@@ -128,7 +128,7 @@
       name = env._new_inner_rule_name()
       add_subst(name)
       env._rules_to_add.append({name: src(item_plain) + ' | Empty'})
-  item_no_dot =| question_item
+  std_prefix_item =| question_item
 
 ##############################################################
 # Add + and * syntax for items.
@@ -183,7 +183,7 @@
       add_subst(star_rule)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
-  item_no_dot =| star_item
+  std_prefix_item =| star_item
   plus_item -->
     item_plain '+'
     :
@@ -191,5 +191,5 @@
       add_subst(plus_rule)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
-  item_no_dot =| plus_item
+  std_prefix_item =| plus_item
 

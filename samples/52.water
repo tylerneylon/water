@@ -13,5 +13,5 @@
     'a' 'b' 'c'
     : print('a parsed from %s' % src(self))
 
-a.b...c
+.a.b...c
 abc

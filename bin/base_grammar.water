@@ -36,11 +36,16 @@
 >: r = seq_rule('item_seq', ['item', "' '", 'seq'], mode='lang_def', list_of=None);  r.add_fn('list', ' return item.list() + seq.list()\n')
 >: r = seq_rule('mode_result', ['"\\.?-"', 'word'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [tokens[0] + word.src()]\n')
 >: r = seq_rule('no_param_mode_result', ["'='", 'word'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [tokens[0] + word.src()]\n')
->: r = seq_rule('item', ['pre_item_modifiers', 'item_no_dot'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [self.src()]\n')
->: seq_rule('pre_item_modifiers', ['"!?"', 'maybe_prefix_change', '"\\.?"'], mode='lang_def', list_of=None)
->: or_rule('maybe_prefix_change', ['prefix_change', 'Empty'], mode='lang_def', list_of=None)
->: seq_rule('prefix_change', ["'('", 'item', "')'"], mode='lang_def', list_of=None)
->: or_rule('item_no_dot', ['item_with_label', 'item_plain'], mode='lang_def', list_of=None)
+>: or_rule('item', ['prefix_changed_item', 'std_prefix_item'], mode='lang_def', list_of=None)
+>: r = seq_rule('prefix_changed_item', ['prefix_change', 'std_prefix_item'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [(src(prefix_change), src(std_prefix_item))]\n');  r.add_fn('parsed', " print('prefix_change_item=%s' % `self.list()`)\n")
+>: or_rule('prefix_change', ['paren_prefix_change', 'dot_prefix_change'], mode='lang_def', list_of=None)
+>: seq_rule('paren_prefix_change', ["'('", 'item', "')'"], mode='lang_def', list_of=None)
+>: seq_rule('dot_prefix_change', ["'.'"], mode='lang_def', list_of=None)
+>: r = or_rule('std_prefix_item', ['_inner_1'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [src(self)]\n')
+>: seq_rule('_inner_1', ['"!?"', '_inner_0'], mode='lang_def', list_of=None)
+>: or_rule('_inner_0', ['_inner_2', '_inner_3'], mode='lang_def', list_of=None)
+>: seq_rule('_inner_2', ['item_with_label'], mode='lang_def', list_of=None)
+>: seq_rule('_inner_3', ['item_plain'], mode='lang_def', list_of=None)
 >: seq_rule('item_with_label', ['item_plain', "':'", 'word'], mode='lang_def', list_of=None)
 >: or_rule('item_plain', ['no_param_mode_result', 'str', 'rule_name'], mode='lang_def', list_of=None)
 >: r = seq_rule('str', ['"[\'\\"]"', '-str'], mode='lang_def', list_of=None);  r.add_fn('mode_params', "\n      return {'endchar': tokens[0][0]}\n");  r.add_fn('list', ' return [self.src()]\n')
@@ -116,7 +121,7 @@
 >: 
   r = seq_rule('question_item', ['item_plain', "'?'"], mode='lang_def', list_of=None)
   r.add_fn('parsed', "\n      name = env._new_inner_rule_name()\n      add_subst(name)\n      env._rules_to_add.append({name: src(item_plain) + ' | Empty'})\n")
->: prepend_to_or('item_no_dot', 'question_item', 'lang_def')
+>: prepend_to_or('std_prefix_item', 'question_item', 'lang_def')
 >: 
   def add_indents(s, mode):
     ind = mode.indent
@@ -157,11 +162,11 @@
 >: 
   r = seq_rule('star_item', ['item_plain', "'*'"], mode='lang_def', list_of=None)
   r.add_fn('parsed', "\n      star_rule = env._get_star_rule(src(item_plain))\n      add_subst(star_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
->: prepend_to_or('item_no_dot', 'star_item', 'lang_def')
+>: prepend_to_or('std_prefix_item', 'star_item', 'lang_def')
 >: 
   r = seq_rule('plus_item', ['item_plain', "'+'"], mode='lang_def', list_of=None)
   r.add_fn('parsed', "\n      plus_rule = env._get_plus_rule(src(item_plain))\n      add_subst(plus_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
->: prepend_to_or('item_no_dot', 'plus_item', 'lang_def')
+>: prepend_to_or('std_prefix_item', 'plus_item', 'lang_def')
 >: 
   push_mode('')
   pop_mode()

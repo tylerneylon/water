@@ -524,7 +524,12 @@ def _parse_item(item, it):
     if is_negated: val = None if val else rules['Empty']
     if should_pop_prefix: pop_prefix()
     return prefix, val, labels
-  dbg.dprint('temp', 'item=%s' % item)
+  dbg.dprint('temp', 'item=%s' % (item if type(item) is str else `item`))
+  if type(item) is tuple:  # It's an item with a prefix change.
+    prefix = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
+    push_prefix(prefix, item[0] == '.')
+    should_pop_prefix = True
+    item = item[1]
   c = item[0]
   if c == ':': return _end(prefix, _CommandStr(item[1:]), None)
   if c == '!':
@@ -532,6 +537,12 @@ def _parse_item(item, it):
     item = item[1:]
     c = item[0]
   if c == '.':
+    # TODO This can only happen with a '.-mode_name' item, which is planned to
+    #      be replaced by prefix_changes at mode starts. Get rid of this case
+    #      both here and in layer1.water on the mode_result rule definition -
+    #      that is, after we can handle the new mode-start prefix_changes.
+    #print('ERROR: This case was supposed to be gone')
+    #import pdb; pdb.set_trace()
     item = item[1:]
     c = item[0]
     push_prefix(None, overwrite=True)
