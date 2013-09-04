@@ -151,10 +151,12 @@
   prefix_changed_item -->
     prefix_change std_prefix_item
     list: return [(src(prefix_change), src(std_prefix_item))]
-    : print('prefix_change_item=%s' % `self.list()`)
   prefix_change --> paren_prefix_change | dot_prefix_change
-  paren_prefix_change -->
+  paren_prefix_change --> prefix_update | prefix_set
+  prefix_update -->
     '(' item ')'
+  prefix_set -->
+    '(' 'prefix=' item ')'
   dot_prefix_change -->
     '.'
   std_prefix_item -> "!?" (( item_with_label | item_plain ))

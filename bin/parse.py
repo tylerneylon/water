@@ -439,12 +439,14 @@ def pop_mode(outgoing_mode=None):
 
 def push_prefix(prefix, overwrite=False):
   global prefixes
+  dbg.dprint('public', 'push_prefix(%s, %s)' % (`prefix`, `overwrite`))
   prefix = [] if prefix is None else [prefix]
   if not overwrite: prefix = prefixes[-1] + prefix + prefixes[-1]
   prefixes.append(prefix)
 
 def pop_prefix():
   global prefixes
+  dbg.dprint('public', 'pop_prefix()')
   prefixes.pop()
 
 def src(obj):
@@ -527,7 +529,11 @@ def _parse_item(item, it):
   dbg.dprint('temp', 'item=%s' % (item if type(item) is str else `item`))
   if type(item) is tuple:  # It's an item with a prefix change.
     prefix = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
-    push_prefix(prefix, item[0] == '.')
+    overwrite = (item[0] == '.')
+    if prefix.startswith('prefix='):
+      overwrite = True
+      prefix = prefix[len('prefix='):]
+    push_prefix(prefix, overwrite)
     should_pop_prefix = True
     item = item[1]
   c = item[0]

@@ -1,0 +1,23 @@
+# 56.water
+#
+# Test of prefix syntax.
+# This tests that both prefix updates and sets work.
+#
+
+>
+  statement --> (prefix=' ')stmnt
+  stmnt --> with_dots | no_dots | with_dashes
+    : print('stmnt parsed: or_index=%d' % or_index)
+  with_dots -->
+    (prefix='.')a
+  no_dots -->
+    a
+  with_dashes -->
+    ('-')a
+  a -->
+    'a' 'b' 'c'
+    : print('a parsed from %s' % src(self))
+
+.a.b.c
+ a b c
+ - a - b - c
