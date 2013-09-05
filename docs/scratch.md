@@ -164,18 +164,18 @@ parse failure.
 
 ## Infix operators
 
->
-  sum -> number+'+'
-  product -> number+'*'
+    >
+      sum -> number+'+'
+      product -> number+'*'
 
 The values after + or * are separators.
 
->
-  a -->
-    'A'
-  a_star[a] --> a_plus | Empty
-  a_plus[a] -->
-    a ('+')a_star
+    >
+      a -->
+        'A'
+      a_star[a] --> a_plus | Empty
+      a_plus[a] -->
+        a ('+')a_star
 
 The tricky part is making a separator work well with prefixes.
 They feel conceptually different to me.
@@ -196,32 +196,32 @@ We want to use 2 for things like strings.
 
 Maybe the notation can be like this:
 
->
-  number_plus[number] -->
-    number ('+')number_star
-  str -->
-    "['\"]" (='')-str
+    >
+      number_plus[number] -->
+        number ('+')number_star
+      str -->
+        "['\"]" (='')-str
 
 For the last part, I could also consider a notation that alters the prefix on
 entry to a mode, such as this:
 
-> str (prefix='')
-  phrase --> # etc
+    > str (prefix='')
+      phrase --> # etc
 
 Actually, I do prefer that.
 
 So, for now, my decision is:
 
-* An item can be (<prefix_change>)<item>
-* Start of a lang def block can be > <mode_name> (<prefix_change>)
+* An item can be `(<prefix_change>)<item>`
+* Start of a lang def block can be `> <mode_name> (<prefix_change>)`
 
 and a `prefix_change` can be:
 
-* (<item>)
+* `(<item>)`
 
 meaning we sandwich the item between the old prefix, or
 
-* (prefix=<item>)
+* `(prefix=<item>)`
 
 meaning the prefix is replaced as a new stack prefix.
 
