@@ -251,3 +251,23 @@ can be a slight modification to the code that handles . prefixes (not sure).
 * Split out samples into working, test-error-msgs, and pending.
 * Code cleanup and list out in-code todo items.
 * Try to clean up grammars: core (mainly) and layers (secondarily).
+
+---
+
+## More on prefix syntax
+
+I changed my mind about allowing prefix changes on lang_def blocks.
+I have a few reasons:
+
+* Right now `item` is only defined within `lang_def` mode, which is clean, and
+  would probably have to be violated to support this in general.
+* The only use case I know of is parsing strings. Maybe it is a weird case.
+* The dirtiness of writing `(prefix='')-str` is offset by the heavier
+  dirtiness of changing the whole language to make this one construct appear
+  cleaner to the language designer in this case.
+
+I was also previously thinking about allowing the syntax `(prefix=.)` for
+the null prefix, but I think using `(prefix='')` is more consistent, and we
+could internally detect it as a special case that is replaced by an empty list
+in the prefix stack. Note that actually using `''` (the empty literal string)
+would work the same (I believe).
