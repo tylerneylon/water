@@ -153,10 +153,7 @@ def print_tree(obj, indent='  ', seq_item=None):
   elif type(obj).__name__ == 'OrRule':
     dprint('tree', '%s -> ' % obj.name, end='')
     print_tree(obj.result, indent)
-  elif seq_item and seq_item.startswith('-|'):
-    dprint('tree', '%s ' % seq_item, end='')
-    print_tree(obj, indent)
-  elif seq_item:
+  elif seq_item:  # TODO Handle tuples from prefixes.
     # TODO Improve how this works for mode results.
     val = '[...]' if type(obj) is list else `obj`
     dprint('tree', '%s -> %s' % (seq_item, val))

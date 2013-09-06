@@ -530,7 +530,7 @@ def _parse_item(item, it):
   if type(item) is tuple:  # It's an item with a prefix change.
     prefix = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
     overwrite = (item[0] == '.')
-    if prefix.startswith('prefix='):
+    if prefix and prefix.startswith('prefix='):
       overwrite = True
       prefix = prefix[len('prefix='):]
     push_prefix(prefix, overwrite)
