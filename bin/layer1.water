@@ -141,9 +141,10 @@
   item_seq -->
     item ' ' seq
     list: return item.list() + seq.list()
-  mode_result -->
-    "\.?-" word
-    list: return [tokens[0] + word.src()]
+  mode_result -> prefix_change?:pfx '-' word
+    list:
+      has_pfx = (pfx.tokens[0].name != 'Empty')
+      return [(src(pfx), '-' + src(word)) if has_pfx else src(self)]
   no_param_mode_result -->
     '=' word
     list: return [tokens[0] + word.src()]

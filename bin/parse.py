@@ -528,12 +528,12 @@ def _parse_item(item, it):
     return prefix, val, labels
   dbg.dprint('temp', 'item=%s' % (item if type(item) is str else `item`))
   if type(item) is tuple:  # It's an item with a prefix change.
-    prefix = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
+    prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
     overwrite = (item[0] == '.')
-    if prefix and prefix.startswith('prefix='):
+    if prefix_chng and prefix_chng.startswith('prefix='):
       overwrite = True
-      prefix = prefix[len('prefix='):]
-    push_prefix(prefix, overwrite)
+      prefix_chng = prefix_chng[len('prefix='):]
+    push_prefix(prefix_chng, overwrite)
     should_pop_prefix = True
     item = item[1]
   c = item[0]
