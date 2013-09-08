@@ -1,6 +1,6 @@
 # infix notation
 
-504.2013
+## 504.2013
 
 Here are some thoughts on how infix notation might work in a language grammar.
 These are speculative and likely to change over time.
@@ -78,6 +78,6 @@ hooks for building the runtime evaluation code.
 5. Switch how prefix sandwiching works to treat `prefixes[-1]` as a stack.
 6. Switch all prefixes to be based on an atom's `.prefix` and `.suffix`.
 7. Make sure the notation `p.prefix` in the `product` rule will work.
-8. Support the a+b and a*b syntaxes.
+8. Support the `a+b` and `a*b` syntaxes.
 9. Make sure the end-to-end system works.
 
