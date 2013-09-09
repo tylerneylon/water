@@ -1,0 +1,12 @@
+# 57.water
+#
+# Test of val().
+#
+
+>
+  statement -> (prefix='a')'b'
+    :
+      print('src=%s' % src(self))
+      print('val=%s' % val(self))
+
+ab

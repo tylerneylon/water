@@ -169,8 +169,9 @@ class SeqRule(Rule):
       if d['name'] == name: return self
       raise
 
-  def src(self):
-    parts = zip(self.prefixes, self.tokens)
+  def src(self, incl_prefix=True):
+    prefixes = self.prefixes if incl_prefix else [''] + self.prefixes[1:]
+    parts = zip(prefixes, self.tokens)
     return ''.join([src(p[0]) + src(p[1]) for p in parts])
 
   def parse_mode(self, mode_name, it):
@@ -267,7 +268,8 @@ class OrRule(Rule):
       raise
 
   # We need this because result could be a non-Rule without its own src method.
-  def src(self): return src(self.prefix) + src(self.result)
+  def src(self, incl_prefix=True):
+    return (src(self.prefix) if incl_prefix else '') + src(self.result)
 
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
@@ -315,7 +317,7 @@ class BoolRule(Rule):
   def parse(self, it):
     return self if self.bool_val else None
 
-  def src(self): return ''
+  def src(self, incl_prefix=True): return ''
 
 class ParseError(Exception):
   pass
@@ -449,12 +451,19 @@ def pop_prefix():
   dbg.dprint('public', 'pop_prefix()')
   prefixes.pop()
 
-def src(obj):
+def src(obj, incl_prefix=True):
   if type(obj) == str: return obj
   elif type(obj) == tuple: return src(obj[0])
-  elif type(obj) == list: return ''.join([src(elm) for elm in obj])
-  elif isinstance(obj, Rule): return obj.src()
+  elif type(obj) == list:
+    return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
+  elif isinstance(obj, Rule): return obj.src(incl_prefix)
   else: dbg.dprint('error', "Error: unexpected obj type '%s' in src" % type(obj))
+
+# TODO Get this working. This is hard to work well before prefixes are properties
+#      of leaf-level strings (I think). I plan to revisit this after prefixes are
+#      stored in the new way. Start by making sure 57.water works.
+def val(obj):
+  return src(obj, incl_prefix=False)
 
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
