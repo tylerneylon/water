@@ -81,6 +81,8 @@ show_extra_dbg = False
 #  Define classes.
 #------------------------------------------------------------------------------
 
+class AttrStr(str): pass  # A string that can have attributes.
+
 class Object(object):
   def __getitem__(self, name):
     return self.__getattribute__(name)
@@ -452,7 +454,7 @@ def pop_prefix():
   prefixes.pop()
 
 def src(obj, incl_prefix=True):
-  if type(obj) == str: return obj
+  if isinstance(obj, str): return obj
   elif type(obj) == tuple: return src(obj[0])
   elif type(obj) == list:
     return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
@@ -475,7 +477,7 @@ def error(msg):
 
 def _add_subst(rule_or_text):
   global substs
-  if type(rule_or_text) == str or isinstance(rule_or_text, Rule):
+  if isinstance(rule_or_text, str) or isinstance(rule_or_text, Rule):
     substs.append(src(rule_or_text))
   else:
     error('Illegal input to parse.add_subst; type=%s' % type(rule_or_text))
@@ -535,7 +537,7 @@ def _parse_item(item, it):
     if is_negated: val = None if val else rules['Empty']
     if should_pop_prefix: pop_prefix()
     return prefix, val, labels
-  dbg.dprint('temp', 'item=%s' % (item if type(item) is str else `item`))
+  dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
   if type(item) is tuple:  # It's an item with a prefix change.
     prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
     overwrite = (item[0] == '.')
@@ -612,6 +614,7 @@ def _parse_exact_re(s, it):
     if m:
       num_grp = len(m.groups()) + 1
       val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
+      val = tuple(map(AttrStr, val)) if type(val) is tuple else AttrStr(val)
       return prefix, val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)

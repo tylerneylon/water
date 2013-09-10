@@ -33,7 +33,7 @@ def _newline_indent():
   return '\n' + indents[-1]
 
 def _add(rule_or_str):
-  if type(rule_or_str) == str:
+  if isinstance(rule_or_str, str):
     s = rule_or_str  # Clarify that it's a string.
     global stack, _state, _state_stack
     if stack and stack[-1].endswith('\n'): s = indents[-1] + s
