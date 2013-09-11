@@ -51,7 +51,10 @@ mode = None
 parse = None
 env = None
 
-prefix = None
+# Each entry is a stack of prefix. E.g. entry ['a', 'b', 'c'] means to look
+# for the prefix 'abacaba'. More commonly, [" *", '+'] means " *\+ *".
+prefixes = [[]]
+
 parse_stack = []
 
 substs = []  # For use by add_subst.
@@ -71,70 +74,15 @@ substs = []  # For use by add_subst.
 # TODO Pull this out into a modules & class that does not depend on parse.
 parse_info = None
 
-# TODO TEMP Put this function in a better location within the file.
-
-# TODO Move this method to a better place.
-#      (Do this when I pull parsing of items out of Rule methods.)
-# Returns label_free_part, label; label may be None if it's not there.
-def find_label(item):
-  must_be_after = 0
-  # Don't count a : found within a string.
-  if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
-  label_start = item.rfind(':') + 1
-  if label_start <= must_be_after: return item, None
-  return item[:label_start - 1], item[label_start:]
-
-# TODO Avoid dependency on rule here.
-def parse_item(rule, item, it):
-  print('parse_item(_, %s, _)' % item)
-  global prefix
-  #dbg.dprint('temp', 'item=%s' % item)
-  saved_prefix = prefix
-  c = item[0]
-  def _end(val, label=None):
-    #if val is None:
-    #  import pdb; pdb.set_trace()
-    print('parse_item will return obj of type %s' % type(val))
-    set_prefix(saved_prefix)
-    return val, label
-  if c == '.':
-    item = item[1:]
-    c = item[0]
-    prefix = None
-  if c == '-':
-    #dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
-    rule.mode_id = item[1:]
-    val = rule.parse_mode(it)
-    print('about to return val of type %s' % type(val))
-    return _end(val)
-  item, label = find_label(item)
-  # TODO HERE Actually use the label.
-  if c == "'":
-    print('literal item recognized')
-    val = _parse_exact_str(item[1:-1], it)
-    print('val = %s' % `val`)
-  elif c == '"':
-    re = item[1:-1] % mode
-    #cprint('mode.__dict__=%s' % `mode.__dict__`, 'blue')
-    dbg.dprint('temp', 're=%s' % `re`)
-    val = _parse_exact_re(re, it)
-  else:
-    val = rules[item].parse(it)
-    if val and isinstance(rule, SeqRule):
-      rule.pieces.setdefault(item, []).append(val)
-  if val:
-    print('about to return item of type %s' % type(val))
-    return _end(val, label)
-  dbg_fmt = '%s parse failed at token %s ~= code %s'
-  dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
-  dbg.dprint('parse', dbg_fmt % (rule.name, item, `dbg_snippet`))
-  #cprint('%s parse failed at %s' % (self.name, item), 'magenta')
-  it.text_pos = rule.start_text_pos
-  return _end(None)
+# Temp debug stuff.
+# TODO Make these available via command-line args.
+show_extra_dbg = False
 
 #------------------------------------------------------------------------------
 #  Define classes.
 #------------------------------------------------------------------------------
+
+class AttrStr(str): pass  # A string that can have attributes.
 
 class Object(object):
   def __getitem__(self, name):
@@ -159,11 +107,13 @@ class Rule(Object):
     # http://stackoverflow.com/a/1463370
     # http://stackoverflow.com/a/2906198
     lo = {}
-    if 'tokens' in self.__dict__: lo['tokens'] = self.tokens
-    if 'pieces' in self.__dict__:
+    if 'tokens' in self: lo['tokens'] = self.tokens
+    if 'or_index' in self: lo['or_index'] = self.or_index
+    if 'pieces' in self:
       p = self.pieces
       lo.update({k: p[k][0] if len(p[k]) == 1 else p[k] for k in p})
-    if 'mode_result' in self.__dict__: lo['mode_result'] = self.mode_result
+      # Keep mode result as a list, even if it has 1 element.
+      if 'mode_result' in p: lo['mode_result'] = p['mode_result']
     lo['self'] = self
 
     arglist = ', '.join(k + '=None' for k in lo.keys())
@@ -206,9 +156,10 @@ class Rule(Object):
 
 class SeqRule(Rule):
 
-  def __init__(self, name, seq):
+  def __init__(self, name, seq, list_of=None):
     self.name = name
     self.seq = seq
+    self.list_of = list_of
     Rule.__init__(self)
     self._add_fn('str', ' return self.src()')
 
@@ -216,19 +167,23 @@ class SeqRule(Rule):
     try:
       return Rule.__getattribute__(self, name)
     except AttributeError:
-      desc = "SeqRule '%s' has no '%s' attribute" % (self.name, name)
-      raise AttributeError(desc)
+      d = Rule.__getattribute__(self, '__dict__')
+      if name in d['pieces']: return d['pieces'][name]
+      if d['name'] == name: return self
+      raise
 
-  def src(self):
-    return ''.join([_src(t) for t in self.tokens])
+  def src(self, incl_prefix=True):
+    prefixes = self.prefixes if incl_prefix else [''] + self.prefixes[1:]
+    parts = zip(prefixes, self.tokens)
+    return ''.join([src(p[0]) + src(p[1]) for p in parts])
 
-  # Expects self.mode_id to be set, and will push that mode.
-  def parse_mode(self, it):
-    dbg.dprint('parse', '%s parse_mode %s' % (self.name, self.mode_id))
+  def parse_mode(self, mode_name, it):
+    dbg.dprint('parse', '%s parse_mode %s' % (self.name, mode_name))
     init_num_modes = len(modes)
     params = {}
-    push_mode(self.mode_id)
-    if 'mode_params' in self.__dict__: _set_mode_params(self.mode_params())
+    push_mode(mode_name)
+    if mode_name.may_have_params and 'mode_params' in self.__dict__:
+      _set_mode_params(self.mode_params())
     mode_result = []
     # A mode is popped from either a successful parse or a |: clause. The |:
     # is a special case where the returned tree is None, but it is not a parse
@@ -237,31 +192,40 @@ class SeqRule(Rule):
       tree = rules['phrase'].parse(it)
       if len(modes) == init_num_modes: break
       if tree is None:
-        it.text_pos = self.start_text_pos
+        pop_mode()
         return None
       mode_result.append(tree)
     if tree: mode_result.append(tree)
-    self.tokens.append(mode_result)
+    if not mode_name.may_have_params and len(mode_result) == 0: return None
     self.pieces['mode_result'] = mode_result
-    return self
+    return mode_result
 
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
     self.start_text_pos = it.text_pos
     self.start_pos = it.orig_pos()
     self.tokens = []
+    self.prefixes = []
     self.pieces = {}
     for item in self.seq:
-      val, label = parse_item(self, item, it)
-      if val is None: return self._end_parse(None, it)
+      prefix, val, labels = _parse_item(item, it)
+      if isinstance(val, _ModeName):
+        dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
+        val = self.parse_mode(val, it)
+      if val is None:
+        dbg_fmt = '%s parse failed at token %s ~= code %s'
+        dbg_snippet = it.text()[it.text_pos:it.text_pos + 10]
+        dbg.dprint('parse', dbg_fmt % (self.name, item, `dbg_snippet`))
+        it.text_pos = self.start_text_pos
+        return self._end_parse(None, it)
+      self.prefixes.append(prefix)
       self.tokens.append(val)
-      if label: self.pieces.setdefault(label, []).append(val)
+      for label in labels: self.pieces.setdefault(label, []).append(val)
     return self._end_parse(self, it)
 
   def _end_parse(self, tree, it):
     global substs
     self.end_pos = it.orig_pos()
-    #set_prefix(self.saved_prefix)
     if tree is None: return tree
     # TODO Think of a way to do this more cleanly. Right now run._state is
     # awkwardly set from both parse and run.
@@ -277,9 +241,12 @@ class SeqRule(Rule):
       #               in the substs list (and add that info to the list).
       it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
       it.text_pos = self.start_text_pos
+      if show_extra_dbg:
+        print('After subst, text is:')
+        print(it.text())
       tree = self.parse(it)
     substs = saved_substs
-    return tree
+    return tree if self.list_of is None else _list_of(self)
 
   def child(self):
     c = SeqRule(self.name, self.seq)
@@ -289,9 +256,10 @@ class SeqRule(Rule):
 
 class OrRule(Rule):
 
-  def __init__(self, name, or_list):
+  def __init__(self, name, or_list, list_of=None):
     self.name = name
     self.or_list = or_list
+    self.list_of = list_of
     Rule.__init__(self)
 
   def __getattribute__(self, name):
@@ -301,6 +269,10 @@ class OrRule(Rule):
       d = Rule.__getattribute__(self, '__dict__')
       if 'result' in d: return d['result'].__getattribute__(name)
       raise
+
+  # We need this because result could be a non-Rule without its own src method.
+  def src(self, incl_prefix=True):
+    return (src(self.prefix) if incl_prefix else '') + src(self.result)
 
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
@@ -313,21 +285,24 @@ class OrRule(Rule):
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
-    for i, r in enumerate(self.or_list):
-      if r[0] == ':':
+    for index, item in enumerate(self.or_list):
+      prefix, val, labels = _parse_item(item, it)
+      if isinstance(val, _CommandStr):
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
-        self.run_code(r[1:])
+        self.run_code(val)
         self.end_pos = it.orig_pos()
         return None
-      val = rules[r].parse(it)
       if val:
+        self.prefix = prefix
         self.result = val
-        self.or_index = i
+        # We want to delegate the tokens property to val iff val is a Rule.
+        if not isinstance(val, Rule): self.tokens = [val]
+        self.or_index = index
         self.end_pos = it.orig_pos()
-        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, r))
-        return self
+        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))
+        if 'parsed' in self.__dict__: self.parsed()
+        return self if self.list_of is None else _list_of(self)
     dbg.dprint('parse', '%s parse failed' % self.name)
-    # TODO Factor out all these '  ' * len(parse_stack) instances.
     return None
 
   def child(self):
@@ -345,6 +320,8 @@ class BoolRule(Rule):
   def parse(self, it):
     return self if self.bool_val else None
 
+  def src(self, incl_prefix=True): return ''
+
 class ParseError(Exception):
   pass
 
@@ -356,6 +333,28 @@ def command(cmd):
   # We wrap cmd as a function body to make it easier to deal with user indents.
   exec('def _tmp(): ' + cmd)
   _tmp()
+
+def parse_string(s):
+  # I'm leaving in a {push,pop}_mode pair to show where we can
+  # alter the mode if we wanted to.
+  if show_extra_dbg:
+    print('parse_string:')
+    print(s)
+  if False: push_mode('')
+  line_nums = dbg.LineNums(s)
+  it = iterator.Iterator(s)
+  result = []
+  while True:
+    tree = rules['phrase'].parse(it)
+    if not tree or it.text_pos == len(it.text()): break
+    result.append(tree)
+  if False: pop_mode('')
+  if it.text_pos < len(it.text()):
+    pos = it.orig_pos()
+    line_num, char_offset = line_nums.line_num_and_offset(pos)
+    error_fmt = 'Parsing failed on line %d, character %d'
+    raise ParseError(error_fmt % (line_num, char_offset))
+  return result
 
 # The input is an Iterator that is updated to point to the next parse point
 # if the parse is successful. The return value is:
@@ -371,13 +370,15 @@ def parse_phrase(it):
     parse_info.attempts = []
   return tree
 
-def or_rule(name, or_list, mode=''):
-  dbg.dprint('public', 'or_rule(%s, %s, %s)' % (name, `or_list`, `mode`))
-  return _add_rule(OrRule(name, or_list), mode)
+def or_rule(name, or_list, mode='', list_of=None):
+  dbg.dprint('public', 'or_rule(%s, %s, %s, %s)' %
+             (name, `or_list`, `mode`, `list_of`))
+  return _add_rule(OrRule(name, or_list, list_of), mode)
 
-def seq_rule(name, seq, mode=''):
-  dbg.dprint('public', 'seq_rule(%s, %s, %s)' % (name, `seq`, `mode`))
-  return _add_rule(SeqRule(name, seq), mode)
+def seq_rule(name, seq, mode='', list_of=None):
+  dbg.dprint('public', 'seq_rule(%s, %s, %s, %s)' %
+             (name, `seq`, `mode`, `list_of`))
+  return _add_rule(SeqRule(name, seq, list_of), mode)
 
 def bool_rule(name, bool_val, mode=''):
   dbg.dprint('public', 'bool_rule(%s, %s, %s)' % (name, `bool_val`, `mode`))
@@ -400,9 +401,7 @@ def iterate(filename):
   line_nums = dbg.LineNums(code)
   parse_info.code = code
   it = iterator.Iterator(code)
-  #import pdb; pdb.set_trace()  # TODO TEMP DEBUG
   tree = parse_phrase(it)
-  print('tree = %s' % `tree`)  # TODO TEMP DEBUG
   while tree:
     yield tree
     tree = parse_phrase(it)
@@ -427,22 +426,47 @@ def push_mode(name, params={}):
   dbg.dprint('public', '    push_mode(%s, %s)' % (`name`, `params`))
   _push_mode(name, params)
 
-def pop_mode():
+def pop_mode(outgoing_mode=None):
   global rules, mode, modes
   if len(modes) == 1:
     dbg.dprint('error',
            "Grammar error: pop_mode() when only global mode on the stack")
     exit(1)
   old_mode = modes.pop()
+  if outgoing_mode is not None and old_mode.id != outgoing_mode:
+    dbg.dprint('error', 'pop_mode(%s) called from mode %s' %
+               (outgoing_mode, `old_mode.id`))
   # Refresh rules if we're at the global context.
   if len(modes) == 1: _push_mode('', modes.pop().__dict__)
   mode = modes[-1]
   rules = mode.rules
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
 
-def set_prefix(new_prefix):
-  global prefix
-  prefix = new_prefix
+def push_prefix(prefix, overwrite=False):
+  global prefixes
+  dbg.dprint('public', 'push_prefix(%s, %s)' % (`prefix`, `overwrite`))
+  prefix = [] if prefix is None else [prefix]
+  if not overwrite: prefix = [prefixes[-1], prefix]
+  prefixes.append(prefix)
+
+def pop_prefix():
+  global prefixes
+  dbg.dprint('public', 'pop_prefix()')
+  prefixes.pop()
+
+def src(obj, incl_prefix=True):
+  if isinstance(obj, str): return obj
+  elif type(obj) == tuple: return src(obj[0])
+  elif type(obj) == list:
+    return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
+  elif isinstance(obj, Rule): return obj.src(incl_prefix)
+  else: dbg.dprint('error', "Error: unexpected obj type '%s' in src" % type(obj))
+
+# TODO Get this working. This is hard to work well before prefixes are properties
+#      of leaf-level strings (I think). I plan to revisit this after prefixes are
+#      stored in the new way. Start by making sure 57.water works.
+def val(obj):
+  return src(obj, incl_prefix=False)
 
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
@@ -454,8 +478,8 @@ def error(msg):
 
 def _add_subst(rule_or_text):
   global substs
-  if type(rule_or_text) == str or isinstance(rule_or_text, Rule):
-    substs.append(_src(rule_or_text))
+  if isinstance(rule_or_text, str) or isinstance(rule_or_text, Rule):
+    substs.append(src(rule_or_text))
   else:
     error('Illegal input to parse.add_subst; type=%s' % type(rule_or_text))
 
@@ -476,19 +500,6 @@ def _set_mode_params(params):
   params = {k: params[k] for k in params if k not in protected_keys}
   mode.__dict__.update(params)
 
-def _src(obj):
-  _short_print(obj)
-  print('_src(%d type %s)' % (id(obj), type(obj)))
-  if isinstance(obj, Rule):
-    print('name=%s' % obj.name)
-  if type(obj) == str:
-    print('str is %s' % obj)
-    return obj
-  elif type(obj) == tuple: return _src(obj[0])
-  elif type(obj) == list: return ''.join([_src(elm) for elm in obj])
-  elif isinstance(obj, Rule): return obj.src()
-  else: dbg.dprint('error', "Error: unexpected obj type '%s' in _src" % type(obj))
-
 def _dbg_parse_start(name, it):
   m = ' <%s>' % mode.id if len(mode.id) else ''
   text_str = it.text()[it.text_pos:it.text_pos + 30]
@@ -499,8 +510,79 @@ def _add_rule(rule, mode):
   all_rules[mode][rule.name] = rule
   return rule
 
+# This is a way to pass around a string with a way to check that it's meant to
+# be used as a mode name. Built for use within _parse_item.
+class _ModeName(str): pass
+
+# This is a way to indicate a command found in an item.
+class _CommandStr(str): pass
+
+# Returns label_free_part, label; label may be None if it's not there.
+def _find_label(item):
+  must_be_after = 0
+  # Don't count a : found within a string.
+  if item[0] in ["'", '"']: must_be_after = item.rfind(item[0])
+  label_start = item.rfind(':') + 1
+  if label_start <= must_be_after: return item, None
+  return item[:label_start - 1], item[label_start:]
+
+# Returns val, labels; val is the parsed value, labels are the labels to be used
+# in the calling rule's pieces list. val is None on parse failure, and is a
+# _ModeName string when a mode name is found -- in that case, the actual parsing
+# of the mode is not performed, and is up to the caller to complete.
+def _parse_item(item, it):
+  should_pop_prefix = False
+  is_negated = False
+  prefix = ''
+  def _end(prefix, val, labels):
+    if is_negated: val = None if val else rules['Empty']
+    if should_pop_prefix: pop_prefix()
+    return prefix, val, labels
+  dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
+  if type(item) is tuple:  # It's an item with a prefix change.
+    prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
+    overwrite = (item[0] == '.')
+    if prefix_chng and prefix_chng.startswith('prefix='):
+      overwrite = True
+      prefix_chng = prefix_chng[len('prefix='):]
+    push_prefix(prefix_chng, overwrite)
+    should_pop_prefix = True
+    item = item[1]
+  c = item[0]
+  if c == ':': return _end(prefix, _CommandStr(item[1:]), None)
+  if c == '!':
+    is_negated = True
+    item = item[1:]
+    c = item[0]
+  if c == '.':
+    # TODO This can only happen with a '.-mode_name' item, which is planned to
+    #      be replaced by prefix_changes at mode starts. Get rid of this case
+    #      both here and in layer1.water on the mode_result rule definition -
+    #      that is, after we can handle the new mode-start prefix_changes.
+    #print('ERROR: This case was supposed to be gone')
+    #import pdb; pdb.set_trace()
+    item = item[1:]
+    c = item[0]
+    push_prefix(None, overwrite=True)
+    should_pop_prefix = True
+  item, label = _find_label(item)
+  labels = [label] if label else []
+  if c in ['-', '=']:
+    mode_name = _ModeName(item[1:])
+    mode_name.may_have_params = (c == '-')
+    return _end(prefix, mode_name, labels)
+  if c == "'": prefix, val = _parse_exact_str(item[1:-1], it)
+  elif c == '"':
+    re = item[1:-1] % mode
+    dbg.dprint('temp', 're=%s' % `re`)
+    prefix, val = _parse_exact_re(re, it)
+  else:
+    val = rules[item].parse(it)
+    if val: labels.append(item)
+  return _end(prefix, val, labels)
+
 def _parse_exact_str(s, it):
-  to_escape = list("+()|*.[]")
+  to_escape = list("+()|*.[]?")
   for e in to_escape: s = s.replace(e, "\\" + e)
   return _parse_exact_re(s, it)
 
@@ -511,20 +593,36 @@ def _direct_parse(s, it):
   it.move(len(m.group(0)))
   return m
 
+# TODO If a prefix parse fails, we need to back up the iterator.
+def _parse_prefix(it, prefix_list=None):
+  global prefixes
+  if prefix_list is None: prefix_list = prefixes[-1]
+  if not prefix_list: return ''
+  push_prefix(prefix_list[:-1], overwrite=True)
+  def done(v):
+    pop_prefix()
+    return v
+  ignored, part1, labels = _parse_item(prefix_list[-1], it)
+  if part1 is None: return done(None)
+  part2 = _parse_prefix(it)
+  val = (part1 + part2) if part2 is not None else None
+  return done(val)
+ 
 def _parse_exact_re(s, it):
-  global prefix
-  if prefix is not None: m = _direct_parse(prefix, it)
-  s = s.decode('string_escape')
-  m = _direct_parse(s, it)
-  if m:
-    num_grp = len(m.groups()) + 1
-    val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-    return val
+  prefix = _parse_prefix(it)
+  if prefix is not None:
+    s = s.decode('string_escape')
+    m = _direct_parse(s, it)
+    if m:
+      num_grp = len(m.groups()) + 1
+      val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
+      val = tuple(map(AttrStr, val)) if type(val) is tuple else AttrStr(val)
+      return prefix, val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
   _store_parse_attempt(it)
   parse_stack.pop()
-  return None
+  return None, None
 
 def _store_parse_attempt(it):
   global parse_info
@@ -538,8 +636,6 @@ def _store_parse_attempt(it):
     parse_info.main_attempt = attempt
 
 def _print_parse_failure():
-  # TODO TEMP
-  #import pdb; pdb.set_trace()
   dbg.print_parse_failure(parse_info)
 
 def _setup_base_rules():
@@ -548,37 +644,22 @@ def _setup_base_rules():
   push_mode('')
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
 
-#------------------------------------------------------------------------------
-#  Temporary debug functions.
-#------------------------------------------------------------------------------
-
-def _short_type(obj):
-  return re.match(r"<\w+ '(\w+\.)?(\w+)'>", str(type(obj))).group(2)
-
-# For printing out rules succinctly.
-def _short_print(obj):
-  def _really_short_print(obj):
-    sys.stdout.write('%-19s %-10d ' % (_short_type(obj), id(obj)))
-  if not isinstance(obj, Rule): return
-  print('%s name=%s id=%d' % (_short_type(obj), obj.name, id(obj)))
-  if isinstance(obj, SeqRule):
-    sys.stdout.write('  seq: ')
-    for item in obj.seq: sys.stdout.write('%-30s ' % item)
-    sys.stdout.write('\n       ')
-    for token in obj.tokens: _really_short_print(token)
-    sys.stdout.write('\n')
-  elif isinstance(obj, OrRule):
-    sys.stdout.write('  or_list: ')
-    for item in obj.or_list: sys.stdout.write('%-30s ' % item)
-    sys.stdout.write('\n           ')
-    for i in range(len(obj.or_list)):
-      if i == obj.or_index:
-        _really_short_print(obj.result)
-      else:
-        sys.stdout.write(' ' * 31)
-    sys.stdout.write('\n')
-  else:
-    print('WARNING: Confused by object type %s' % type(obj))
+# Returns a list of rules of type elt_type, or None if obj cannot be
+# built of such a list. If elt_type is None, then obj.list_of is used
+# as the elt_type.
+def _list_of(obj, elt_type=None):
+  if elt_type is None: elt_type = obj.list_of
+  def _apply_to_items(items):
+    mapped_items = [_list_of(i, elt_type) for i in items]
+    # Propagate up any None values indicating failure.
+    if any(map(lambda x: x is None, mapped_items)): return None
+    return sum(mapped_items, [])
+  if type(obj) is list: return _apply_to_items(obj)
+  if obj.name == elt_type: return [obj]
+  if obj.name == 'Empty': return []
+  if isinstance(obj, OrRule): return _list_of(obj.result, elt_type)
+  if isinstance(obj, SeqRule): return _apply_to_items(obj.tokens)
+  return None
 
 #------------------------------------------------------------------------------
 #  Set up initial state.
@@ -586,7 +667,7 @@ def _short_print(obj):
 
 def _setup():
   global parse_info, env, parse
-  #dbg.topics = []  # TODO TEMP DEBUG
+  dbg.topics = []
   env = Object()
   parse = sys.modules[__name__]
   _setup_base_rules()
