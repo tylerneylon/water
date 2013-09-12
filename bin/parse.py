@@ -51,7 +51,8 @@ mode = None
 parse = None
 env = None
 
-# Each entry is a list of prefixes to parse as a sequence.
+# Each entry is a stack of prefixes. E.g. entry ['a', 'b', 'c'] means to look
+# for the prefix 'abacaba'. More commonly, [" *", '+'] means " *\+ *".
 prefixes = [[]]
 
 parse_stack = []
@@ -445,7 +446,7 @@ def push_prefix(prefix, overwrite=False):
   global prefixes
   dbg.dprint('public', 'push_prefix(%s, %s)' % (`prefix`, `overwrite`))
   prefix = [] if prefix is None else [prefix]
-  if not overwrite: prefix = prefixes[-1] + prefix + prefixes[-1]
+  if not overwrite: prefix = prefixes[-1] + prefix
   prefixes.append(prefix)
 
 def pop_prefix():
@@ -592,19 +593,20 @@ def _direct_parse(s, it):
   it.move(len(m.group(0)))
   return m
 
-def _parse_prefix(it):
+# TODO If a prefix parse fails, we need to back up the iterator.
+def _parse_prefix(it, prefix_list=None):
   global prefixes
-  prefix_list = prefixes[-1]
-  push_prefix(None, overwrite=True)
-  parsed = ''
-  for prefix_item in prefix_list:
-    ignored, val, labels = _parse_item(prefix_item, it)
-    if val is None:
-      pop_prefix()
-      return None
-    parsed += val
-  pop_prefix()
-  return parsed
+  if prefix_list is None: prefix_list = prefixes[-1]
+  if not prefix_list: return ''
+  prefixes.append(prefix_list[:-1])
+  def done(v):
+    prefixes.pop()
+    return v
+  ignored, part1, labels = _parse_item(prefix_list[-1], it)
+  if part1 is None: return done(None)
+  part2 = _parse_prefix(it)
+  val = (part1 + part2) if part2 is not None else None
+  return done(val)
  
 def _parse_exact_re(s, it):
   prefix = _parse_prefix(it)
