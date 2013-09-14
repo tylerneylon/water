@@ -84,6 +84,8 @@ show_extra_dbg = False
 
 class AttrStr(str): pass  # A string that can have attributes.
 
+class AttrTuple(tuple): pass  # A tuple that can have attributes.
+
 class Object(object):
   def __getitem__(self, name):
     return self.__getattribute__(name)
@@ -173,9 +175,8 @@ class SeqRule(Rule):
       raise
 
   def src(self, incl_prefix=True):
-    prefixes = self.prefixes if incl_prefix else [''] + self.prefixes[1:]
-    parts = zip(prefixes, self.tokens)
-    return ''.join([src(p[0]) + src(p[1]) for p in parts])
+    parts = [src(t, incl_prefix or i) for i, t in enumerate(self.tokens)]
+    return ''.join(parts)
 
   def parse_mode(self, mode_name, it):
     dbg.dprint('parse', '%s parse_mode %s' % (self.name, mode_name))
@@ -205,10 +206,9 @@ class SeqRule(Rule):
     self.start_text_pos = it.text_pos
     self.start_pos = it.orig_pos()
     self.tokens = []
-    self.prefixes = []
     self.pieces = {}
     for item in self.seq:
-      prefix, val, labels = _parse_item(item, it)
+      val, labels = _parse_item(item, it)
       if isinstance(val, _ModeName):
         dbg.dprint('parse', '%s parse reached %s' % (self.name, item))
         val = self.parse_mode(val, it)
@@ -218,7 +218,6 @@ class SeqRule(Rule):
         dbg.dprint('parse', dbg_fmt % (self.name, item, `dbg_snippet`))
         it.text_pos = self.start_text_pos
         return self._end_parse(None, it)
-      self.prefixes.append(prefix)
       self.tokens.append(val)
       for label in labels: self.pieces.setdefault(label, []).append(val)
     return self._end_parse(self, it)
@@ -272,7 +271,7 @@ class OrRule(Rule):
 
   # We need this because result could be a non-Rule without its own src method.
   def src(self, incl_prefix=True):
-    return (src(self.prefix) if incl_prefix else '') + src(self.result)
+    return src(self.result, incl_prefix)
 
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
@@ -286,14 +285,13 @@ class OrRule(Rule):
     _dbg_parse_start(self.name, it)
     self.start_pos = it.orig_pos()
     for index, item in enumerate(self.or_list):
-      prefix, val, labels = _parse_item(item, it)
+      val, labels = _parse_item(item, it)
       if isinstance(val, _CommandStr):
         dbg.dprint('parse', '%s parse finishing as or_else clause' % self.name)
         self.run_code(val)
         self.end_pos = it.orig_pos()
         return None
       if val:
-        self.prefix = prefix
         self.result = val
         # We want to delegate the tokens property to val iff val is a Rule.
         if not isinstance(val, Rule): self.tokens = [val]
@@ -455,7 +453,8 @@ def pop_prefix():
   prefixes.pop()
 
 def src(obj, incl_prefix=True):
-  if isinstance(obj, str): return obj
+  if type(obj) == AttrStr: return (obj.prefix if incl_prefix else '') + obj
+  elif type(obj) == AttrTuple: return (obj.prefix if incl_prefix else '') + obj[0]
   elif type(obj) == tuple: return src(obj[0])
   elif type(obj) == list:
     return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
@@ -533,11 +532,10 @@ def _find_label(item):
 def _parse_item(item, it):
   should_pop_prefix = False
   is_negated = False
-  prefix = ''
-  def _end(prefix, val, labels):
+  def _end(val, labels):
     if is_negated: val = None if val else rules['Empty']
     if should_pop_prefix: pop_prefix()
-    return prefix, val, labels
+    return val, labels
   dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
   if type(item) is tuple:  # It's an item with a prefix change.
     prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
@@ -549,7 +547,7 @@ def _parse_item(item, it):
     should_pop_prefix = True
     item = item[1]
   c = item[0]
-  if c == ':': return _end(prefix, _CommandStr(item[1:]), None)
+  if c == ':': return _end(_CommandStr(item[1:]), None)
   if c == '!':
     is_negated = True
     item = item[1:]
@@ -570,16 +568,16 @@ def _parse_item(item, it):
   if c in ['-', '=']:
     mode_name = _ModeName(item[1:])
     mode_name.may_have_params = (c == '-')
-    return _end(prefix, mode_name, labels)
-  if c == "'": prefix, val = _parse_exact_str(item[1:-1], it)
+    return _end(mode_name, labels)
+  if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
     dbg.dprint('temp', 're=%s' % `re`)
-    prefix, val = _parse_exact_re(re, it)
+    val = _parse_exact_re(re, it)
   else:
     val = rules[item].parse(it)
     if val: labels.append(item)
-  return _end(prefix, val, labels)
+  return _end(val, labels)
 
 def _parse_exact_str(s, it):
   to_escape = list("+()|*.[]?")
@@ -602,7 +600,7 @@ def _parse_prefix(it, prefix_list=None):
   def done(v):
     prefixes.pop()
     return v
-  ignored, part1, labels = _parse_item(prefix_list[-1], it)
+  part1, labels = _parse_item(prefix_list[-1], it)
   if part1 is None: return done(None)
   part2 = _parse_prefix(it)
   val = (part1 + part2) if part2 is not None else None
@@ -616,13 +614,14 @@ def _parse_exact_re(s, it):
     if m:
       num_grp = len(m.groups()) + 1
       val = m.group(0) if num_grp == 1 else m.group(*tuple(range(num_grp)))
-      val = tuple(map(AttrStr, val)) if type(val) is tuple else AttrStr(val)
-      return prefix, val
+      val = AttrTuple(val) if type(val) is tuple else AttrStr(val)
+      val.prefix = prefix
+      return val
   # Parse fail. Record things for error reporting.
   parse_stack.append(s)
   _store_parse_attempt(it)
   parse_stack.pop()
-  return None, None
+  return None
 
 def _store_parse_attempt(it):
   global parse_info
