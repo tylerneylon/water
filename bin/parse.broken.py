@@ -175,6 +175,7 @@ class SeqRule(Rule):
       raise
 
   def src(self, incl_prefix=True):
+    #TODO HERE
     prefixes = self.prefixes if incl_prefix else [''] + self.prefixes[1:]
     parts = zip(prefixes, self.tokens)
     return ''.join([src(p[0]) + src(p[1]) for p in parts])
@@ -272,7 +273,7 @@ class OrRule(Rule):
 
   # We need this because result could be a non-Rule without its own src method.
   def src(self, incl_prefix=True):
-    return (src(self.prefix) if incl_prefix else '') + src(self.result)
+    return src(self.result, incl_prefix)
 
   def run_code(self, code):
     #dbg.dprint('temp', 'run_code(%s)' % `code`)
@@ -454,7 +455,8 @@ def pop_prefix():
   prefixes.pop()
 
 def src(obj, incl_prefix=True):
-  if isinstance(obj, str): return obj
+  if type(obj) == AttrStr: return (obj.prefix if incl_prefix else '') + obj
+  elif type(obj) == AttrTuple: return (obj.prefix if incl_prefix else '') + obj[0]
   elif type(obj) == tuple: return src(obj[0])
   elif type(obj) == list:
     return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
@@ -621,7 +623,7 @@ def _parse_exact_re(s, it):
   parse_stack.append(s)
   _store_parse_attempt(it)
   parse_stack.pop()
-  return None, None
+  return None
 
 def _store_parse_attempt(it):
   global parse_info
