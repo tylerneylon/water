@@ -453,9 +453,12 @@ def pop_prefix():
   prefixes.pop()
 
 def src(obj, incl_prefix=True):
-  if type(obj) == AttrStr: return (obj.prefix if incl_prefix else '') + obj
-  elif type(obj) == AttrTuple: return (obj.prefix if incl_prefix else '') + obj[0]
-  elif type(obj) == tuple: return src(obj[0])
+  if type(obj) is str: return obj
+  p, s = _prefix_if_leaf(obj)
+  p = src(p) if incl_prefix and p else ''
+  if type(obj) == AttrStr: return p + obj + src(s)
+  elif type(obj) == AttrTuple: return p + obj[0] + src(s)
+  elif type(obj) == tuple: return src(obj[0])  # TODO needed?
   elif type(obj) == list:
     return ''.join([src(j, incl_prefix or i != 0) for i, j in enumerate(obj)])
   elif isinstance(obj, Rule): return obj.src(incl_prefix)
@@ -474,6 +477,12 @@ def error(msg):
 #------------------------------------------------------------------------------
 #  Internal functions.
 #------------------------------------------------------------------------------
+
+def _prefix_if_leaf(tree_node):
+  if type(tree_node) != AttrStr and type(tree_node) != AttrTuple: return ('', '')
+  if 'prefix' not in tree_node.__dict__: return ('', '')
+  suffix = tree_node.suffix if 'suffix' in tree_node.__dict__ else ''
+  return (tree_node.prefix, suffix)
 
 def _add_subst(rule_or_text):
   global substs
@@ -599,11 +608,13 @@ def _parse_prefix(it, prefix_list=None):
   prefixes.append(prefix_list[:-1])
   def done(v):
     prefixes.pop()
+    dbg.dprint('temp', '_parse_prefix will return %s based on prefix stack %s' % (`v`, `prefix_list`))
     return v
-  part1, labels = _parse_item(prefix_list[-1], it)
-  if part1 is None: return done(None)
-  part2 = _parse_prefix(it)
-  val = (part1 + part2) if part2 is not None else None
+  val, labels = _parse_item(prefix_list[-1], it)
+  if val is None: return done(None)
+  suffix = _parse_prefix(it)
+  if suffix is None: val = None
+  else: val.suffix = suffix
   return done(val)
  
 def _parse_exact_re(s, it):
