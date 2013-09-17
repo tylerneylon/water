@@ -172,6 +172,8 @@ class SeqRule(Rule):
       d = Rule.__getattribute__(self, '__dict__')
       if name in d['pieces']: return d['pieces'][name]
       if d['name'] == name: return self
+      t = d['tokens']
+      if len(t) == 1: return t[0].__getattribute__(name)
       raise
 
   def src(self, incl_prefix=True):

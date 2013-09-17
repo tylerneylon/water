@@ -1,0 +1,28 @@
+# 58.water
+#
+# An early test of infix operator grammar.
+#
+
+>
+  number -> "[1-9][0-9]*"
+    value:
+      print('number value')
+      return int(val(self))
+  variable -> "[a-zA-Z]+"
+    value:
+      print('variable value')
+      return env.symbols[val(self)]
+  atom -> number | variable
+  power -> atom '^' power | atom
+    value:
+      print('power value')
+      if or_index == 0:
+        return atom.value() ** power.value()
+      else:
+        return atom.value()
+  statement -> power
+    :
+      print('statement parsed')
+      print('self.value()=%d' % self.value())
+
+2^3
