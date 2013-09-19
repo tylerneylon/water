@@ -472,6 +472,14 @@ def src(obj, incl_prefix=True):
 def val(obj):
   return src(obj, incl_prefix=False)
 
+def is_empty(obj):
+  if type(obj) == BoolRule: return True
+  if type(obj) == OrRule: return is_empty(obj.result)
+  if type(obj) == SeqRule:
+    if len(obj.tokens) != 1: return False
+    return is_empty(obj.tokens[0])
+  return False
+
 def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)

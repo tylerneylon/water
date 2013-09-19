@@ -1,0 +1,18 @@
+# 59.water
+#
+# Further test of question mark syntax.
+#
+# I'm motivated to do this to make sure that it's easy to figure out
+# if the ? part succeeded or not in code for a ?-using rule.
+#
+
+>
+  statement --> a
+  a -> 'a' 'b'?:b 'c'
+    :
+      print("rule a parsed as %s" % src(self))
+      print("is_empty(b)=%s" % `is_empty(b)`)
+      
+
+abc
+ac
