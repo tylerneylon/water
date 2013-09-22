@@ -508,6 +508,7 @@ def _push_mode(name, params):
   mode.id = name
   mode.rules = modes[-1].rules.copy() if len(modes) else {}
   mode.rules.update(all_rules[name])
+  mode._pending_rules = {}
   rules = mode.rules
   modes.append(mode)
   _set_mode_params(params)
@@ -523,9 +524,12 @@ def _dbg_parse_start(name, it):
   text_str = it.text()[it.text_pos:it.text_pos + 30]
   dbg.dprint('parse', '%s %s%s parse at """%s"""' % (`parse_stack`, name, m, `text_str`))
 
-def _add_rule(rule, mode):
-  if mode not in all_rules: all_rules[mode] = {}
-  all_rules[mode][rule.name] = rule
+def _add_rule(rule, mode_name):
+  # TODO Clean this up when refresh-rules-on-mode-pop is far enough along.
+  global mode
+  if mode_name not in all_rules: all_rules[mode_name] = {}
+  all_rules[mode_name][rule.name] = rule
+  mode._pending_rules.setdefault(mode_name, {})[rule.name] = rule
   return rule
 
 # This is a way to pass around a string with a way to check that it's meant to
@@ -659,9 +663,12 @@ def _print_parse_failure():
   dbg.print_parse_failure(parse_info)
 
 def _setup_base_rules():
+  # TODO Clean up the mode handling here once refresh-rules-on-mode-pop is done.
+  push_mode('')  # Initialize the global mode.
   r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
-  push_mode('')
+  push_mode('')  # Force rules to be reloaded.
+  pop_mode()
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
 
 # Returns a list of rules of type elt_type, or None if obj cannot be
