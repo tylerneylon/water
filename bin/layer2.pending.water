@@ -176,16 +176,14 @@
   env._get_plus_rule = get_plus_rule
 
 > lang_def
-  star_item -->
-    item_plain '*'
+  star_item -> item_plain '*' item?
     :
       star_rule = env._get_star_rule(src(item_plain))
       add_subst(star_rule)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| star_item
-  plus_item -->
-    item_plain '+'
+  plus_item -> item_plain '+' item?
     :
       plus_rule = env._get_plus_rule(src(item_plain))
       add_subst(plus_rule)
