@@ -45,9 +45,9 @@ import run
 # Globals.
 
 all_rules = {'': {}}
-rules = None
 modes = []
 mode = None
+base_mode = None
 parse = None
 env = None
 
@@ -192,7 +192,7 @@ class SeqRule(Rule):
     # is a special case where the returned tree is None, but it is not a parse
     # error; that case is the reason for the if clause after this while loop.
     while True:
-      tree = rules['phrase'].parse(it)
+      tree = _rule('phrase').parse(it)
       if len(modes) == init_num_modes: break
       if tree is None:
         pop_mode()
@@ -330,9 +330,12 @@ class ParseError(Exception):
 #------------------------------------------------------------------------------
 
 def command(cmd):
-  # We wrap cmd as a function body to make it easier to deal with user indents.
-  exec('def _tmp(): ' + cmd)
+  # Commands are wrapped in a temporary mode so new rules are added immediately.
+  # So changes to 'mode' are temporary; base_mode allows changes to modes[0].
+  push_mode('')
+  exec('def _tmp(): ' + cmd)  # The _tmp wrap is to better handle user indents.
   _tmp()
+  pop_mode('')
 
 def parse_string(s):
   # I'm leaving in a {push,pop}_mode pair to show where we can
@@ -345,7 +348,7 @@ def parse_string(s):
   it = iterator.Iterator(s)
   result = []
   while True:
-    tree = rules['phrase'].parse(it)
+    tree = _rule('phrase').parse(it)
     if not tree or it.text_pos == len(it.text()): break
     result.append(tree)
   if False: pop_mode('')
@@ -363,7 +366,7 @@ def parse_string(s):
 def parse_phrase(it):
   global parse_info
   parse_info.phrase_start_pos = it.orig_pos()
-  tree = rules['phrase'].parse(it)
+  tree = _rule('phrase').parse(it)
   if tree:
     dbg.dprint('phrase', 'Successful phrase parse:')
     dbg.print_tree(tree)
@@ -385,6 +388,7 @@ def bool_rule(name, bool_val, mode=''):
   return _add_rule(BoolRule(name, bool_val), mode)
 
 def prepend_to_or(name, or_name, mode=''):
+  global all_rules
   dbg.dprint('public', 'prepend_to_or(%s, %s, %s)' % (name, or_name, `mode`))
   all_rules[mode][name].or_list.insert(0, or_name)
 
@@ -427,19 +431,19 @@ def push_mode(name, params={}):
   _push_mode(name, params)
 
 def pop_mode(outgoing_mode=None):
-  global rules, mode, modes
+  global all_rules, mode, modes
   if len(modes) == 1:
     dbg.dprint('error',
            "Grammar error: pop_mode() when only global mode on the stack")
     exit(1)
   old_mode = modes.pop()
+  new_rules = old_mode._pending_rules
+  for mode_name in new_rules:
+    all_rules.setdefault(mode_name, {}).update(new_rules[mode_name])
   if outgoing_mode is not None and old_mode.id != outgoing_mode:
     dbg.dprint('error', 'pop_mode(%s) called from mode %s' %
                (outgoing_mode, `old_mode.id`))
-  # Refresh rules if we're at the global context.
-  if len(modes) == 1: _push_mode('', modes.pop().__dict__)
   mode = modes[-1]
-  rules = mode.rules
   dbg.dprint('public', '    pop_mode(_); %s -> %s' % (`old_mode.id`, `mode.id`))
 
 def push_prefix(prefix, overwrite=False):
@@ -502,20 +506,17 @@ def _add_subst(rule_or_text):
     error('Illegal input to parse.add_subst; type=%s' % type(rule_or_text))
 
 def _push_mode(name, params):
-  global rules, mode, modes
+  global mode, modes
   mode = Object()
   if len(modes): mode.__dict__.update(modes[-1].__dict__)
   mode.id = name
-  mode.rules = modes[-1].rules.copy() if len(modes) else {}
-  mode.rules.update(all_rules[name])
   mode._pending_rules = {}
-  rules = mode.rules
   modes.append(mode)
   _set_mode_params(params)
 
 def _set_mode_params(params):
   global mode
-  protected_keys = ['id', 'rules']
+  protected_keys = ['id', '_pending_rules']
   params = {k: params[k] for k in params if k not in protected_keys}
   mode.__dict__.update(params)
 
@@ -526,9 +527,7 @@ def _dbg_parse_start(name, it):
 
 def _add_rule(rule, mode_name):
   # TODO Clean this up when refresh-rules-on-mode-pop is far enough along.
-  global mode
-  if mode_name not in all_rules: all_rules[mode_name] = {}
-  all_rules[mode_name][rule.name] = rule
+  global all_rules, mode
   mode._pending_rules.setdefault(mode_name, {})[rule.name] = rule
   return rule
 
@@ -556,7 +555,7 @@ def _parse_item(item, it):
   should_pop_prefix = False
   is_negated = False
   def _end(val, labels):
-    if is_negated: val = None if val else rules['Empty']
+    if is_negated: val = None if val else all_rules['']['Empty']
     if should_pop_prefix: pop_prefix()
     return val, labels
   dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
@@ -598,7 +597,7 @@ def _parse_item(item, it):
     dbg.dprint('temp', 're=%s' % `re`)
     val = _parse_exact_re(re, it)
   else:
-    val = rules[item].parse(it)
+    val = _rule(item).parse(it)
     if val: labels.append(item)
   return _end(val, labels)
 
@@ -663,11 +662,10 @@ def _print_parse_failure():
   dbg.print_parse_failure(parse_info)
 
 def _setup_base_rules():
-  # TODO Clean up the mode handling here once refresh-rules-on-mode-pop is done.
-  push_mode('')  # Initialize the global mode.
+  global all_rules
+  push_mode('')  # We add rules withn a mode so they're added to all_rules.
   r = seq_rule('phrase', ["'>:'", '"[^\\n]*\\n"'], mode='')
   r.add_fn('parsed', ' parse.command(tokens[1])\n')
-  push_mode('')  # Force rules to be reloaded.
   pop_mode()
   runfile(os.path.join(os.path.dirname(__file__), 'base_grammar.water'))
 
@@ -688,15 +686,26 @@ def _list_of(obj, elt_type=None):
   if isinstance(obj, SeqRule): return _apply_to_items(obj.tokens)
   return None
 
+def _rule(rule_name):
+  global all_rules
+  mode_index = len(modes) - 1
+  while mode_index >= 0:
+    rules = all_rules[modes[mode_index].id]
+    if rule_name in rules: return rules[rule_name]
+    mode_index -= 1
+  return None
+
 #------------------------------------------------------------------------------
 #  Set up initial state.
 #------------------------------------------------------------------------------
 
 def _setup():
-  global parse_info, env, parse
+  global parse_info, env, parse, base_mode, mode
   dbg.topics = []
   env = Object()
   parse = sys.modules[__name__]
+  push_mode('')  # Initialize the global mode.
+  base_mode = mode
   _setup_base_rules()
   dbg.topics = ['parse']  # Choices: 'public', 'parse'; see dbg.py for others.
 

@@ -1,14 +1,13 @@
->: mode.indent = ''
+>: base_mode.indent = ''
 >: parse.bool_rule('False', False)
 >: bool_rule('False', False)
 >: parse.bool_rule('Empty', True)
 >: bool_rule('Empty', True)
->: or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'], mode='', list_of=None)
 >: seq_rule('blank', ['"[ \\t]*\\n"'], mode='', list_of=None)
 >: seq_rule('comment', ['"#[^\\n]*\\n"'], mode='', list_of=None)
 >: or_rule('statement', ['False'], mode='', list_of=None)
 >: or_rule('grammar', ['command', 'global_grammar', 'mode_grammar'], mode='', list_of=None)
->: r = seq_rule('command', ["'>:'", 'code_block'], mode='', list_of=None);  r.add_fn('parsed', ' parse.command(code_block.src())\n')
+>: r = seq_rule('command', ["'>:'", 'code_block'], mode='', list_of=None);  r.add_fn('parsed', ' command(code_block.src())\n')
 >: r = seq_rule('global_grammar', ['">\\n(?=(\\s+))"', '-lang_def'], mode='', list_of=None);  r.add_fn('mode_params', "\n      return {'indent': tokens[0][1], 'name': ''}\n")
 >: r = seq_rule('mode_grammar', ["'> '", 'word', '"\\n(?=(\\s+))"', '-lang_def'], mode='', list_of=None);  r.add_fn('mode_params', "\n      return {'name': word.src(), 'indent': tokens[2][1]}\n")
 >: seq_rule('word', ['"[A-Za-z_]\\w*"'], mode='', list_of=None)
@@ -67,7 +66,7 @@
 >: or_rule('phrase', ['indented_code_line', ':parse.pop_mode()\n'], mode='nested_code_block', list_of=None)
 >: seq_rule('indented_code_line', ['"%(indent)s"', 'code_line'], mode='nested_code_block', list_of=None)
 >: seq_rule('code_line', ['"[^\\n]*\\n"'], mode='nested_code_block', list_of=None)
->: push_mode('');  pop_mode()
+>: or_rule('phrase', ['statement', 'comment', 'blank', 'grammar'], mode='', list_of=None)
 >: 
   env._next_subst_number = 0
   def new_subst_name():
@@ -173,6 +172,3 @@
   r = seq_rule('plus_item', ['item_plain', "'+'"], mode='lang_def', list_of=None)
   r.add_fn('parsed', "\n      plus_rule = env._get_plus_rule(src(item_plain))\n      add_subst(plus_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
 >: prepend_to_or('std_prefix_item', 'plus_item', 'lang_def')
->: 
-  push_mode('')
-  pop_mode()
