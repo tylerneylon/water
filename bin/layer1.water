@@ -58,7 +58,6 @@
 >: parse.bool_rule('Empty', True)
 
 >
-  phrase --> statement | comment | blank | grammar
   blank -->
     "[ \t]*\n"
   comment -->
@@ -201,4 +200,8 @@
     "%(indent)s" code_line
   code_line -->
     "[^\n]*\n"
+
+>
+  phrase --> statement | comment | blank | grammar
+
 
