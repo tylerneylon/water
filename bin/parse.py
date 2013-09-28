@@ -184,9 +184,9 @@ class SeqRule(Rule):
     dbg.dprint('parse', '%s parse_mode %s' % (self.name, mode_name))
     init_num_modes = len(modes)
     params = {}
-    push_mode(mode_name)
     if mode_name.may_have_params and 'mode_params' in self.__dict__:
-      _set_mode_params(self.mode_params())
+      params = self.mode_params()
+    push_mode(mode_name, params)
     mode_result = []
     # A mode is popped from either a successful parse or a |: clause. The |:
     # is a special case where the returned tree is None, but it is not a parse
@@ -439,6 +439,10 @@ def pop_mode(outgoing_mode=None):
   old_mode = modes.pop()
   new_rules = old_mode._pending_rules
   for mode_name in new_rules:
+    # TODO Drop these lines. They may be useful for debugging in the meantime.
+    if False:
+      for rule_name in new_rules[mode_name]:
+        print('Officially adding the rule %s (mode %s)' % (rule_name, mode_name))
     all_rules.setdefault(mode_name, {}).update(new_rules[mode_name])
   if outgoing_mode is not None and old_mode.id != outgoing_mode:
     dbg.dprint('error', 'pop_mode(%s) called from mode %s' %
