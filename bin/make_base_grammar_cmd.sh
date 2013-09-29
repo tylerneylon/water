@@ -10,6 +10,5 @@
 # Use a temporary file since a redirected output destination cannot
 # be read from; e.g. "cat file > file" will result in file being empty,
 # no matter what it started with.
-water -commands layer1.water --nonewlines > tmpfile
-water -commands layer2.water >> tmpfile
+water -commands all_layers.water --nonewlines > tmpfile
 mv tmpfile base_grammar.water

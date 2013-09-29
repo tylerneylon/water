@@ -53,7 +53,7 @@
 # * In many cases, I have \s where I mean \s but not \n.
 #
 
->: mode.indent = ''
+>: base_mode.indent = ''
 >: parse.bool_rule('False', False)
 >: parse.bool_rule('Empty', True)
 

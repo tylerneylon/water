@@ -24,12 +24,16 @@ include_newlines = True
 # This filters out newlines if the user requests it.
 # This can introduce loss of indent recognition, so it
 # requires the input to be one-line-friendly.
-def print_out(s):
+def print_out(s, is_command=False):
   s = s.rstrip()
-  if not include_newlines:
+  # Remove newlines when the user requested it *and* it's not a command.
+  # One-line commands are left as one-line, but we might break multi-line
+  # commands (eg with an if or loop block), so we leave their newlines in.
+  if not include_newlines and not is_command:
     m = re.match('\s+', s)
     if m: s = s[m.end():]
     s = s.replace('\n', ';')
+  if is_command and re.match(r'\s*(parse\.)?runfile', s): return
   print('>: %s' % s)
 
 def end_last_rule():
@@ -46,15 +50,11 @@ def end_last_rule():
   make_rule_str = None
   rule_cmd_strs = []
 
-def end_all_rules():
-  end_last_rule()
-  print_out('\n  push_mode(\'\')\n  pop_mode()\n')
-
 def hook_command_fn():
   old_fn = parse.command
   def new_fn(cmd):
     end_last_rule()
-    print_out(cmd)
+    print_out(cmd, is_command=True)
     old_fn(cmd)
   parse.command = new_fn
 
@@ -74,7 +74,7 @@ def hook_prepend_to_or():
     old_method(name, or_name, mode)
   parse.prepend_to_or = new_method
 
-def hook_parse_fn(fn_name):
+def hook_rule_fn(fn_name):
   old_fn = parse.__dict__[fn_name]
   def new_fn(*args, **kwargs):
     global make_rule_str
@@ -101,11 +101,12 @@ def main(args, self_dir):
 
   rule_fns = ['or_rule', 'seq_rule', 'bool_rule']
   for fn_name in rule_fns:
-    hook_parse_fn(fn_name)
+    hook_rule_fn(fn_name)
   hook_command_fn()
   hook_add_fn_method()
   hook_prepend_to_or()
 
   parse.runfile(in_filename)
-  end_all_rules()
+
+  end_last_rule()
 
