@@ -12,7 +12,8 @@
 ##############################################################
 
 >:
-  env._next_subst_number = 0
+  if '_next_subst_number' not in env:
+    env._next_subst_number = 0
   def new_subst_name():
     name = '_subst_' + str(env._next_subst_number)
     env._next_subst_number += 1
@@ -49,7 +50,8 @@
 ##############################################################
 
 >:
-  env._next_inner_rule_number = 0
+  if '_next_inner_rule_number' not in env:
+    env._next_inner_rule_number = 0
   def new_inner_rule_name():
     name = '_inner_' + str(env._next_inner_rule_number)
     env._next_inner_rule_number += 1
@@ -193,3 +195,11 @@
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| plus_item
 
+# TODO Consider modifying the grammar so that the replaced newline
+#      is not needed here.
+
+# Without these commands, the base grammar's env variables will be reset
+# each time water runs, so that, e.g., _inner_3 might be reused and overwrite
+# an inner rule created when the base_grammar was compiled.
+>: command('env._next_inner_rule_number = %d\n' % env._next_inner_rule_number)
+>: command('env._next_subst_number = %d\n' % env._next_subst_number)

@@ -33,8 +33,8 @@ def print_out(s, is_command=False):
     m = re.match('\s+', s)
     if m: s = s[m.end():]
     s = s.replace('\n', ';')
-  if is_command and re.match(r'\s*(parse\.)?runfile', s): return
-  print('>: %s' % s)
+  if is_command and re.match(r'\s*(parse\.)?(runfile|command)', s): return
+  print('>:%s%s' % ('' if s.startswith(' ') else ' ', s))
 
 def end_last_rule():
   global make_rule_str, rule_cmd_strs
