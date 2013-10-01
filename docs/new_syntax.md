@@ -483,7 +483,22 @@ these can have single-underscore prefixes, like this:
 * `_subst_1`
 * `_x_star`
 
+## How `base_grammar` is built
 
+For now, `base_grammar.water` is built from `all_layers.water` which
+runs `layer{1,2}.water`. The trouble is that I'd like to have some good
+freedom to use advanced features in `layer{1,2}.water` that translate
+down to api-level commands for me, but there are challenges with that.
 
+In particular, the `_inner_<num>` rule names are not being handled
+well, even after my most recent refactoring. For example, if I compile
+`all_layers.water`, the inner rules will then start off where the had
+left off in that process's `base_grammar.water` file.
 
+An easy-to-implement fix is to prepend an extra underscore to all
+`_inner_#` rule names in `base_grammar.water` immediately after
+creating it. This is not incredibly elegant, but there are a bunch of
+sneaky problems (I think) it avoids. In fact, this could be an option
+built into the `commands` module, which feels like a reasonable
+approach to me.
 
