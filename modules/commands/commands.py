@@ -18,6 +18,7 @@ import run
 make_rule_str = None
 rule_cmd_strs = []
 include_newlines = True
+mangle_inner_names = False
 
 # functions
 
@@ -34,6 +35,7 @@ def print_out(s, is_command=False):
     if m: s = s[m.end():]
     s = s.replace('\n', ';')
   if is_command and re.match(r'\s*(parse\.)?(runfile|command)', s): return
+  if mangle_inner_names: s = re.sub(r'_inner_(?=\d)', '__inner_', s)
   print('>:%s%s' % ('' if s.startswith(' ') else ' ', s))
 
 def end_last_rule():
@@ -93,8 +95,9 @@ def main(args, self_dir):
     print('Usage: %s <water_filename>' % args[0])
     exit(2)
 
-  global include_newlines
+  global include_newlines, mangle_inner_names
   include_newlines = not ('--nonewlines' in args)
+  mangle_inner_names = ('--mangle' in args)
 
   in_filename = args[1]
   run.run_code = False
