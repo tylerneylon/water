@@ -76,7 +76,7 @@ parse_info = None
 
 # Temp debug stuff.
 # TODO Make these available via command-line args.
-show_extra_dbg = False
+show_extra_dbg = False  # TEMP
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -235,9 +235,13 @@ class SeqRule(Rule):
     run._state = {'start': self.start_pos, 'end': self.end_pos}
     dbg.dprint('parse', '%s parse succeeded' % self.name)
     saved_substs = substs
+    if saved_substs:
+      pass # TEMP
+      #print('saved_substs=%s' % `saved_substs`)
     substs = []
     if 'parsed' in self.__dict__: self.parsed()
     if substs:
+      #print('Just saw new substs: %s' % `substs`)  # TEMP
       # TODO(future): When I set up caching, I can update the cache about rules
       #               in the substs list (and add that info to the list).
       it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
@@ -504,6 +508,8 @@ def _prefix_if_leaf(tree_node):
 
 def _add_subst(rule_or_text):
   global substs
+  # TEMP
+  #print('_add_subst: %s' % rule_or_text if isinstance(rule_or_text, str) else rule_or_text.name)
   if isinstance(rule_or_text, str) or isinstance(rule_or_text, Rule):
     substs.append(src(rule_or_text))
   else:
