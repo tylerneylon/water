@@ -537,7 +537,7 @@ def _dbg_parse_start(name, it):
 
 def _add_rule(rule, mode_name):
   # TODO Clean this up when refresh-rules-on-mode-pop is far enough along.
-  global all_rules, mode
+  global mode
   mode._pending_rules.setdefault(mode_name, {})[rule.name] = rule
   return rule
 
