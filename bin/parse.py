@@ -76,7 +76,7 @@ parse_info = None
 
 # Temp debug stuff.
 # TODO Make these available via command-line args.
-show_extra_dbg = False  # TEMP
+show_extra_dbg = False
 
 #------------------------------------------------------------------------------
 #  Define classes.
@@ -149,6 +149,31 @@ class Rule(Object):
       return self._run_fn(fn_name, fn_code)
     self._unbound_methods_[fn_name] = run
     self._bound_method(fn_name, run)
+
+  def _end_parse(self, tree, it):
+    global substs
+    self.end_pos = it.orig_pos()
+    if tree is None: return tree
+    # TODO Think of a way to do this more cleanly. Right now run._state is
+    # awkwardly set from both parse and run.
+    # For examle, maybe a command could set up its code_block as the body of an
+    # add_code fn, and then call run.add on itself.
+    run._state = {'start': self.start_pos, 'end': self.end_pos}
+    dbg.dprint('parse', '%s parse succeeded' % self.name)
+    saved_substs = substs
+    substs = []
+    if 'parsed' in self.__dict__: self.parsed()
+    if substs:
+      # TODO(future): When I set up caching, I can update the cache about rules
+      #               in the substs list (and add that info to the list).
+      it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
+      it.text_pos = self.start_text_pos
+      if show_extra_dbg:
+        print('After subst, text is:')
+        print(it.text())
+      tree = self.parse(it)
+    substs = saved_substs
+    return tree if self.list_of is None else _list_of(self)
 
   def parse(self, it):
     parse_stack.append(self.name)
@@ -224,35 +249,6 @@ class SeqRule(Rule):
       for label in labels: self.pieces.setdefault(label, []).append(val)
     return self._end_parse(self, it)
 
-  def _end_parse(self, tree, it):
-    global substs
-    self.end_pos = it.orig_pos()
-    if tree is None: return tree
-    # TODO Think of a way to do this more cleanly. Right now run._state is
-    # awkwardly set from both parse and run.
-    # For examle, maybe a command could set up its code_block as the body of an
-    # add_code fn, and then call run.add on itself.
-    run._state = {'start': self.start_pos, 'end': self.end_pos}
-    dbg.dprint('parse', '%s parse succeeded' % self.name)
-    saved_substs = substs
-    if saved_substs:
-      pass # TEMP
-      #print('saved_substs=%s' % `saved_substs`)
-    substs = []
-    if 'parsed' in self.__dict__: self.parsed()
-    if substs:
-      #print('Just saw new substs: %s' % `substs`)  # TEMP
-      # TODO(future): When I set up caching, I can update the cache about rules
-      #               in the substs list (and add that info to the list).
-      it.replace([self.start_text_pos, it.text_pos], ''.join(substs))
-      it.text_pos = self.start_text_pos
-      if show_extra_dbg:
-        print('After subst, text is:')
-        print(it.text())
-      tree = self.parse(it)
-    substs = saved_substs
-    return tree if self.list_of is None else _list_of(self)
-
   def child(self):
     c = SeqRule(self.name, self.seq)
     c.__dict__ = self.__dict__.copy()
@@ -302,10 +298,7 @@ class OrRule(Rule):
         # We want to delegate the tokens property to val iff val is a Rule.
         if not isinstance(val, Rule): self.tokens = [val]
         self.or_index = index
-        self.end_pos = it.orig_pos()
-        dbg.dprint('parse', '%s parse succeeded as %s' % (self.name, item))
-        if 'parsed' in self.__dict__: self.parsed()
-        return self if self.list_of is None else _list_of(self)
+        return self._end_parse(self, it)
     dbg.dprint('parse', '%s parse failed' % self.name)
     return None
 
@@ -508,8 +501,6 @@ def _prefix_if_leaf(tree_node):
 
 def _add_subst(rule_or_text):
   global substs
-  # TEMP
-  #print('_add_subst: %s' % rule_or_text if isinstance(rule_or_text, str) else rule_or_text.name)
   if isinstance(rule_or_text, str) or isinstance(rule_or_text, Rule):
     substs.append(src(rule_or_text))
   else:
