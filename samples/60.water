@@ -5,7 +5,7 @@
 
 > jss
   integer -> '0' | "[1-9]\d*"
-    : print('integer parsed as %s' % src(self))
+    : print('integer parsed as %s' % val(self))
   endline -> "\n"
   sum -> integer (( '+' integer ))*','
   statement -> sum endline

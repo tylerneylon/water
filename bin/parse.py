@@ -212,21 +212,24 @@ class SeqRule(Rule):
     if mode_name.may_have_params and 'mode_params' in self.__dict__:
       params = self.mode_params()
     push_mode(mode_name, params)
+    if mode_name.prefix_info: push_prefix(*mode_name.prefix_info)
     mode_result = []
+    def end(result):
+      if len(modes) > init_num_modes: pop_mode()
+      if mode_name.prefix_info: pop_prefix()
+      return result
     # A mode is popped from either a successful parse or a |: clause. The |:
     # is a special case where the returned tree is None, but it is not a parse
     # error; that case is the reason for the if clause after this while loop.
     while True:
       tree = _rule('phrase').parse(it)
       if len(modes) == init_num_modes: break
-      if tree is None:
-        pop_mode()
-        return None
+      if tree is None: return end(None)
       mode_result.append(tree)
     if tree: mode_result.append(tree)
-    if not mode_name.may_have_params and len(mode_result) == 0: return None
+    if not mode_name.may_have_params and not len(mode_result): return end(None)
     self.pieces['mode_result'] = mode_result
-    return mode_result
+    return end(mode_result)
 
   def inst_parse(self, it):
     _dbg_parse_start(self.name, it)
@@ -553,11 +556,11 @@ def _find_label(item):
 # _ModeName string when a mode name is found -- in that case, the actual parsing
 # of the mode is not performed, and is up to the caller to complete.
 def _parse_item(item, it):
-  should_pop_prefix = False
+  prefix_info = None
   is_negated = False
   def _end(val, labels):
     if is_negated: val = None if val else all_rules['']['Empty']
-    if should_pop_prefix: pop_prefix()
+    if prefix_info: pop_prefix()
     return val, labels
   dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
   if type(item) is tuple:  # It's an item with a prefix change.
@@ -566,8 +569,8 @@ def _parse_item(item, it):
     if prefix_chng and prefix_chng.startswith('prefix='):
       overwrite = True
       prefix_chng = prefix_chng[len('prefix='):]
-    push_prefix(prefix_chng, overwrite)
-    should_pop_prefix = True
+    prefix_info = (prefix_chng, overwrite)
+    push_prefix(*prefix_info)
     item = item[1]
   c = item[0]
   if c == ':': return _end(_CommandStr(item[1:]), None)
@@ -584,13 +587,15 @@ def _parse_item(item, it):
     #import pdb; pdb.set_trace()
     item = item[1:]
     c = item[0]
-    push_prefix(None, overwrite=True)
-    should_pop_prefix = True
+    overwrite = True
+    prefix_info = (None, overwrite)
+    push_prefix(*prefix_info)
   item, label = _find_label(item)
   labels = [label] if label else []
   if c in ['-', '=']:
     mode_name = _ModeName(item[1:])
     mode_name.may_have_params = (c == '-')
+    mode_name.prefix_info = prefix_info
     return _end(mode_name, labels)
   if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
