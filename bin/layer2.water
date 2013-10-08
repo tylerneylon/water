@@ -176,6 +176,16 @@
       env._add_star_plus_rules(items_str)
     return env._star_plus_rules[items_str][1]
   env._get_plus_rule = get_plus_rule
+  #
+  def get_infix_star_rule(body, infix):
+    star_rule = env._get_star_rule(body)
+    return '(( %s (%s)%s | Empty ))' % (body, infix, star_rule)
+  env._get_infix_star_rule = get_infix_star_rule
+  #
+  def get_infix_plus_rule(body, infix):
+    star_rule = env._get_star_rule(body)
+    return '(( %s (%s)%s ))' % (body, infix, star_rule)
+  env._get_infix_plus_rule = get_infix_plus_rule
 
 # TODO In the star and plus rules, it would be nice
 #      if we could refer to item? by the name item.
@@ -206,8 +216,12 @@
 > lang_def
   star_item -> item_plain '*' item?
     :
-      star_rule = env._get_star_rule(src(item_plain))
-      add_subst(star_rule)
+      body = src(item_plain)
+      if not is_empty(tokens[2]):
+        infix = src(tokens[2])
+        add_subst(env._get_infix_star_rule(body, infix))
+      else:
+        add_subst(eng._get_star_rule(body))
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| star_item
@@ -215,12 +229,10 @@
     :
       body = src(item_plain)
       if not is_empty(tokens[2]):
-        star_rule = env._get_star_rule(body)
         infix = src(tokens[2])
-        add_subst('(( %s (%s)%s ))' % (body, infix, star_rule))
+        add_subst(env._get_infix_plus_rule(body, infix))
       else:
-        plus_rule = env._get_plus_rule(src(item_plain))
-        add_subst(plus_rule)
+        add_subst(env._get_plus_rule(body))
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| plus_item

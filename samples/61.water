@@ -1,0 +1,20 @@
+# 61.water
+#
+# Work toward the a+*b syntax.
+#
+
+> jss
+  integer -> '0' | "[1-9]\d*"
+    : print('integer parsed as %s' % val(self))
+  endline -> "\n"
+  array_literal -> '[' integer*',' ']'
+  statement -> array_literal endline
+  phrase --> statement |: parse.pop_mode()
+
+>
+  statement -->
+    ("[ \t]*")=jss
+
+[]
+[1]
+[1, 2, 3]
