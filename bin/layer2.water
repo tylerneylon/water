@@ -177,6 +177,32 @@
     return env._star_plus_rules[items_str][1]
   env._get_plus_rule = get_plus_rule
 
+# TODO In the star and plus rules, it would be nice
+#      if we could refer to item? by the name item.
+
+# Notes on how star/plus rules work:
+#
+# A few rules are added via add_star_plus_rules, using the parse_string
+# method. Below is an example of the rule template used:
+#
+# body             ->  <rule_body>
+# body_star[body]  ->  body_plus | Empty
+# body_plus[body]  ->  body body_star
+#
+# Thus both {star,plus} rules are defined nicely together.
+#
+# ----
+#
+# Now for versions with an infix token.
+#
+# body_star_#[body]  ->  body_plus_# | Empty
+# body_plus_#[body]  ->  body infix body_star_# | body
+#
+# OR
+#
+# body_star_#[body]  ->  body (infix)body_star | Empty
+# body_plus_#[body]  ->  body (infix)body_star
+
 > lang_def
   star_item -> item_plain '*' item?
     :
@@ -187,8 +213,14 @@
   std_prefix_item =| star_item
   plus_item -> item_plain '+' item?
     :
-      plus_rule = env._get_plus_rule(src(item_plain))
-      add_subst(plus_rule)
+      body = src(item_plain)
+      if not is_empty(tokens[2]):
+        star_rule = env._get_star_rule(body)
+        infix = src(tokens[2])
+        add_subst('(( %s (%s)%s ))' % (body, infix, star_rule))
+      else:
+        plus_rule = env._get_plus_rule(src(item_plain))
+        add_subst(plus_rule)
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| plus_item

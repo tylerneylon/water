@@ -154,7 +154,7 @@
 >: seq_rule('__inner_10', ['item'], mode='lang_def', list_of=None)
 >: seq_rule('__inner_11', ['Empty'], mode='lang_def', list_of=None)
 >: prepend_to_or('std_prefix_item', 'star_item', 'lang_def')
->: r = or_rule('plus_item', ['__inner_13'], mode='lang_def', list_of=None);  r.add_fn('parsed', "\n      plus_rule = env._get_plus_rule(src(item_plain))\n      add_subst(plus_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
+>: r = or_rule('plus_item', ['__inner_13'], mode='lang_def', list_of=None);  r.add_fn('parsed', "\n      body = src(item_plain)\n      if not is_empty(tokens[2]):\n        star_rule = env._get_star_rule(body)\n        infix = src(tokens[2])\n        add_subst('(( %s (%s)%s ))' % (body, infix, star_rule))\n      else:\n        plus_rule = env._get_plus_rule(src(item_plain))\n        add_subst(plus_rule)\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
 >: seq_rule('__inner_13', ['item_plain', "'+'", '__inner_12'], mode='lang_def', list_of=None)
 >: or_rule('__inner_12', ['__inner_14', '__inner_15'], mode='lang_def', list_of=None)
 >: seq_rule('__inner_14', ['item'], mode='lang_def', list_of=None)
