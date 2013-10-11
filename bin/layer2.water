@@ -162,7 +162,7 @@
                 "plus_rule": plus_rule,
                 "body": items_str}
     parse_string(env._add_indents(fmt % src_elts, mode))
-    env._star_plus_rules[items_str] = (star_rule, plus_rule)
+    env._star_plus_rules[items_str] = (star_rule, plus_rule, body_rule)
   env._add_star_plus_rules = add_star_plus_rules
   #
   def get_star_rule(items_str):
@@ -177,9 +177,29 @@
     return env._star_plus_rules[items_str][1]
   env._get_plus_rule = get_plus_rule
   #
+  # TODO The infix rules have a lot of overlap; factor for cleanup.
+  #
   def get_infix_star_rule(body, infix):
-    star_rule = env._get_star_rule(body)
-    return '(( %s (%s)%s | Empty ))' % (body, infix, star_rule)
+    # body_rule -> body
+    # iplus_rule -->
+    #   body_rule (infix)body_star
+    # istar_rule[body_rule] --> iplus_rule | Empty
+    if body not in env._star_plus_rules:
+      env._add_star_plus_rules(body)
+    body_star, body_plus, body_rule = env._star_plus_rules[body]
+    iplus_rule = env._new_inner_rule_name()
+    istar_rule = env._new_inner_rule_name()
+    fmt = ('%(body_rule)s -> %(body)s\n'
+           '%(iplus_rule)s -->\n  %(body_rule)s (%(infix)s)%(body_star)s\n'
+           '%(istar_rule)s[%(body_rule)s] --> %(iplus_rule)s | Empty\n')
+    elts = {"body_rule": body_rule,
+            "iplus_rule": iplus_rule,
+            "istar_rule": istar_rule,
+            "body_star": body_star,
+            "body": body,
+            "infix": infix}
+    parse_string(env._add_indents(fmt % elts, mode))
+    return istar_rule
   env._get_infix_star_rule = get_infix_star_rule
   #
   def get_infix_plus_rule(body, infix):
@@ -221,7 +241,7 @@
         infix = src(tokens[2])
         add_subst(env._get_infix_star_rule(body, infix))
       else:
-        add_subst(eng._get_star_rule(body))
+        add_subst(env._get_star_rule(body))
       if (item_plain.result.name == 'rule_name'):
         add_subst(':' + src(item_plain) + '_list')
   std_prefix_item =| star_item
