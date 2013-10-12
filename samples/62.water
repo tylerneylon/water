@@ -19,12 +19,14 @@
         return atom.value()
   product -> power+'*'
     value:
-      for p in power_list:
-        print(`p`)
-      return 1
-  statement -> product
+      v = 1
+      for p in power_list: v *= p.value()
+      return v
+  statement -> (" *")product
     :
       print('value of %s is %d' % (src(self), self.value()))
 
 2 * 3
 17
+2 ^ 3 * 2
+2 * 2 ^ 3

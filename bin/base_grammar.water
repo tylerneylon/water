@@ -175,8 +175,22 @@
   env._get_infix_star_rule = get_infix_star_rule
   #
   def get_infix_plus_rule(body, infix):
-    star_rule = env._get_star_rule(body)
-    return '(( %s (%s)%s ))' % (body, infix, star_rule)
+    # body_rule -> body
+    # iplus_rule[body_rule] -->
+    #   body_rule (infix)body_star
+    if body not in env._star_plus_rules:
+      env._add_star_plus_rules(body)
+    body_star, body_plus, body_rule = env._star_plus_rules[body]
+    iplus_rule = env._new_inner_rule_name()
+    fmt = ('%(iplus_rule)s[%(body_rule)s] -->\n'
+           '  %(body_rule)s (%(infix)s)%(body_star)s\n')
+    elts = {"body_rule": body_rule,
+            "iplus_rule": iplus_rule,
+            "body_star": body_star,
+            "body": body,
+            "infix": infix}
+    parse_string(env._add_indents(fmt % elts, mode))
+    return iplus_rule
   env._get_infix_plus_rule = get_infix_plus_rule
 >: r = or_rule('star_item', ['__inner_9'], mode='lang_def', list_of=None);  r.add_fn('parsed', "\n      body = src(item_plain)\n      if not is_empty(tokens[2]):\n        infix = src(tokens[2])\n        add_subst(env._get_infix_star_rule(body, infix))\n      else:\n        add_subst(env._get_star_rule(body))\n      if (item_plain.result.name == 'rule_name'):\n        add_subst(':' + src(item_plain) + '_list')\n")
 >: seq_rule('__inner_9', ['item_plain', "'*'", '__inner_8'], mode='lang_def', list_of=None)
