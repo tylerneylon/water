@@ -271,3 +271,69 @@ the null prefix, but I think using `(prefix='')` is more consistent, and we
 could internally detect it as a special case that is replaced by an empty list
 in the prefix stack. Note that actually using `''` (the empty literal string)
 would work the same (I believe).
+
+---
+
+## Even more on prefixes
+
+So, I realized I made a mistake in thinking about infix operators. Consider the
+expression a * b ^ c, which is a product of powers.  Conceptually, I was
+previously thinking that * would be a prefix for the powers, and that ^ would be
+a prefix for atoms within powers.
+
+However, with the way the current prefix stack is set up, there's no easy way to
+drop * as a prefix within powers. In other words, the current setup would expect
+something like a * b * ^ * c, which is not right.
+
+As a fix for this, I propose using a new layer1 syntax as in a@b where a is a
+temporary prefix used once in the parsing of a "b" item. Using that setup, here
+is one way to define products of powers before a+b syntax:
+
+    atom -> "[0-9]+"
+    power[atom] -> atom '^'@power | atom
+    product[power] -> power (( '*'@power ))*
+
+where the layer1 conversion would effectively be:
+
+    atom -->
+      "[0-9]+"
+    power[atom] --> power_multi | atom
+    power_multi -->
+      atom '^'@power
+    product[power] --> product_multi | power
+    product_multi -->
+      power '*'@product
+
+and the highest level syntax would be:
+
+    atom -> "[0-9]+"
+    power -> atom+'^'
+    product -> power+'*'
+
+I'm not sure if all these examples will work out exactly.
+
+### How to internally parse an `a@b` item
+
+I don't think `a` ever belongs on the parse stack in this case. I tried to think
+of a way to make that work nicely, but came up empty.
+
+Instead, we could do something less clever and more direct - and still simple.
+Within `_parse_item`, we can break an `a@b` item down into `a` and `b`, parse
+those items recursively, and then set
+
+    b.prefix = a
+
+That's it.
+
+At this point, however, it may be worth considering all the complexities which
+may occur in an item that are understood by `_parse_item`. It's grown to the
+point where I'm unsure of the order of precedence, and it may be worth taking a
+look at later to see what can be simplified.
+
+Also, the current rather sophisticated prefix system was motivated by infix
+operators, but now I realize it's not actually that useful for that case.
+Because of that, I believe it can be greatly simplified to more closely
+resemble what we originally had. However, instead of doing that immmediately, I
+would like to continue developing water and a couple practice languages to keep
+learning what grammar syntaxes are useful. At that point, I think I'll be in a
+better position to prune out parts of the system that are not really needed.
