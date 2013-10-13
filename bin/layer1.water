@@ -159,10 +159,11 @@
     '(' 'prefix=' item ')'
   dot_prefix_change -->
     '.'
-  std_prefix_item -> "!?" (( item_with_label | item_plain ))
+  std_prefix_item -> "!?" (( item_with_label | item_no_label ))
     list: return [src(self)]
   item_with_label -->
-    item_plain ':' word
+    item_no_label ':' word
+  item_no_label --> item_plain
   item_plain --> no_param_mode_result | str | rule_name
   str -->
     "['\"]" -str
