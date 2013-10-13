@@ -542,6 +542,11 @@ class _ModeName(str): pass
 # This is a way to indicate a command found in an item.
 class _CommandStr(str): pass
 
+# Returns a, b for 'a@b', or None, b for @-free items.
+def _parse_at_syntax(item):
+  # TODO Is this function needed? Delete if not.
+  pass
+
 # Returns label_free_part, label; label may be None if it's not there.
 def _find_label(item):
   must_be_after = 0
@@ -557,21 +562,30 @@ def _find_label(item):
 # of the mode is not performed, and is up to the caller to complete.
 def _parse_item(item, it):
   prefix_info = None
+  one_time_prefix = None
   is_negated = False
   def _end(val, labels):
     if is_negated: val = None if val else all_rules['']['Empty']
     if prefix_info: pop_prefix()
+    if one_time_prefix:
+      if 'prefix' in val.__dict__: one_time_prefix.suffix = val.prefix
+      val.prefix = one_time_prefix
     return val, labels
   dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
+  # Tuples are of the form (prefix_modifier, item) where the modifier is either
+  # '(item)', '.', or '@item'.
   if type(item) is tuple:  # It's an item with a prefix change.
-    prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
-    overwrite = (item[0] == '.')
-    if prefix_chng and prefix_chng.startswith('prefix='):
-      overwrite = True
-      prefix_chng = prefix_chng[len('prefix='):]
-    prefix_info = (prefix_chng, overwrite)
-    push_prefix(*prefix_info)
-    item = item[1]
+    if item[0][0] == '@':
+      one_time_prefix, unused = _parse_item(item[0][1:], it)
+    else:
+      prefix_chng = None if item[0] == '.' else item[0][1:-1]  # Drop the parens.
+      overwrite = (item[0] == '.')
+      if prefix_chng and prefix_chng.startswith('prefix='):
+        overwrite = True
+        prefix_chng = prefix_chng[len('prefix='):]
+      prefix_info = (prefix_chng, overwrite)
+      push_prefix(*prefix_info)
+      item = item[1]
   c = item[0]
   if c == ':': return _end(_CommandStr(item[1:]), None)
   if c == '!':

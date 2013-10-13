@@ -163,7 +163,9 @@
     list: return [src(self)]
   item_with_label -->
     item_no_label ':' word
-  item_no_label --> item_plain
+  item_no_label --> item_with_at | item_plain
+  item_with_at -->
+    item_plain '@' item_plain
   item_plain --> no_param_mode_result | str | rule_name
   str -->
     "['\"]" -str

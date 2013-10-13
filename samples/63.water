@@ -1,0 +1,11 @@
+# 63.water
+#
+# Early test of a@b syntax.
+#
+
+>
+  statement -> (" *")a_at_b
+  a_at_b -> 'a'@'b'
+    : print('a_at_b parsed with src: %s' % `src(self)`)
+
+ab
