@@ -6,6 +6,9 @@
 >
   statement -> (" *")a_at_b
   a_at_b -> 'a'@'b'
-    : print('a_at_b parsed with src: %s' % `src(self)`)
+    :
+      print('a_at_b parsed')
+      print('src=%s' % `src(self)`)
+      print('val=%s' % `val(self)`)
 
 ab

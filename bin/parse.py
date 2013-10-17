@@ -585,7 +585,7 @@ def _parse_item(item, it):
         prefix_chng = prefix_chng[len('prefix='):]
       prefix_info = (prefix_chng, overwrite)
       push_prefix(*prefix_info)
-      item = item[1]
+    item = item[1]
   c = item[0]
   if c == ':': return _end(_CommandStr(item[1:]), None)
   if c == '!':
