@@ -126,7 +126,6 @@
     list: return item.list() + [':' + rest_of_line.src()]
   rule_name -->
     word
-    list: return [word.src()]
   seq_rule -->
     rule_tag " -->\n%(indent)s(\s+)" seq "[ \t]*\n" -rule_block
     mode_params:
@@ -146,7 +145,6 @@
       return [(src(pfx), '-' + src(word)) if has_pfx else src(self)]
   no_param_mode_result -->
     '=' word
-    list: return [tokens[0] + word.src()]
   item --> prefix_changed_item | std_prefix_item
   prefix_changed_item -->
     prefix_change std_prefix_item
@@ -159,19 +157,31 @@
     '(' 'prefix=' item ')'
   dot_prefix_change -->
     '.'
-  std_prefix_item -> "!?" (( item_with_label | item_no_label ))
+  std_prefix_item --> item_with_label | item_no_label
+  item_no_label --> item_negated | item_with_at | item_plain
+  item_negated -->
+    '!' item_plain
     list: return [src(self)]
   item_with_label -->
     item_no_label ':' word
-  item_no_label --> item_with_at | item_plain
+    list:
+      val = item_no_label.list()
+      if isinstance(val[0], str):
+        val[0] += ':%s' % src(word)
+      else:
+        # The first elt of val is a tuple.
+        val[0][1] += ':%s' % src(word)
+      return val
   item_with_at -->
     item_plain '@' item_plain
+    list:
+      print('item_with_at list called')
+      return [('@' + src(item_plain[0]), src(item_plain[1]))]
   item_plain --> no_param_mode_result | str | rule_name
+    list: return [src(self)]
   str -->
     "['\"]" -str
-    mode_params:
-      return {'endchar': tokens[0][0]}
-    list: return [self.src()]
+    mode_params: return {'endchar': tokens[0][0]}
 
 > rule_block
   phrase --> indented_rule_item |: parse.pop_mode()
