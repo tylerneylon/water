@@ -246,6 +246,11 @@
 #
 # body_star_#[body]  ->  body (infix)body_star | Empty
 # body_plus_#[body]  ->  body (infix)body_star
+#
+# WITH a@b
+#
+# body_star_#[body] -> body_plus_# | Empty
+# body_plus_#[body] -> body infix@body_plus_# | body
 
 > lang_def
   star_item -> item_plain '*' item?
