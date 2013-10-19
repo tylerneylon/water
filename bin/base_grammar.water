@@ -101,7 +101,7 @@
 >: seq_rule('indented_line', ['"%(indent)s[^\\n]*\\n"'], mode='indented_block', list_of=None)
 >: or_rule('phrase', ['indented_block', ':parse.pop_mode()\n'], mode='opt_indented_block', list_of=None)
 >: r = seq_rule('indented_block', ['"(?=(%(indent)s\\s+))"', '-indented_block'], mode='opt_indented_block', list_of=None);  r.add_fn('mode_params', "\n      params = {'indent': tokens[0][1]}\n      return params\n");  r.add_fn('parsed', ' parse.pop_mode()\n')
->: r = seq_rule('combined_rule', ['word', "' -> '", 'combined_rule_list', '"[ \\t]*\\n"', '-opt_indented_block'], mode='lang_def', list_of=None);  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      add_subst('%s --> %s\\n' % (word, name_list_str))\n      add_subst(src(mode_result))\n      ind = mode.indent\n      for i, s in enumerate(seqs):\n        add_subst('%s%s -->\\n%s  %s\\n' % (ind, names[i], ind, seqs[i]))\n      add_subst(env._str_of_rules_to_add(ind))\n")
+>: r = seq_rule('combined_rule', ['rule_tag', "' -> '", 'combined_rule_list', '"[ \\t]*\\n"', '-opt_indented_block'], mode='lang_def', list_of=None);  r.add_fn('parsed', "\n      seqs = combined_rule_list.list()\n      names = [env._new_inner_rule_name() for i in range(len(seqs))]\n      name_list_str = ' | '.join(names)\n      add_subst('%s --> %s\\n' % (src(rule_tag), name_list_str))\n      add_subst(src(mode_result))\n      ind = mode.indent\n      for i, s in enumerate(seqs):\n        add_subst('%s%s -->\\n%s  %s\\n' % (ind, names[i], ind, seqs[i]))\n      add_subst(env._str_of_rules_to_add(ind))\n")
 >: or_rule('combined_rule_list', ['or_of_seqs', 'one_seq'], mode='lang_def', list_of=None)
 >: r = seq_rule('or_of_seqs', ['seq', "' | '", 'combined_rule_list'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [seq] + combined_rule_list.list()\n')
 >: r = seq_rule('one_seq', ['seq'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [seq]\n')
@@ -151,6 +151,7 @@
   # TODO The infix rules have a lot of overlap; factor for cleanup.
   #
   def get_infix_star_rule(body, infix):
+    # TODO update these comments
     # body_rule -> body
     # iplus_rule -->
     #   body_rule (infix)body_star
@@ -158,35 +159,26 @@
     if body not in env._star_plus_rules:
       env._add_star_plus_rules(body)
     body_star, body_plus, body_rule = env._star_plus_rules[body]
-    iplus_rule = env._new_inner_rule_name()
+    iplus_rule = env._get_infix_plus_rule(body, infix)
     istar_rule = env._new_inner_rule_name()
-    fmt = ('%(body_rule)s -> %(body)s\n'
-           '%(iplus_rule)s -->\n  %(body_rule)s (%(infix)s)%(body_star)s\n'
-           '%(istar_rule)s[%(body_rule)s] --> %(iplus_rule)s | Empty\n')
+    fmt = '%(istar_rule)s[%(body_rule)s] -> %(iplus_rule)s | Empty\n'
     elts = {"body_rule": body_rule,
             "iplus_rule": iplus_rule,
-            "istar_rule": istar_rule,
-            "body_star": body_star,
-            "body": body,
-            "infix": infix}
+            "istar_rule": istar_rule}
     parse_string(env._add_indents(fmt % elts, mode))
     return istar_rule
   env._get_infix_star_rule = get_infix_star_rule
   #
   def get_infix_plus_rule(body, infix):
+    # TODO update these comments
     # body_rule -> body
     # iplus_rule[body_rule] -->
     #   body_rule (infix)body_star
-    if body not in env._star_plus_rules:
-      env._add_star_plus_rules(body)
     body_star, body_plus, body_rule = env._star_plus_rules[body]
     iplus_rule = env._new_inner_rule_name()
-    fmt = ('%(iplus_rule)s[%(body_rule)s] -->\n'
-           '  %(body_rule)s (%(infix)s)%(body_star)s\n')
+    fmt = '%(iplus_rule)s[%(body_rule)s] -> %(body_rule)s %(infix)s@%(iplus_rule)s | %(body_rule)s\n'
     elts = {"body_rule": body_rule,
             "iplus_rule": iplus_rule,
-            "body_star": body_star,
-            "body": body,
             "infix": infix}
     parse_string(env._add_indents(fmt % elts, mode))
     return iplus_rule

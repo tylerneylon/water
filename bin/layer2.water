@@ -82,14 +82,17 @@
       return params
     : parse.pop_mode()
 
+# TODO See if I can use parse_string more in this layer,
+#      such as from combined_rule.
+
 > lang_def
   combined_rule -->
-    word ' -> ' combined_rule_list "[ \t]*\n" -opt_indented_block
+    rule_tag ' -> ' combined_rule_list "[ \t]*\n" -opt_indented_block
     :
       seqs = combined_rule_list.list()
       names = [env._new_inner_rule_name() for i in range(len(seqs))]
       name_list_str = ' | '.join(names)
-      add_subst('%s --> %s\n' % (word, name_list_str))
+      add_subst('%s --> %s\n' % (src(rule_tag), name_list_str))
       add_subst(src(mode_result))
       ind = mode.indent
       for i, s in enumerate(seqs):
@@ -180,6 +183,7 @@
   # TODO The infix rules have a lot of overlap; factor for cleanup.
   #
   def get_infix_star_rule(body, infix):
+    # TODO update these comments
     # body_rule -> body
     # iplus_rule -->
     #   body_rule (infix)body_star
@@ -187,35 +191,26 @@
     if body not in env._star_plus_rules:
       env._add_star_plus_rules(body)
     body_star, body_plus, body_rule = env._star_plus_rules[body]
-    iplus_rule = env._new_inner_rule_name()
+    iplus_rule = env._get_infix_plus_rule(body, infix)
     istar_rule = env._new_inner_rule_name()
-    fmt = ('%(body_rule)s -> %(body)s\n'
-           '%(iplus_rule)s -->\n  %(body_rule)s (%(infix)s)%(body_star)s\n'
-           '%(istar_rule)s[%(body_rule)s] --> %(iplus_rule)s | Empty\n')
+    fmt = '%(istar_rule)s[%(body_rule)s] -> %(iplus_rule)s | Empty\n'
     elts = {"body_rule": body_rule,
             "iplus_rule": iplus_rule,
-            "istar_rule": istar_rule,
-            "body_star": body_star,
-            "body": body,
-            "infix": infix}
+            "istar_rule": istar_rule}
     parse_string(env._add_indents(fmt % elts, mode))
     return istar_rule
   env._get_infix_star_rule = get_infix_star_rule
   #
   def get_infix_plus_rule(body, infix):
+    # TODO update these comments
     # body_rule -> body
     # iplus_rule[body_rule] -->
     #   body_rule (infix)body_star
-    if body not in env._star_plus_rules:
-      env._add_star_plus_rules(body)
     body_star, body_plus, body_rule = env._star_plus_rules[body]
     iplus_rule = env._new_inner_rule_name()
-    fmt = ('%(iplus_rule)s[%(body_rule)s] -->\n'
-           '  %(body_rule)s (%(infix)s)%(body_star)s\n')
+    fmt = '%(iplus_rule)s[%(body_rule)s] -> %(body_rule)s %(infix)s@%(iplus_rule)s | %(body_rule)s\n'
     elts = {"body_rule": body_rule,
             "iplus_rule": iplus_rule,
-            "body_star": body_star,
-            "body": body,
             "infix": infix}
     parse_string(env._add_indents(fmt % elts, mode))
     return iplus_rule
