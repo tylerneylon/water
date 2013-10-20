@@ -564,12 +564,13 @@ def _parse_item(item, it):
   prefix_info = None
   one_time_prefix = None
   is_negated = False
-  def _end(val, labels):
+  def end(val, labels):
     if is_negated: val = None if val else all_rules['']['Empty']
     if prefix_info: pop_prefix()
     if one_time_prefix:
-      if 'prefix' in val.__dict__: one_time_prefix.suffix = val.prefix
-      val.prefix = one_time_prefix
+      v = val[0] if isinstance(val, list) else val
+      if 'prefix' in v.__dict__: one_time_prefix.suffix = v.prefix
+      v.prefix = one_time_prefix
     return val, labels
   dbg.dprint('temp', 'item=%s' % (item if isinstance(item, str) else `item`))
   # Tuples are of the form (prefix_modifier, item) where the modifier is either
@@ -587,7 +588,7 @@ def _parse_item(item, it):
       push_prefix(*prefix_info)
     item = item[1]
   c = item[0]
-  if c == ':': return _end(_CommandStr(item[1:]), None)
+  if c == ':': return end(_CommandStr(item[1:]), None)
   if c == '!':
     is_negated = True
     item = item[1:]
@@ -610,7 +611,7 @@ def _parse_item(item, it):
     mode_name = _ModeName(item[1:])
     mode_name.may_have_params = (c == '-')
     mode_name.prefix_info = prefix_info
-    return _end(mode_name, labels)
+    return end(mode_name, labels)
   if c == "'": val = _parse_exact_str(item[1:-1], it)
   elif c == '"':
     re = item[1:-1] % mode
@@ -619,7 +620,7 @@ def _parse_item(item, it):
   else:
     val = _rule(item).parse(it)
     if val: labels.append(item)
-  return _end(val, labels)
+  return end(val, labels)
 
 def _parse_exact_str(s, it):
   to_escape = list("+()|*.[]?^")
