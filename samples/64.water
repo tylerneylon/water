@@ -1,15 +1,13 @@
-# 62.water
+# 64.water
 #
-# Test products.
+# Test products and sums.
 #
 
 >
   number -> "[1-9][0-9]*" | '0'
-    value:
-      return int(val(self))
+    value: return int(val(self))
   variable -> "[a-zA-Z]+"
-    value:
-      return env.symbols[val(self)]
+    value: return env.symbols[val(self)]
   atom -> number | variable
   power -> atom '^' power | atom
     value:
@@ -22,11 +20,16 @@
       v = 1
       for p in power_list: v *= p.value()
       return v
-  statement -> (" *")product
-    :
-      print('value of %s is %d' % (src(self), self.value()))
+  sum -> product+'+'
+    value:
+      v = 0
+      for p in product_list: v += p.value()
+      return v
+  statement -> (" *")sum
+    : print('value of %s is %d' % (src(self), self.value()))
 
-2 * 3
-17
-2 ^ 3 * 2
-2 * 2 ^ 3
+1
+1 + 1
+1 + 2 * 3
+1 + 2 * 3 ^ 4
+2^2 + 2 * 2^2
