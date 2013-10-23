@@ -495,6 +495,13 @@ def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)
 
+# TODO Factor this nicely with _prefix.
+def prefix(tree):
+  prefixable_types = [Rule, AttrStr, AttrTuple]
+  if not any([isinstance(tree, t) for t in prefixable_types]): return ''
+  if 'prefix' not in tree.__dict__: return ''
+  return tree.prefix
+
 #------------------------------------------------------------------------------
 #  Internal functions.
 #------------------------------------------------------------------------------

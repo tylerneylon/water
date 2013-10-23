@@ -22,7 +22,7 @@
       for p in power_list:
         x = p.value()
         #import pdb; pdb.set_trace()
-        if val(p.prefix) == '/': x = 1.0 / x
+        if val(prefix(p)) == '/': x = 1.0 / x
         v *= x
       return v
   plus_minus -> '+' | '-'
@@ -31,7 +31,7 @@
       v = 0
       for p in product_list:
         x = p.value()
-        if val(p.prefix) == '-': x *= -1
+        if val(prefix(p)) == '-': x *= -1
         v += x
       return v
   statement -> (" *")sum
