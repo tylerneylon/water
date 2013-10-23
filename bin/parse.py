@@ -495,26 +495,25 @@ def error(msg):
   dbg.dprint('error', 'Error: ' + msg)
   exit(1)
 
-# TODO Factor this nicely with _prefix.
 def prefix(tree):
-  prefixable_types = [Rule, AttrStr, AttrTuple]
-  if not any([isinstance(tree, t) for t in prefixable_types]): return ''
-  if 'prefix' not in tree.__dict__: return ''
-  return tree.prefix
+  return _attr_or_empty_str(tree, 'prefix')
 
 #------------------------------------------------------------------------------
 #  Internal functions.
 #------------------------------------------------------------------------------
 
-def _prefix(node):
+# Returns node.name if it exists; or '' otherwise; never fails.
+# This is useful, for example, in implementing prefix() and _prefix().
+def _attr_or_empty_str(tree, name):
   prefixable_types = [Rule, AttrStr, AttrTuple]
-  if not any([isinstance(node, t) for t in prefixable_types]): return ''
-  if 'prefix' not in node.__dict__: return ''
-  p = node.prefix
-  s = ''
-  if any([isinstance(p, t) for t in prefixable_types]):
-    if 'suffix' in p.__dict__: s = p.suffix
-  return src(node.prefix) + src(s)
+  if not any([isinstance(tree, t) for t in prefixable_types]): return ''
+  if name not in tree.__dict__: return ''
+  return tree.__dict__[name]
+
+def _prefix(node):
+  p = prefix(node)
+  s = _attr_or_empty_str(p, 'suffix')
+  return src(p) + src(s)
 
 def _add_subst(rule_or_text):
   global substs

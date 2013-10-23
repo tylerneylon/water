@@ -21,7 +21,6 @@
       v = 1
       for p in power_list:
         x = p.value()
-        #import pdb; pdb.set_trace()
         if val(prefix(p)) == '/': x = 1.0 / x
         v *= x
       return v
