@@ -50,7 +50,7 @@
 >: or_rule('item_no_label', ['item_negated', 'item_with_at', 'item_plain'], mode='lang_def', list_of=None)
 >: r = seq_rule('item_negated', ["'!'", 'item_plain'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [src(self)]\n')
 >: r = seq_rule('item_with_label', ['item_no_label', "':'", 'word'], mode='lang_def', list_of=None);  r.add_fn('list', "\n      val = item_no_label.list()\n      if isinstance(val[0], str):\n        val[0] += ':%s' % src(word)\n      else:\n        # The first elt of val is a tuple.\n        val[0][1] += ':%s' % src(word)\n      return val\n")
->: r = seq_rule('item_with_at', ['item_plain', "'@'", 'item_plain'], mode='lang_def', list_of=None);  r.add_fn('list', "\n      print('item_with_at list called')\n      return [('@' + src(item_plain[0]), src(item_plain[1]))]\n")
+>: r = seq_rule('item_with_at', ['item_plain', "'@'", 'item_plain'], mode='lang_def', list_of=None);  r.add_fn('list', "\n      return [('@' + src(item_plain[0]), src(item_plain[1]))]\n")
 >: r = or_rule('item_plain', ['no_param_mode_result', 'str', 'rule_name'], mode='lang_def', list_of=None);  r.add_fn('list', ' return [src(self)]\n')
 >: r = seq_rule('str', ['"[\'\\"]"', '-str'], mode='lang_def', list_of=None);  r.add_fn('mode_params', " return {'endchar': tokens[0][0]}\n")
 >: or_rule('phrase', ['indented_rule_item', ':parse.pop_mode()\n'], mode='rule_block', list_of=None)
