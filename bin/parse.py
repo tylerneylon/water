@@ -510,8 +510,11 @@ def _prefix(node):
   prefixable_types = [Rule, AttrStr, AttrTuple]
   if not any([isinstance(node, t) for t in prefixable_types]): return ''
   if 'prefix' not in node.__dict__: return ''
-  suffix = node.suffix if 'suffix' in node.__dict__ else ''
-  return src(node.prefix) + src(suffix)
+  p = node.prefix
+  s = ''
+  if any([isinstance(p, t) for t in prefixable_types]):
+    if 'suffix' in p.__dict__: s = p.suffix
+  return src(node.prefix) + src(s)
 
 def _add_subst(rule_or_text):
   global substs
