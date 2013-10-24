@@ -1,0 +1,48 @@
+# 66.water
+#
+# Test expressions with variables and assignments.
+#
+
+>: env.symbols = {}
+
+>
+  number -> "[1-9][0-9]*" | '0'
+    value: return int(val(self))
+  variable -> "[a-zA-Z]+"
+    value: return env.symbols[val(self)]
+  atom -> number | variable
+  power -> atom '^' power | atom
+    value:
+      if or_index == 0:
+        return atom.value() ** power.value()
+      else:
+        return atom.value()
+  times_divide -> '*' | '/'
+  product -> power+times_divide
+    value:
+      v = 1
+      for p in power_list:
+        x = p.value()
+        if val(prefix(p)) == '/': x = 1.0 / x
+        v *= x
+      return v
+  plus_minus -> '+' | '-'
+  sum -> product+plus_minus
+    value:
+      v = 0
+      for p in product_list:
+        x = p.value()
+        if val(prefix(p)) == '-': x *= -1
+        v += x
+      return v
+  stmnt -> print | assignment
+  print -> 'print' variable
+    : print('%s=%s' % (val(variable), variable.value()))
+  assignment -> variable '=' sum
+    : env.symbols[val(variable)] = sum.value()
+  statement -> (" *")stmnt
+
+x = 3
+y = x^2
+z = x + y * 2
+print z
