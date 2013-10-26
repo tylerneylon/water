@@ -1,0 +1,18 @@
+-------
+rule a parsed
+type(d_list)=<type 'list'>
+src(d_list)=dd
+src per d_list item=['d', 'd']
+name per d_list item=['_inner_1', '_inner_1']
+-------
+rule a parsed
+type(d_list)=<type 'list'>
+src(d_list)=ddd
+src per d_list item=['d', 'd', 'd']
+name per d_list item=['_inner_1', '_inner_1', '_inner_1']
+-------
+rule a parsed
+type(d_list)=<type 'list'>
+src(d_list)=
+src per d_list item=[]
+name per d_list item=[]

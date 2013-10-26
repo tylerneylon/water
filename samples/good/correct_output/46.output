@@ -1,0 +1,8 @@
+proto parsed; tokens:
+0: "printf"
+1: " ("
+2: "fmt, var_arg"
+3: ")"
+args are:
+fmt, 
+var_arg

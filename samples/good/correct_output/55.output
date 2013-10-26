@@ -1,0 +1,4 @@
+abc read with src=abc
+abc read with src=a  bc
+abc read with src=+a+b+c
+abc_minus read with src=a-b-c

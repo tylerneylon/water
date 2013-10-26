@@ -1,0 +1,9 @@
+integer_list=[]
+integer parsed as 1
+integer parsed as 1
+integer_list=[('_inner_4', '1')]
+integer parsed as 1
+integer parsed as 2
+integer parsed as 3
+integer parsed as 3
+integer_list=[('_inner_4', '1'), ('_inner_4', '2'), ('_inner_4', '3')]

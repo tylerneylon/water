@@ -1,0 +1,10 @@
+type(tokens[0])=<class 'parse.AttrStr'>
+greeting=hello
+tokens[1]=there
+type(tokens[0])=<class 'parse.AttrStr'>
+space=" "
+type(tokens[0])=<class 'parse.AttrStr'>
+type(tokens[0])=<class 'parse.AttrStr'>
+greeting=hi
+tokens[1]=there
+type(tokens[0])=<class 'parse.AttrStr'>

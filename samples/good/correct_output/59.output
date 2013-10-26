@@ -1,0 +1,4 @@
+rule a parsed as abc
+is_empty(b)=False
+rule a parsed as ac
+is_empty(b)=True

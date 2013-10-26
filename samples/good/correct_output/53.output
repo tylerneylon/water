@@ -1,0 +1,3 @@
+a-b-c read with src=abc
+a-b-c read with src=a  bc
+a-b-c read with src=a + b+c

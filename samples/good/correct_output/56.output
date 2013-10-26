@@ -1,0 +1,6 @@
+a parsed from .a.b.c
+stmnt parsed: or_index=0
+a parsed from  a b c
+stmnt parsed: or_index=1
+a parsed from  - a - b - c
+stmnt parsed: or_index=2
