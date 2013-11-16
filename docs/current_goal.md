@@ -1,42 +1,25 @@
-# Current Goal: New Syntax
+# Current Goal: Code & Syntax Cleanup
 
 These are the steps I plan to take
-to implement the new grammar-specification syntax:
+to clean up some base syntax and code:
 
-1. Support property delegation in `Object` *DONE*
+1. Look over code for further cleanup opportunities
 
-2. Add property delegation to `OrRule` *DONE*
+2. Item reference syntax cleanup; esp using tokens
 
-3. Add `or_index` to `OrRule` *DONE*
+3. Use `parse_string` in implementation of `combined_rule`
 
-4. Add label support *DONE*
+4. Allow blank lines in code
 
-5. Switch `FalseRule` to `BoolRule` with instances `False` and `Empty` *DONE*
+5. Be able to refer to `item?` as `item`
 
-6. Factor out item parsing *DONE*
+6. Try to move `parse_info` out of `parse.py`
 
-7. Add `!` prefix *DONE*
+7. Set `run._state` from only one Python module
 
-8. Switch `->` to `-->` in current grammar *DONE*
+8. Make debug-friendly flags command-line usable
 
-9. Add support for methods on `OrRule`s *DONE*
-
-10. Add grammar for mixed or/seq rules *DONE*
-
-11. Add grammar for grouping *DONE*
-
-12. Add `?` grammar *DONE*
-
-13. Add `*`, `+` grammar *IN PROGRESS*
 
 ## Notes
 
-* Later, I may want to come back and make sure dot notation works for
-  referencing nested labels and pieces.
-
-* Looking at substitution steps, I see lots of inefficiencies, such
-  as many one-rule rules. I could try to reduce those in automated
-  expansion. Optimizing them away later seems tricky as users may
-  change the grammar later and have reasonable behavior expectations
-  that are destroyed by an optimizer.
-
+*(I can add notes here if anything comes up while working on this goal.)*

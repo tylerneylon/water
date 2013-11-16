@@ -265,3 +265,15 @@ To be clear to myself: 'src' means the input, 'code' is the output sent to the r
 * If the first line is s += 0, we should see an error.
 `samples/good/7.water`:6
 
+---
+
+* Make sure dot notation works for referencing nested labels and pieces.
+
+---
+
+* Looking at substitution steps, I see lots of inefficiencies, such
+  as many one-rule rules. I could try to reduce those in automated
+  expansion. Optimizing them away later seems tricky as users may
+  change the grammar later and have reasonable behavior expectations
+  that are destroyed by an optimizer.
+
