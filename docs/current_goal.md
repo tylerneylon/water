@@ -4,6 +4,7 @@ These are the steps I plan to take
 to clean up some base syntax and code:
 
 1. Look over code for further cleanup opportunities
+   Specifically, `water.py`, `dbg.py`, `parse.py`, and `layer{1,2}.water`.
 
 2. Item reference syntax cleanup; esp using tokens
 
