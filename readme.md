@@ -24,7 +24,7 @@ large code bases.
 
 From the base directory, run:
 
-    $ bin/water.py samples/12.water
+    $ bin/water.py samples/good/12.water
 
 This will simply say `hi` to you. It's interesting because the end of
 `12.water` is the following javascript:
@@ -76,7 +76,7 @@ into executable files by llvm.
 We can gain visibility into what water is doing by using some options.
 For example, running
 
-    bin/water.py samples/12.water --showcode
+    bin/water.py samples/good/12.water --showcode
 
 will not run the code, but instead print out the code actually executed,
 which is Python:
@@ -99,13 +99,15 @@ which is Python:
     symbols['f'] = {'type': 'fn', 'value': fn}
     symbols['f']['value']({'type': 'num', 'value': 3})
 
-This code looks a bit complex because it is meant to be general and
+This code looks a bit complex.
+It's not intended for human consumption.
+Rather, it's meant to be general and
 support the introspective features of javascript.
 
 We can use another approach to see a line-by-line association between
 input source (javascript) and output code (python):
 
-    bin/water.py -showwork samples/12.water
+    bin/water.py -showwork samples/good/12.water
 
 Here is a truncated selection from the output of that command:
 
