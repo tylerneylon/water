@@ -118,7 +118,7 @@
   cond_op -->
     '>'
 
-# So far this is for the body fo a func_def or while.
+# So far this is for the body of a func_def or while.
 > block
   stmnt --> close_brace | func_stmnt
   close_brace -->
